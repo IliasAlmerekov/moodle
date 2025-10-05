@@ -1,0 +1,22 @@
+name: Deploy to Raspberry Pi
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch: # Allow manual triggering of the workflow
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Deploy via SSH
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.RASPI_HOST }}
+                  username: ${{ secrets.RASPI_USER }}
+                  key: ${{ secrets.RASPI_SSH_KEY }}
+                  port: 22
+                  script: |
+                      cd /opt/raspi-proxy/moodle
+                      bash deploy.sh
