@@ -23,6 +23,11 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Data directories (persistent volumes)
+data/
+*.sql
+*.db
+
 # OS metadata
 .DS_Store
 Thumbs.db
