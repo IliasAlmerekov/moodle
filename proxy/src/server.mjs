@@ -166,12 +166,16 @@ fastify.post("/api/chat-stream", async (request, reply) => {
     // Call Ollama to get a response stream
     const ollamaStream = await callOllamaStream(message, OLLAMA_MODEL);
 
-    // Set headers for streaming response
+    // Set headers for streaming response (including CORS headers!)
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      // CORS headers - must be added manually for raw responses
+      "Access-Control-Allow-Origin": "http://192.168.178.49:8080",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
     });
 
     // create a reader to read the stream
