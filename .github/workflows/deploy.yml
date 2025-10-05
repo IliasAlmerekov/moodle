@@ -17,6 +17,7 @@ jobs:
                   username: ${{ secrets.RASPI_USER }}
                   key: ${{ secrets.RASPI_SSH_KEY }}
                   port: 22
+                  debug: true
                   script: |
-                      cd /opt/raspi-proxy/moodle
+                      cd /home/admin/moodle
                       bash deploy.sh
