@@ -1,0 +1,14 @@
+{
+  "name": "moodle-proxy",
+  "version": "0.1.0",
+  "description": "Fastify proxy for local Moodle AI assistant",
+  "type": "module",
+  "main": "src/server.mjs",
+  "scripts": {
+    "start": "node src/server.mjs"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.4.0",
+    "fastify": "4.28.1"
+  }
+}
