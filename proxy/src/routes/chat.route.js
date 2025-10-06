@@ -45,7 +45,7 @@ export default async function chatRoutes(fastify) {
 
     try {
       // call ollama to get a response stream
-      const ollamaStream = await callOllamaStream(message);
+      const ollamaStream = await callOllamaStream(message, config.ollamaModel);
 
       // set headers for streaming response
       reply.raw.writeHead(200, {
