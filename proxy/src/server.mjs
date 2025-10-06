@@ -6,9 +6,10 @@ import chatRoutes from "./routes/chat.route.js";
 import ollamaRoutes from "./routes/ollama.route.js";
 import moodleRoutes from "./routes/moodle.route.js";
 
+// Initialize Fastify
 const fastify = Fastify({
   logger: {
-    level: config.isProduction ? "info" : "debug",
+    level: "info",
   },
 });
 
