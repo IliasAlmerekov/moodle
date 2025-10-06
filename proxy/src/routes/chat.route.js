@@ -17,7 +17,7 @@ export default async function chatRoutes(fastify) {
     fastify.log.info(`Received message: ${message}`);
 
     try {
-      const aiResponse = await callOllama(message);
+      const aiResponse = await callOllama(message, config.ollamaModel);
       return { reply: aiResponse };
     } catch (error) {
       // log error
