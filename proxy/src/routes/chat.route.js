@@ -17,7 +17,7 @@ export default async function chatRoutes(fastify) {
     fastify.log.info(`Received message: ${message}`);
 
     try {
-      const aiResponse = await callOllama(message, config.ollama.model);
+      const aiResponse = await callOllama(message);
       return { reply: aiResponse };
     } catch (error) {
       // log error
@@ -45,7 +45,7 @@ export default async function chatRoutes(fastify) {
 
     try {
       // call ollama to get a response stream
-      const ollamaStream = await callOllamaStream(message, config.ollama.model);
+      const ollamaStream = await callOllamaStream(message);
 
       // set headers for streaming response
       reply.raw.writeHead(200, {

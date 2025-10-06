@@ -15,7 +15,7 @@ export const getModels = async () => {
   return response.json();
 };
 
-export const callOllama = async (prompt) => {
+export const callOllama = async (prompt, model) => {
   // check if ollama.url is configured
   if (!config.ollama.url) {
     throw new Error("OLLAMA_URL is not configured");
@@ -26,6 +26,7 @@ export const callOllama = async (prompt) => {
 
   // construct the body
   const body = {
+    model: model || config.ollama.model,
     prompt: prompt,
     stream: false,
   };
@@ -55,10 +56,11 @@ export const callOllama = async (prompt) => {
 /**
  * Send a prompt to the Ollama and get a response.
  * @param {string} prompt - The prompt to send from user.
+ * @param {string} model - The model to use (optional, defaults to config.ollama.model).
  * @returns {Promise<ReadableStream>} - The response stream from ollama.
  */
 
-export const callOllamaStream = async (prompt) => {
+export const callOllamaStream = async (prompt, model) => {
   if (!config.ollama.url) {
     throw new Error("OLLAMA_URL is not configured");
   }
@@ -66,6 +68,7 @@ export const callOllamaStream = async (prompt) => {
   const url = `${config.ollama.url}/api/generate`;
 
   const body = {
+    model: model || config.ollama.model,
     prompt: prompt,
     stream: true,
   };
