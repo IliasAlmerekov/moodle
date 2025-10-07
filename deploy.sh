@@ -87,29 +87,4 @@ else
     echo -e "${RED}✗ Proxy health check failed!${NC}"
 fi
 
-# Copy chatbot files to Moodle
-echo -e "${YELLOW}Copying chatbot files to Moodle...${NC}"
-
-
-TEMP_CHATBOT_DIR="/tmp/aichatbot"
-mkdir -p "$TEMP_CHATBOT_DIR"
-
-if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc -l)" -gt 0 ]; then
-    cp -r proxy/public/chatbot/* "$TEMP_CHATBOT_DIR/"
-    
-    echo -e "${YELLOW}Copying files to Moodle container...${NC}"
-    docker cp "$TEMP_CHATBOT_DIR" moodle-stack-moodle-1:/opt/bitnami/moodle/local/
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Chatbot files copied to Moodle container${NC}"
-        echo -e "${GREEN}  Location: /opt/bitnami/moodle/local/aichatbot/${NC}"
-    else
-        echo -e "${RED}✗ Failed to copy chatbot files${NC}"
-    fi
-    
-    rm -rf "$TEMP_CHATBOT_DIR"
-else
-    echo -e "${YELLOW}No chatbot files to copy (source directory missing or empty).${NC}"
-fi
-
 echo -e "${GREEN}=== Deploy completed successfully at $(date) ===${NC}"
