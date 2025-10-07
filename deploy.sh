@@ -89,33 +89,25 @@ fi
 
 # Copy chatbot files to Moodle
 echo -e "${YELLOW}Copying chatbot files to Moodle...${NC}"
-MOODLE_CHATBOT_DIR="$PROJECT_DIR/data/moodle/local/aichatbot"
-if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
-    mkdir -p "$MOODLE_CHATBOT_DIR"
-    echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
-fi
+
+
+TEMP_CHATBOT_DIR="/tmp/aichatbot"
+mkdir -p "$TEMP_CHATBOT_DIR"
 
 if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc -l)" -gt 0 ]; then
-    cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
+    cp -r proxy/public/chatbot/* "$TEMP_CHATBOT_DIR/"
+    
+    echo -e "${YELLOW}Copying files to Moodle container...${NC}"
+    docker cp "$TEMP_CHATBOT_DIR" moodle-stack-moodle-1:/opt/bitnami/moodle/local/
+    
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
-        
-        # Проверяем и создаём symlink в контейнере
-        echo -e "${YELLOW}Checking if symlink exists in container...${NC}"
-        if docker exec moodle-moodle-1 test -L /opt/bitnami/moodle/local 2>/dev/null; then
-            echo -e "${GREEN}✓ Symlink already exists${NC}"
-        else
-            echo -e "${YELLOW}Creating symlink in container...${NC}"
-            docker exec moodle-moodle-1 ln -s /bitnami/moodle/local /opt/bitnami/moodle/local 2>/dev/null
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}✓ Symlink created: /opt/bitnami/moodle/local -> /bitnami/moodle/local${NC}"
-            else
-                echo -e "${YELLOW}Note: Symlink creation failed (might already exist as directory)${NC}"
-            fi
-        fi
+        echo -e "${GREEN}✓ Chatbot files copied to Moodle container${NC}"
+        echo -e "${GREEN}  Location: /opt/bitnami/moodle/local/aichatbot/${NC}"
     else
         echo -e "${RED}✗ Failed to copy chatbot files${NC}"
     fi
+    
+    rm -rf "$TEMP_CHATBOT_DIR"
 else
     echo -e "${YELLOW}No chatbot files to copy (source directory missing or empty).${NC}"
 fi
