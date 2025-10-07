@@ -11,7 +11,7 @@ body {
 
 .chatbot-toogle {
   position: fixed;
-  bottom: 20px;
+  bottom: 90px;
   right: 20px;
   width: 60px;
   height: 60px;
@@ -23,7 +23,7 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
-  z-index: 999;
+  z-index: 9999;
 }
 
 .chatbot-toogle:hover {
@@ -47,7 +47,7 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  z-index: 10000; 
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
@@ -70,8 +70,9 @@ body {
 }
 
 .chatbot-logo {
-  height: 40px;
-  width: 120px;
+  height: 32px;
+  width: 32px;
+  object-fit: contain;
 }
 
 .chatbot-header h2 {
