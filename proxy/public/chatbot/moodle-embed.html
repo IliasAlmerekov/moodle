@@ -1,13 +1,12 @@
 <!-- AI Chatbot for Moodle -->
-<!-- Paste this code into: Site administration → Appearance → Additional HTML → "When BODY is opened" -->
 
 <!-- Chatbot Styles -->
-<link rel="stylesheet" href="/local/aichatbot/chatbot.css" />
+<link rel="stylesheet" href="http://192.168.178.49:3000/chatbot/chatbot.css" />
 
 <!-- Chatbot HTML Structure -->
 <button
-  id="chatbot-toggle"
-  class="chatbot-toggle"
+  id="chatbot-toogle"
+  class="chatbot-toogle"
   aria-label="AI Assistent öffnen"
 >
   💬
@@ -16,11 +15,11 @@
 <div id="chatbot-window" class="chatbot-window hidden">
   <div class="chatbot-header">
     <img
-      src="/local/aichatbot/moodle_logo.svg"
-      alt="Moodle Logo"
+      src="http://192.168.178.49:3000/chatbot/assets/moodle_logo.svg"
+      alt="AI Logo"
       class="chatbot-logo"
     />
-    <h2 class="chatbot-title">AI</h2>
+    <h2 class="chatbot-title">AI Assistent</h2>
     <button id="chatbot-close" class="chatbot-close" aria-label="Schließen">
       ✖
     </button>
@@ -47,4 +46,7 @@
 </div>
 
 <!-- Chatbot JavaScript -->
-<script type="module" src="/local/aichatbot/chatbot.js"></script>
+<script
+  type="module"
+  src="http://192.168.178.49:3000/chatbot/chatbot.js"
+></script>
