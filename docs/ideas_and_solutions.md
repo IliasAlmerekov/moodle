@@ -11,6 +11,7 @@ Students lose motivation, can't recognize learning goals, and waste time searchi
 Integrate an AI Learning Companion directly into Moodle that provides:
 
 - Smart search and summaries of lessons and uploaded files
+- Can help to understand the goal of learn field
 - Answers to general questions and questions about school
 
 **Expected impact:**
@@ -25,7 +26,7 @@ Students stay focused on clear objectives, spend less time searching for relevan
 
 ---
 
-### 2. Adaptive AI Tutor for Differentiated Learning
+### 2. Adaptive AI helper for Differentiated Learning
 
 **Problem addressed:**
 Unequal learning results — strong students advance quickly, weaker ones fall behind.
@@ -50,7 +51,7 @@ More balanced learning outcomes, reduced frustration for struggling students.
 
 ---
 
-### 3. AI Support Center for Teachers
+### 3. AI Support for Teachers
 
 **Problem addressed:**
 Teachers spend too much time repeating explanations and answering the same questions.
