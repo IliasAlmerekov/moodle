@@ -1,4 +1,7 @@
 import Fastify from "fastify";
+import fastifyStatic from "@fastify/static";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
 import config from "./config/env.js";
 import healthRoutes from "./routes/health.route.js";
@@ -16,6 +19,14 @@ const fastify = Fastify({
 // register cors plugin
 await fastify.register(cors, {
   origin: "*",
+});
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+await fastify.register(fastifyStatic, {
+  root: path.join(__dirname, "..", "public"),
+  prefix: "/",
 });
 
 // register all routes
