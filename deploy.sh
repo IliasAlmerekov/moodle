@@ -87,4 +87,23 @@ else
     echo -e "${RED}✗ Proxy health check failed!${NC}"
 fi
 
+# Copy chatbot files to Moodle
+echo -e "${YELLOW}Copying chatbot files to Moodle...${NC}"
+MOODLE_CHATBOT_DIR="/var/www/html/local/aichatbot"
+if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
+    mkdir -p "$MOODLE_CHATBOT_DIR"
+    echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
+fi
+
+if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc -l)" -gt 0 ]; then
+    cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
+    else
+        echo -e "${RED}✗ Failed to copy chatbot files${NC}"
+    fi
+else
+    echo -e "${YELLOW}No chatbot files to copy (source directory missing or empty).${NC}"
+fi
+
 echo -e "${GREEN}=== Deploy completed successfully at $(date) ===${NC}"
