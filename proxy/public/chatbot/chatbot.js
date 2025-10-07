@@ -47,7 +47,7 @@ const sendMessage = async () => {
   sendButton.disabled = true;
 
   // show loading message
-  const loadingId = addLoadingMessage();
+  const loadingId = addLoadingMessage(messagesContainer);
 
   try {
     const response = await fetch("/api/chat", {
