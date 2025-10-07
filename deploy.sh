@@ -89,15 +89,25 @@ fi
 
 # Copy chatbot files to Moodle
 echo -e "${YELLOW}Copying chatbot files to Moodle...${NC}"
-MOODLE_CHATBOT_DIR="/var/www/html/local/aichatbot"
+MOODLE_CHATBOT_DIR="$PROJECT_DIR/data/moodle/local/aichatbot"
 if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
     mkdir -p "$MOODLE_CHATBOT_DIR"
     echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
 fi
 
-cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
+cp -r "$PROJECT_DIR/proxy/public/chatbot/"* "$MOODLE_CHATBOT_DIR/"
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
+    echo -e "${GREEN}✓ Chatbot files copied to: $MOODLE_CHATBOT_DIR${NC}"
+    
+    # Проверяем существует ли symlink в контейнере
+    echo -e "${YELLOW}Checking if symlink exists in container...${NC}"
+    if docker exec moodle-moodle-1 test -e /opt/bitnami/moodle/local; then
+        echo -e "${GREEN}✓ /opt/bitnami/moodle/local exists${NC}"
+    else
+        echo -e "${YELLOW}Creating symlink in container...${NC}"
+        docker exec moodle-moodle-1 ln -s /bitnami/moodle/local /opt/bitnami/moodle/local
+        echo -e "${GREEN}✓ Symlink created${NC}"
+    fi
 else
     echo -e "${RED}✗ Failed to copy chatbot files${NC}"
 fi
