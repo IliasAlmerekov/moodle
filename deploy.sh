@@ -99,6 +99,20 @@ if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc 
     cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
+        
+        # Проверяем и создаём symlink в контейнере
+        echo -e "${YELLOW}Checking if symlink exists in container...${NC}"
+        if docker exec moodle-moodle-1 test -L /opt/bitnami/moodle/local 2>/dev/null; then
+            echo -e "${GREEN}✓ Symlink already exists${NC}"
+        else
+            echo -e "${YELLOW}Creating symlink in container...${NC}"
+            docker exec moodle-moodle-1 ln -s /bitnami/moodle/local /opt/bitnami/moodle/local 2>/dev/null
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Symlink created: /opt/bitnami/moodle/local -> /bitnami/moodle/local${NC}"
+            else
+                echo -e "${YELLOW}Note: Symlink creation failed (might already exist as directory)${NC}"
+            fi
+        fi
     else
         echo -e "${RED}✗ Failed to copy chatbot files${NC}"
     fi
