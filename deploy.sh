@@ -89,7 +89,7 @@ fi
 
 # Copy chatbot files to Moodle
 echo -e "${YELLOW}Copying chatbot files to Moodle...${NC}"
-MOODLE_CHATBOT_DIR="/var/www/html/local/aichatbot"
+MOODLE_CHATBOT_DIR="$PROJECT_DIR/data/moodle/local/aichatbot"
 if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
     mkdir -p "$MOODLE_CHATBOT_DIR"
     echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
