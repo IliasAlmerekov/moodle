@@ -179,6 +179,26 @@ body {
   cursor: not-allowed;
 }
 
+.typing-indicator {
+  display: inline-block;
+  font-size: 20px;
+  animation: typing 1.4s infinite;
+  letter-spacing: 2px;
+}
+
+@keyframes typing {
+  0%,
+  20% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
 @media (max-width: 480px) {
   .chatbot-window {
     width: calc(100vw - 20px);

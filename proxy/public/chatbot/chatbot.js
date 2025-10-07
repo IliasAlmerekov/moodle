@@ -1,3 +1,6 @@
+import { addLoadingMessage } from "./loadingMessage";
+import { removeMessage } from "./removeMessage";
+
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
 const closeButton = document.getElementById("chatbot-close");
@@ -40,17 +43,44 @@ const sendMessage = async () => {
   if (!message) return;
 
   addMessage(message, true);
-
   inputField.value = "";
   sendButton.disabled = true;
 
-  // here will request to backend
+  // show loading message
+  const loadingId = addLoadingMessage();
 
-  setTimeout(() => {
-    addMessage("Danke für deine Nachricht! KI wird bald verfügbar sein.");
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: message }),
+    });
+
+    // remove loading message
+    removeMessage(loadingId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // add bot response
+    addMessage(data.reply, false);
+  } catch (error) {
+    removeMessage(loadingId);
+
+    console.error("Error:", error);
+    addMessage(
+      "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.",
+      false
+    );
+  } finally {
     sendButton.disabled = false;
     inputField.focus();
-  }, 1000);
+  }
 };
 
 // event listeners
