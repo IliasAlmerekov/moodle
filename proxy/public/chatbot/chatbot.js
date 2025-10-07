@@ -1,5 +1,5 @@
-import { addLoadingMessage } from "./loadingMessage";
-import { removeMessage } from "./removeMessage";
+import { addLoadingMessage } from "./loadingMessage.js";
+import { removeMessage } from "./removeMessage.js";
 
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
