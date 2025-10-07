@@ -95,11 +95,15 @@ if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
     echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
 fi
 
-cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
+if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc -l)" -gt 0 ]; then
+    cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
+    else
+        echo -e "${RED}✗ Failed to copy chatbot files${NC}"
+    fi
 else
-    echo -e "${RED}✗ Failed to copy chatbot files${NC}"
+    echo -e "${YELLOW}No chatbot files to copy (source directory missing or empty).${NC}"
 fi
 
 echo -e "${GREEN}=== Deploy completed successfully at $(date) ===${NC}"
