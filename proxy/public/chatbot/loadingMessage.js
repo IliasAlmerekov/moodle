@@ -1,4 +1,4 @@
-export function addLoadingMessage() {
+export function addLoadingMessage(messagesContainer) {
   const messageDiv = document.createElement("div");
   messageDiv.className = "message bot-message";
   messageDiv.id = "loading-message";
