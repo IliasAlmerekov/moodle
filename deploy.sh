@@ -95,21 +95,15 @@ if [ ! -d "$MOODLE_CHATBOT_DIR" ]; then
     echo -e "${YELLOW}Created directory: $MOODLE_CHATBOT_DIR${NC}"
 fi
 
-cp -r "$PROJECT_DIR/proxy/public/chatbot/"* "$MOODLE_CHATBOT_DIR/"
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Chatbot files copied to: $MOODLE_CHATBOT_DIR${NC}"
-    
-    # Проверяем существует ли symlink в контейнере
-    echo -e "${YELLOW}Checking if symlink exists in container...${NC}"
-    if docker exec moodle-moodle-1 test -e /opt/bitnami/moodle/local; then
-        echo -e "${GREEN}✓ /opt/bitnami/moodle/local exists${NC}"
+if [ -d "proxy/public/chatbot" ] && [ "$(find proxy/public/chatbot -type f | wc -l)" -gt 0 ]; then
+    cp -r proxy/public/chatbot/* "$MOODLE_CHATBOT_DIR/"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Chatbot files copied to Moodle${NC}"
     else
-        echo -e "${YELLOW}Creating symlink in container...${NC}"
-        docker exec moodle-moodle-1 ln -s /bitnami/moodle/local /opt/bitnami/moodle/local
-        echo -e "${GREEN}✓ Symlink created${NC}"
+        echo -e "${RED}✗ Failed to copy chatbot files${NC}"
     fi
 else
-    echo -e "${RED}✗ Failed to copy chatbot files${NC}"
+    echo -e "${YELLOW}No chatbot files to copy (source directory missing or empty).${NC}"
 fi
 
 echo -e "${GREEN}=== Deploy completed successfully at $(date) ===${NC}"
