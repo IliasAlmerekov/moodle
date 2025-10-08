@@ -97,6 +97,8 @@ const sendMessageStream = async () => {
   inputField.value = "";
   sendButton.disabled = true;
 
+  const loadingId = addLoadingMessage(messagesContainer);
+
   const botMessageDiv = createEmptyBotMessage();
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
@@ -108,6 +110,8 @@ const sendMessageStream = async () => {
       },
       body: JSON.stringify({ message: message }),
     });
+
+    removeMessage(loadingId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -127,17 +131,29 @@ const sendMessageStream = async () => {
 
       for (const line of lines) {
         try {
-          const data = JSON.parse(line);
-          if (data.response) {
-            contentDiv.textContent += data.response;
+          // Strip "data: " prefix if present (SSE format)
+          const jsonStr = line.startsWith("data: ") ? line.substring(6) : line;
+
+          // Skip [DONE] signal
+          if (jsonStr === "[DONE]") {
+            continue;
+          }
+
+          const data = JSON.parse(jsonStr);
+
+          // Handle both "response" and "text" fields
+          const text = data.response || data.text || "";
+          if (text) {
+            contentDiv.textContent += text;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
-          console.warn("Failed to parse chunk:", line);
+          console.warn("Failed to parse chunk:", line, e);
         }
       }
     }
   } catch (error) {
+    removeMessage(loadingId);
     console.error("Error:", error);
     contentDiv.textContent =
       "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
