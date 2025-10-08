@@ -1,10 +1,7 @@
 import { addLoadingMessage } from "./loadingMessage.js";
 import { removeMessage } from "./removeMessage.js";
 
-const API_BASE_URL =
-  import.meta.env.ACTIVE_ENV === "school"
-    ? "http://192.168.137.102:3000"
-    : "http://192.168.178.35:3000"; // api raspi
+const API_BASE_URL = "http://192.168.178.49:3000"; // api raspi
 
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
@@ -41,53 +38,6 @@ const addMessage = (content, isUser = false) => {
 };
 
 // function to send message
-
-const sendMessage = async () => {
-  const message = inputField.value.trim();
-
-  if (!message) return;
-
-  addMessage(message, true);
-  inputField.value = "";
-  sendButton.disabled = true;
-
-  // show loading message
-  const loadingId = addLoadingMessage(messagesContainer);
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: message }),
-    });
-
-    // remove loading message
-    removeMessage(loadingId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // add bot response
-    addMessage(data.reply, false);
-  } catch (error) {
-    removeMessage(loadingId);
-
-    console.error("Error:", error);
-    addMessage(
-      "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.",
-      false
-    );
-  } finally {
-    sendButton.disabled = false;
-    inputField.focus();
-  }
-};
-
 const sendMessageStream = async () => {
   const message = inputField.value.trim();
 
