@@ -14,7 +14,7 @@ export async function callMoodleAPI(functionName, params = {}) {
     ...params,
   });
 
-  const url = `${config.moodle.url}/webservice/rest/server/php?${urlParams}`;
+  const url = `${config.moodle.url}/webservice/rest/server.php?${urlParams}`;
 
   try {
     // make the API call
