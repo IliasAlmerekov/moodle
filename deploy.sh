@@ -95,19 +95,19 @@ cd compose
 
 if docker compose ps | grep -q "Up"; then
     echo -e "${YELLOW}Stopping containers...${NC}"
-    docker compose down
+    docker compose --env-file ../.env down
 fi
 
 if [ "$PROXY_CHANGED" = true ]; then
     echo -e "${YELLOW}Proxy code changed. Rebuilding...${NC}"
-    docker compose build proxy
+    docker compose --env-file ../.env build proxy
 else
     echo -e "${YELLOW}No proxy changes detected. Skipping rebuild.${NC}"
 fi
 
 echo -e "${YELLOW}Starting containers with detected environment...${NC}"
 # Pass detected URLs as environment variables to docker-compose
-MOODLE_URL=$MOODLE_URL OLLAMA_URL=$OLLAMA_URL docker compose up -d
+MOODLE_URL=$MOODLE_URL OLLAMA_URL=$OLLAMA_URL docker compose --env-file ../.env up -d
 
 sleep 3
 
