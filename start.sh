@@ -54,7 +54,7 @@ echo ""
 # Start containers
 cd compose
 echo -e "${YELLOW}Starting containers...${NC}"
-MOODLE_URL=$MOODLE_URL OLLAMA_URL=$OLLAMA_URL docker compose up -d
+MOODLE_URL=$MOODLE_URL OLLAMA_URL=$OLLAMA_URL docker compose --env-file ../.env up -d
 
 sleep 2
 
