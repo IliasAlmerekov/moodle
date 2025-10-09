@@ -16,9 +16,6 @@ export async function callMoodleAPI(functionName, params = {}) {
 
   const url = `${config.moodle.url}/webservice/rest/server.php?${urlParams}`;
 
-  // Логируем URL для отладки
-  console.log(`Calling Moodle API: ${functionName}`);
-  console.log(`URL: ${url}`);
 
   try {
     // make the API call
