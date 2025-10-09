@@ -87,6 +87,7 @@ const sendMessageStream = async () => {
 
   const loadingId = addLoadingMessage(messagesContainer);
 
+  const botMessageDiv = createEmptyBotMessage();
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
   try {
@@ -150,6 +151,21 @@ const sendMessageStream = async () => {
     inputField.focus();
   }
 };
+
+function createEmptyBotMessage() {
+  const messageDiv = document.createElement("div");
+  messageDiv.classList = "message bot-message";
+
+  const contentDiv = document.createElement("div");
+  contentDiv.classList = "message-content";
+  contentDiv.textContent = "";
+
+  messageDiv.appendChild(contentDiv);
+  messagesContainer.appendChild(messageDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  return messageDiv;
+}
 
 // event listeners
 toogleButton.addEventListener("click", openChat);
