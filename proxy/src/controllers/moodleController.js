@@ -1,9 +1,9 @@
-import config from "../config/env";
+import config from "../config/env.js";
 import {
   getUserInfo,
   getUserCourses,
   getSiteInfo,
-} from "../services/moodle.service";
+} from "../services/moodle.service.js";
 
 // Health check for Moodle instance
 export async function getMoodlePing(request, reply) {

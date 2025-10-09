@@ -1,5 +1,5 @@
-import config from "../config/env";
-import { getModels } from "../services/ollama.service";
+import config from "../config/env.js";
+import { getModels } from "../services/ollama.service.js";
 
 export async function getOllamaModels(request, reply) {
   if (!config.ollama.isConfigured) {

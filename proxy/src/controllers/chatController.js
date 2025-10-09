@@ -1,6 +1,6 @@
-import config from "../config/env";
-import { getUserCourses, getUserInfo } from "../services/moodle.service";
-import { callOllamaStream } from "../services/ollama.service";
+import config from "../config/env.js";
+import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
+import { callOllamaStream } from "../services/ollama.service.js";
 
 export async function handleChatStream(request, reply) {
   const { message, userId } = request.body;
