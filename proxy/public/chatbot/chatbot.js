@@ -79,7 +79,6 @@ const sendMessageStream = async () => {
 
   const loadingId = addLoadingMessage(messagesContainer);
 
-  const botMessageDiv = createEmptyBotMessage();
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
   try {
