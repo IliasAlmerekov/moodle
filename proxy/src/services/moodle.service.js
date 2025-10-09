@@ -16,6 +16,10 @@ export async function callMoodleAPI(functionName, params = {}) {
 
   const url = `${config.moodle.url}/webservice/rest/server.php?${urlParams}`;
 
+  // Логируем URL для отладки
+  console.log(`Calling Moodle API: ${functionName}`);
+  console.log(`URL: ${url}`);
+
   try {
     // make the API call
     const response = await fetch(url);
@@ -59,6 +63,6 @@ export async function getUserInfo(userId) {
 
 export async function getUserCourses(userId) {
   return callMoodleAPI("core_enrol_get_users_courses", {
-    userId: userId,
+    userid: userId,
   });
 }
