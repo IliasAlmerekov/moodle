@@ -37,6 +37,36 @@ const addMessage = (content, isUser = false) => {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 };
 
+const getUserId = () => {
+  let userId = null;
+
+  try {
+    if (window.parent && window.parent.M && window.parent.M.cfg) {
+      userId = window.parent.M.cfg.userid;
+      console.log("Moodle userId found:", userId);
+    }
+  } catch (error) {
+    console.warn("Cannot access parent window:", error);
+  }
+
+  if (!userId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("userid")) {
+      userId = urlParams.get("userid");
+      console.log("userId from URL parameter:", userId);
+    }
+  }
+
+  if (!userId) {
+    userId = localStorage.getItem("moodle_userid");
+    if (userId) {
+      console.log(`UserId from localStorage: ${userId}`);
+    }
+  }
+
+  return userId;
+};
+
 // function to send message
 const sendMessageStream = async () => {
   const message = inputField.value.trim();
@@ -53,12 +83,13 @@ const sendMessageStream = async () => {
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
   try {
+    const userId = getUserId();
     const response = await fetch(`${API_BASE_URL}/api/chat-stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message }),
+      body: JSON.stringify({ message: message, userId: userId }),
     });
 
     removeMessage(loadingId);

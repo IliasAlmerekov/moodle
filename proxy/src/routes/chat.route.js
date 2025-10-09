@@ -1,4 +1,5 @@
 import config from "../config/env.js";
+import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
 import { callOllama, callOllamaStream } from "../services/ollama.service.js";
 
 /**
@@ -34,18 +35,60 @@ export default async function chatRoutes(fastify) {
 
   // endpoint for streaming response
   fastify.post("/api/chat-stream", async (request, reply) => {
-    const { message } = request.body;
+    const { message, userId } = request.body;
 
     if (!message) {
       reply.code(400);
       return { error: "Message is required" };
     }
 
-    fastify.log.info(`Received streaming message: ${message}`);
+    fastify.log.info(
+      `Received streaming message: ${message}, userId: ${userId}`
+    );
+
+    let systemPrompt =
+      "You are a helpful AI assistant for school moodle platform to help with general questions for students.";
+
+    if (userId) {
+      try {
+        fastify.log.info(`Fetching user info for userId: ${userId}`);
+
+        // get info about user from moodle
+        const userInfo = await getUserInfo(userId);
+        fastify.log.info(`User: ${user.firstname} ${user.lastname}`);
+
+        // get user courser
+        const userCourses = await getUserCourses(userId);
+        fastify.log.info(`Found ${userCourses.length} courses`);
+
+        // context for ai
+        const coursesList = userCourses
+          .map((course) => `- ${course.fullname}`)
+          .join("\n");
+
+        systemPrompt = `You support ${userInfo.firstname} ${userInfo.lastname}.
+        Currently, the user is enrolled in the following courses:
+        ${coursesList}
+
+        Answer the in German language if user ask in German, but you support all languages. Also support user with questions about learn fields on Moodle.
+        `;
+
+        fastify.log.info("Moodle context added to prompt");
+      } catch (error) {
+        fastify.log.warn(`Could not fetch Moodle context: ${error.message}`);
+      }
+    } else {
+      fastify.log.info("No userId provided, using default system prompt");
+    }
+
+    const fullPrompt = `${systemPrompt}\n\nQuestion: ${message}`;
 
     try {
       // call ollama to get a response stream
-      const ollamaStream = await callOllamaStream(message, config.ollamaModel);
+      const ollamaStream = await callOllamaStream(
+        fullPrompt,
+        config.ollama.model
+      );
 
       // set headers for streaming response
       reply.raw.writeHead(200, {
