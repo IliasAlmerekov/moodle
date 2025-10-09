@@ -22,6 +22,7 @@ services:
     restart: unless-stopped
     depends_on: [mariadb]
     environment:
+      - PHP_UPLOAD_MAX_FILESIZE=200M
       - MOODLE_DATABASE_HOST=mariadb
       - MOODLE_DATABASE_PORT_NUMBER=3306
       - MOODLE_DATABASE_USER=${MARIADB_USER}
