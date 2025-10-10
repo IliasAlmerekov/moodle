@@ -14,7 +14,7 @@ export async function handleChatStream(request, reply) {
 
   // Build system prompt with Moodle context
   const systemPrompt = await buildSystemPrompt(userId, request.log);
-  const fullPrompt = `${systemPrompt}\n\nQuestion: ${message}`;
+  const fullPrompt = `${systemPrompt}\n\ndie Frage: ${message}`;
 
   try {
     const ollamaStream = await callOllamaStream(
