@@ -27,6 +27,17 @@ const closeChat = () => {
   toogleButton.classList.remove("hidden");
 };
 
+// function to convert markdown links to HTML
+// Example: [Moodle](https://moodle.org) → <a href="https://moodle.org" target="_blank">Moodle</a>
+const convertMarkdownLinks = (text) => {
+  // Convert markdown links [text](url) to HTML <a> tags
+  // Opens links in new tab with security attributes
+  return text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+};
+
 // function to add messages to the chat window
 const addMessage = (content, isUser = false) => {
   const messageDiv = document.createElement("div");
@@ -34,7 +45,14 @@ const addMessage = (content, isUser = false) => {
 
   const contentDiv = document.createElement("div");
   contentDiv.className = "message-content";
-  contentDiv.textContent = content;
+
+  if (isUser) {
+    // User messages as plain text (for security)
+    contentDiv.textContent = content;
+  } else {
+    // Bot messages support links
+    contentDiv.innerHTML = convertMarkdownLinks(content);
+  }
 
   messageDiv.appendChild(contentDiv);
   messagesContainer.appendChild(messageDiv);
@@ -125,7 +143,9 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            contentDiv.textContent += text;
+            // Append text and convert markdown links
+            const currentText = contentDiv.textContent + text;
+            contentDiv.innerHTML = convertMarkdownLinks(currentText);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
@@ -136,7 +156,7 @@ const sendMessageStream = async () => {
   } catch (error) {
     removeMessage(loadingId);
     console.error("Error:", error);
-    contentDiv.textContent =
+    contentDiv.innerHTML =
       "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
   } finally {
     sendButton.disabled = false;
