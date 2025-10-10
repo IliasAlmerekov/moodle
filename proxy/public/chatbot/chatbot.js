@@ -40,12 +40,25 @@ const addMessage = (content, isUser = false) => {
 const getUserId = () => {
   let userId = null;
 
+  // === ДИАГНОСТИКА ===
+  console.log("🔍 Checking for userId...");
+  console.log("window.M exists?", typeof window.M !== "undefined");
+  console.log("window.M:", window.M);
+
+  if (window.M) {
+    console.log("window.M.cfg exists?", typeof window.M.cfg !== "undefined");
+    console.log("window.M.cfg:", window.M.cfg);
+
+    if (window.M.cfg) {
+      console.log("window.M.cfg.userid:", window.M.cfg.userid);
+    }
+  }
+
   // Try 1: From Moodle global JS object (if available)
   try {
     if (window.M && window.M.cfg && window.M.cfg.userid) {
-      // was saveed in global moodle object like window.M ={cfg: userid: 2}
       userId = window.M.cfg.userid;
-      // Save to localStorage for future use
+      console.log("✅ userId from Moodle global:", userId);
       localStorage.setItem("moodle_userid", userId);
       return userId;
     }
@@ -58,6 +71,7 @@ const getUserId = () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("userid")) {
       userId = urlParams.get("userid");
+      console.log("✅ userId from URL parameter:", userId);
       localStorage.setItem("moodle_userid", userId);
       return userId;
     }
@@ -67,6 +81,7 @@ const getUserId = () => {
   if (!userId) {
     userId = localStorage.getItem("moodle_userid");
     if (userId) {
+      console.log("✅ userId from localStorage:", userId);
       return userId;
     }
   }
