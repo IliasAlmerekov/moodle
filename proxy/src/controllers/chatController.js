@@ -59,9 +59,9 @@ export async function handleChatStream(request, reply) {
 
 // Build system prompt with Moodle context
 async function buildSystemPrompt(user) {
-  const coursesList = user.courses
-    .map((course) => `- ${course.name}`)
-    .join("\n");
+  const coursesList =
+    user?.courses?.map((course) => `- ${course.name}`).join("\n") ||
+    "Keine Kurse gefunden";
 
   return `
   Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. Deine Aufgabe ist es, Studierenden beim Lernen und Verstehen ihrer Kursinhalte zu unterstützen.
