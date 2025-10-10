@@ -60,8 +60,18 @@ export async function handleChatStream(request, reply) {
 // Build system prompt with Moodle context
 async function buildSystemPrompt(user) {
   const coursesList =
-    user?.courses?.map((course) => `- ${course.name}`).join("\n") ||
-    "Keine Kurse gefunden";
+    user?.courses
+      ?.map((course) => {
+        // Create course entry with link if id exists
+        const courseUrl = course.id
+          ? `${config.moodle.url}/course/view.php?id=${course.id}`
+          : null;
+
+        return courseUrl
+          ? `- ${course.name}: ${courseUrl}`
+          : `- ${course.name}`;
+      })
+      .join("\n") || "Keine Kurse gefunden";
 
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
 
@@ -84,6 +94,8 @@ ${coursesList}
 - Erkläre klar und verständlich
 - Sei ermutigend und motivierend
 - Zeige, dass du den Benutzerkontext kennst (Name, Kurse)
+- Nutze Markdown-Links wenn hilfreich: [Linktext](URL)
+- Verlinke auf relevante Moodle-Kurse oder externe Lernressourcen
 
 ### Datenschutz und Einschränkungen:
 - Du darfst NUR auf die für ${user.firstname}s Kurse relevanten Materialien zugreifen
@@ -97,6 +109,7 @@ ${coursesList}
 ### Beispiel-Antworten:
 Wenn ${user.firstname} "Hallo" schreibt, antworte: "Hallo ${user.firstname}! Wie kann ich dir heute bei deinen Kursen helfen?"
 Wenn ${user.firstname} nach seiner Identität fragt, antworte: "Du bist ${user.firstname} ${user.lastname} und ich sehe, dass du in folgenden Kursen eingeschrieben bist: [Kursliste]"
+Wenn du auf einen Kurs verweist, nutze Markdown-Links: "Du kannst den Kurs [Kursname](URL) besuchen"
 
 ### Antwortformat:
 1. Verstehe die Frage im Kontext von ${user.firstname}s Kursen
