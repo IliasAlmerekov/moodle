@@ -10,13 +10,16 @@ const messagesContainer = document.getElementById("chatbot-messages");
 const inputField = document.getElementById("chatbot-input");
 const sendButton = document.getElementById("chatbot-send");
 
-let currentUserId = null;
+let currentUser = null;
 
 // function to open and close the chat window
 const openChat = () => {
   chatWindow.classList.remove("hidden");
   toogleButton.classList.add("hidden");
   inputField.focus();
+
+  // load user profile
+  fetchUserProfile();
 };
 
 const closeChat = () => {
@@ -40,21 +43,27 @@ const addMessage = (content, isUser = false) => {
 };
 
 // function to get userId
-async function fetchUserId() {
+async function fetchUserProfile() {
   try {
-    const response = await fetch(`${API_BASE_URL}/moodle/whoami`);
+    const response = await fetch(`${API_BASE_URL}/moodle/me`);
     const data = await response.json();
-    if (data.userId) {
-      currentUserId = data.userId;
-      localStorage.setItem("moodle_userId", currentUserId);
-      console.log("✅ Fetched userId from API:", currentUserId);
+
+    if (data.status === "ok") {
+      currentUser = {
+        id: data.user.id,
+        firstname: data.user.firstname,
+        lastname: data.user.lastname,
+        email: data.user.email,
+        courses: data.courses, // array of courses
+      };
+
+      localStorage.setItem("moodle_user", JSON.stringify(currentUser));
+      console.log("User profile fetched:", currentUser);
     }
   } catch (error) {
     console.warn("Could not fetch userId from API:", error);
   }
 }
-
-fetchUserId();
 
 // function to send message
 const sendMessageStream = async () => {
@@ -77,7 +86,10 @@ const sendMessageStream = async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message, userId: currentUserId }),
+      body: JSON.stringify({
+        message: message,
+        user: currentUser,
+      }),
     });
 
     removeMessage(loadingId);

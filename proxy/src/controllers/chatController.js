@@ -1,59 +1,70 @@
 import config from "../config/env.js";
-import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
 
 export async function handleChatStream(request, reply) {
-  const { message, userId } = request.body;
+  const { message, user } = request.body;
 
   if (!message) {
     reply.code(400);
     return { error: "Message is required" };
   }
 
-  request.log.info(`Received streaming message: ${message}, userId: ${userId}`);
+  if (user) {
+    request.log.info(`User: ${user.firstname} ${user.lastname} `);
+    request.log.info(
+      `Courses: ${user.courses.map((course) => course.name).join(", ")}`
+    );
+  }
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(userId, request.log);
+  const systemPrompt = await buildSystemPrompt(user);
   const fullPrompt = `${systemPrompt}\n\ndie Frage: ${message}`;
 
-  try {
-    const ollamaStream = await callOllamaStream(
-      fullPrompt,
-      config.ollama.model
-    );
+  if (user) {
+    try {
+      const ollamaStream = await callOllamaStream(
+        fullPrompt,
+        config.ollama.model
+      );
 
-    // Set streaming headers
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    });
+      // Set streaming headers
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      });
 
-    // Stream response to client
-    await streamOllamaResponse(ollamaStream, reply, request.log);
-  } catch (error) {
-    request.log.error(
-      { error },
-      "Failed to get streaming response from Ollama"
-    );
+      // Stream response to client
+      await streamOllamaResponse(ollamaStream, reply, request.log);
+    } catch (error) {
+      request.log.error(
+        { error },
+        "Failed to get streaming response from Ollama"
+      );
 
-    if (!reply.sent) {
-      reply.code(502);
-      return {
-        error: "Unable to reach AI service",
-        detail: error.message,
-      };
+      if (!reply.sent) {
+        reply.code(502);
+        return {
+          error: "Unable to reach AI service",
+          detail: error.message,
+        };
+      }
     }
   }
 }
 
 // Build system prompt with Moodle context
-async function buildSystemPrompt(userId, logger) {
-  let systemPrompt = `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. Deine Aufgabe ist es, Studierenden beim Lernen und Verstehen ihrer Kursinhalte zu unterstützen.
+async function buildSystemPrompt(user) {
+  const coursesList =
+    user?.courses?.map((course) => `- ${course.name}`).join("\n") ||
+    "Keine Kurse gefunden";
+
+  return `
+  Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. Deine Aufgabe ist es, Studierenden beim Lernen und Verstehen ihrer Kursinhalte zu unterstützen.
     ### Rolle und Verantwortlichkeiten:
 - Du unterstützt beim Verständnis von Kursmaterialien und Aufgaben
 - Du hilfst bei Lernstrategien und Zeitmanagement
@@ -75,27 +86,8 @@ async function buildSystemPrompt(userId, logger) {
 - Ermutigend und motivierend
 - Geduldig bei Nachfragen
 - Fokussiert auf Lerninhalte
-    `;
 
-  if (!userId) {
-    logger.info("No userId provided, using default system prompt");
-    return systemPrompt;
-  }
-
-  try {
-    logger.info(`Fetching user info for userId: ${userId}`);
-
-    const userInfo = await getUserInfo(userId);
-    logger.info(`User: ${userInfo.firstname} ${userInfo.lastname}`);
-
-    const userCourses = await getUserCourses(userId);
-    logger.info(`Found ${userCourses.length} courses`);
-
-    const coursesList = userCourses
-      .map((course) => `- ${course.fullname}`)
-      .join("\n");
-
-    systemPrompt = `Du unterstützt ${userInfo.firstname} ${userInfo.lastname}.
+    ### Du unterstützt ${user.firstname} ${user.lastname}.
 Aktuell ist der Benutzer in folgenden Kursen eingeschrieben:
 ${coursesList}
 
@@ -116,15 +108,7 @@ ${coursesList}
 - Gib spezifisches, konstruktives Feedback
 - Zeige verschiedene Lösungsansätze auf
 - Fördere kritisches Denken
-- Verweise auf zusätzliche Ressourcen im Kurs
-`;
-
-    logger.info("Moodle context added to prompt");
-  } catch (error) {
-    logger.warn(`Could not fetch Moodle context: ${error.message}`);
-  }
-
-  return systemPrompt;
+- Verweise auf zusätzliche Ressourcen im Kurs.`;
 }
 
 // stream response from Ollama to client

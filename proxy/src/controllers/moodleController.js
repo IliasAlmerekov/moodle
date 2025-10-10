@@ -29,43 +29,40 @@ export async function getMoodlePing(request, reply) {
   }
 }
 
-// getUserId
-export async function getUserId(request, reply) {
+export async function getCurrentUserProfile(request, reply) {
   try {
-    const siteInfo = await getSiteInfo();
+    // step 1: get userId from token
+    const siteInfo = await getSiteInfo(); // return userId
+    const userId = siteInfo.userid;
+
+    // step 2: get user info
+    const userInfo = await getUserInfo(userId); // return {firstname, lastname}
+
+    // step 3: get user courses
+    const userCourses = await getUserCourses(userId); //return [{id, fullname, ...}]
+
+    // step 4: return combined response
     return {
       status: "ok",
-      userId: siteInfo.userid,
-      username: siteInfo.username,
-      firstname: siteInfo.firstname,
-      lastname: siteInfo.lastname,
+      user: {
+        id: userId,
+        username: siteInfo.username,
+        firstname: userInfo.firstname,
+        lastname: userInfo.lastname,
+        email: userInfo.email || siteInfo.useremail,
+      },
+      courses: userCourses.map((course) => ({
+        id: course.id,
+        name: course.fullname,
+        shortname: course.shortname,
+      })),
     };
   } catch (error) {
+    request.log.error({ error }, "Failed to get current user profile");
     reply.code(500);
-    return { status: "error", message: error.message };
-  }
-}
-
-// getUserInfo
-export async function getUserInformation(request, reply) {
-  try {
-    const userId = request.params.userId;
-    const user = await getUserInfo(userId);
-    return { status: "ok", data: user };
-  } catch (error) {
-    reply.code(500);
-    return { status: "error", message: error.message };
-  }
-}
-
-// getUserCourses
-export async function getUserCoursesController(request, reply) {
-  try {
-    const userId = request.params.userId;
-    const courses = await getUserCourses(userId);
-    return { status: "ok", data: courses };
-  } catch (error) {
-    reply.code(500);
-    return { status: "error", message: error.message };
+    return {
+      status: "error",
+      message: error.message,
+    };
   }
 }
