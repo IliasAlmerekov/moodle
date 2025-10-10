@@ -1,8 +1,6 @@
 import {
   getMoodlePing,
-  getUserId,
-  getUserCoursesController,
-  getUserInformation,
+  getCurrentUserProfile,
 } from "../controllers/moodleController.js";
 
 /**
@@ -11,9 +9,6 @@ import {
 export default async function moodleRoutes(fastify) {
   fastify.get("/moodle/ping", getMoodlePing);
 
-  fastify.get("/moodle/whoami", getUserId);
-
-  fastify.get("/moodle/user/:userId", getUserInformation);
-
-  fastify.get("/moodle/user/:userId/courses", getUserCoursesController);
+  // get full profile of current user
+  fastify.get("/moodle/me", getCurrentUserProfile);
 }
