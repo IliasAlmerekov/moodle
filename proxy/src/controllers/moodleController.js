@@ -51,7 +51,7 @@ export async function getCurrentUserProfile(request, reply) {
         lastname: userInfo.lastname,
         email: userInfo.email || siteInfo.useremail,
       },
-      courses: courses.map((course) => ({
+      courses: userCourses.map((course) => ({
         id: course.id,
         name: course.fullname,
         shortname: course.shortname,
