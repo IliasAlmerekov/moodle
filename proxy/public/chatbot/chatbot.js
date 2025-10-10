@@ -72,7 +72,6 @@ const sendMessageStream = async () => {
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
   try {
-    const userId = getUserId();
     const response = await fetch(`${API_BASE_URL}/api/chat-stream`, {
       method: "POST",
       headers: {
