@@ -11,15 +11,21 @@ const inputField = document.getElementById("chatbot-input");
 const sendButton = document.getElementById("chatbot-send");
 
 let currentUser = null;
+let moodleToken = null;
+
+const TOKEN_STORAGE_KEY = "moodle_token";
+const USER_STORAGE_KEY = "moodle_user";
+
+restoreStoredSession();
 
 // function to open and close the chat window
-const openChat = () => {
+const openChat = async () => {
   chatWindow.classList.remove("hidden");
   toogleButton.classList.add("hidden");
   inputField.focus();
 
   // load user profile
-  fetchUserProfile();
+  await fetchUserProfile();
 };
 
 const closeChat = () => {
@@ -61,13 +67,39 @@ const addMessage = (content, isUser = false) => {
 };
 
 // function to get userId
-async function fetchUserProfile() {
+async function fetchUserProfile(retry = false) {
   try {
-    const response = await fetch(`${API_BASE_URL}/moodle/me`);
+    if (currentUser && !retry) {
+      return currentUser;
+    }
+
+    const session = await ensureUserSession(retry);
+
+    if (session.fromLogin && session.user) {
+      setCurrentUser(session.user);
+      console.log("User profile fetched:", currentUser);
+      return currentUser;
+    }
+
+    if (!session.token) {
+      throw new Error("Missing Moodle token after login");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/moodle/me`, {
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+      },
+    });
+
+    if (response.status === 401 && !retry) {
+      clearStoredSession();
+      return fetchUserProfile(true);
+    }
+
     const data = await response.json();
 
     if (data.status === "ok") {
-      currentUser = {
+      const userData = {
         id: data.user.id,
         firstname: data.user.firstname,
         lastname: data.user.lastname,
@@ -75,12 +107,19 @@ async function fetchUserProfile() {
         courses: data.courses, // array of courses
       };
 
-      localStorage.setItem("moodle_user", JSON.stringify(currentUser));
+      setCurrentUser(userData);
       console.log("User profile fetched:", currentUser);
+      return currentUser;
     }
   } catch (error) {
-    console.warn("Could not fetch userId from API:", error);
+    if (error.message === "LOGIN_CANCELLED") {
+      console.info("Moodle login cancelled by user");
+    } else {
+      console.warn("Could not fetch userId from API:", error);
+    }
   }
+
+  return currentUser;
 }
 
 // function to send message
@@ -88,6 +127,16 @@ const sendMessageStream = async () => {
   const message = inputField.value.trim();
 
   if (!message) return;
+
+  if (!currentUser) {
+    await fetchUserProfile();
+    if (!currentUser) {
+      addMessage(
+        "Dein Moodle-Profil konnte nicht geladen werden. Bitte versuche es nach einer erneuten Anmeldung erneut."
+      );
+      return;
+    }
+  }
 
   addMessage(message, true);
   inputField.value = "";
@@ -191,3 +240,118 @@ inputField.addEventListener("keypress", (e) => {
     sendMessageStream();
   }
 });
+
+function setCurrentUser(userData) {
+  currentUser = userData;
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser));
+}
+
+function restoreStoredSession() {
+  const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+
+  if (storedToken) {
+    moodleToken = storedToken;
+  }
+
+  if (storedUser) {
+    try {
+      currentUser = JSON.parse(storedUser);
+    } catch (error) {
+      console.warn("Failed to parse stored Moodle user:", error);
+      currentUser = null;
+    }
+  }
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(USER_STORAGE_KEY);
+  moodleToken = null;
+  currentUser = null;
+}
+
+async function ensureUserSession(forceLogin = false) {
+  if (!forceLogin && moodleToken) {
+    return { token: moodleToken };
+  }
+
+  if (!forceLogin) {
+    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (storedToken) {
+      moodleToken = storedToken;
+      return { token: storedToken };
+    }
+  }
+
+  const credentials = await requestUserCredentials();
+
+  if (!credentials) {
+    throw new Error("LOGIN_CANCELLED");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/moodle/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(credentials),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.status !== "ok" || !data.token) {
+    throw new Error(data.message || "Login failed");
+  }
+
+  moodleToken = data.token;
+  localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+
+  if (data.user) {
+    const userProfile = {
+      id: data.user.id,
+      firstname: data.user.firstname,
+      lastname: data.user.lastname,
+      email: data.user.email,
+      courses: data.courses || [],
+    };
+
+    setCurrentUser(userProfile);
+
+    return {
+      token: data.token,
+      user: userProfile,
+      fromLogin: true,
+    };
+  }
+
+  return {
+    token: data.token,
+    fromLogin: true,
+  };
+}
+
+async function requestUserCredentials() {
+  const username = prompt("Bitte gib deinen Moodle-Benutzernamen ein:");
+
+  if (username === null) {
+    return null;
+  }
+
+  const trimmedUsername = username.trim();
+
+  if (!trimmedUsername) {
+    return null;
+  }
+
+  const password = prompt("Bitte gib dein Moodle-Passwort ein:");
+
+  if (password === null || password === "") {
+    return null;
+  }
+
+  return {
+    username: trimmedUsername,
+    password,
+  };
+}
