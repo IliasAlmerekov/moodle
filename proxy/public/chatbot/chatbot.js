@@ -10,6 +10,8 @@ const messagesContainer = document.getElementById("chatbot-messages");
 const inputField = document.getElementById("chatbot-input");
 const sendButton = document.getElementById("chatbot-send");
 
+let currentUserId = null;
+
 // function to open and close the chat window
 const openChat = () => {
   chatWindow.classList.remove("hidden");
@@ -37,58 +39,22 @@ const addMessage = (content, isUser = false) => {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 };
 
-const getUserId = () => {
-  let userId = null;
-
-  // === ДИАГНОСТИКА ===
-  console.log("🔍 Checking for userId...");
-  console.log("window.M exists?", typeof window.M !== "undefined");
-  console.log("window.M:", window.M);
-
-  if (window.M) {
-    console.log("window.M.cfg exists?", typeof window.M.cfg !== "undefined");
-    console.log("window.M.cfg:", window.M.cfg);
-
-    if (window.M.cfg) {
-      console.log("window.M.cfg.userid:", window.M.cfg.userid);
-    }
-  }
-
-  // Try 1: From Moodle global JS object (if available)
+// function to get userId
+async function fetchUserId() {
   try {
-    if (window.M && window.M.cfg && window.M.cfg.userid) {
-      userId = window.M.cfg.userid;
-      console.log("✅ userId from Moodle global:", userId);
-      localStorage.setItem("moodle_userid", userId);
-      return userId;
+    const response = await fetch(`${API_BASE_URL}/moodle/whoami`);
+    const data = await response.json();
+    if (data.userId) {
+      currentUserId = data.userId;
+      localStorage.setItem("moodle_userId", currentUserId);
+      console.log("✅ Fetched userId from API:", currentUserId);
     }
   } catch (error) {
-    console.warn("Cannot access Moodle global object:", error);
+    console.warn("Could not fetch userId from API:", error);
   }
+}
 
-  // Try 2: From URL parameter (?userid=123)
-  if (!userId) {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has("userid")) {
-      userId = urlParams.get("userid");
-      console.log("✅ userId from URL parameter:", userId);
-      localStorage.setItem("moodle_userid", userId);
-      return userId;
-    }
-  }
-
-  // Try 3: From localStorage (if previously saved)
-  if (!userId) {
-    userId = localStorage.getItem("moodle_userid");
-    if (userId) {
-      console.log("✅ userId from localStorage:", userId);
-      return userId;
-    }
-  }
-
-  console.warn("⚠️ No userId found!");
-  return null;
-};
+fetchUserId();
 
 // function to send message
 const sendMessageStream = async () => {
@@ -112,7 +78,7 @@ const sendMessageStream = async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message, userId: userId }),
+      body: JSON.stringify({ message: message, userId: currentUserId }),
     });
 
     removeMessage(loadingId);
