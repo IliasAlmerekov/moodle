@@ -11,6 +11,13 @@ echo -e "${GREEN}=== Deploy started at $(date) ===${NC}"
 PROJECT_DIR="/home/admin/moodle"
 cd "$PROJECT_DIR"
 
+# === FIX PERMISSIONS (if needed) ===
+if [ ! -w .git/objects ]; then
+    echo -e "${YELLOW}Fixing git permissions...${NC}"
+    sudo chown -R $(whoami):$(whoami) "$PROJECT_DIR"
+    sudo chmod -R u+rwX "$PROJECT_DIR/.git"
+fi
+
 # === GIT UPDATE ===
 echo -e "${YELLOW}Fetching from GitHub...${NC}"
 git fetch origin main
@@ -52,20 +59,23 @@ fi
 # === DOCKER DEPLOYMENT ===
 cd compose
 
+# Use absolute path for .env file
+ENV_FILE="$PROJECT_DIR/.env"
+
 if docker compose ps | grep -q "Up"; then
     echo -e "${YELLOW}Stopping containers...${NC}"
-    docker compose --env-file ../.env down
+    docker compose --env-file "$ENV_FILE" down
 fi
 
 if [ "$PROXY_CHANGED" = true ]; then
     echo -e "${YELLOW}Proxy code changed. Rebuilding...${NC}"
-    docker compose --env-file ../.env build proxy
+    docker compose --env-file "$ENV_FILE" build proxy
 else
     echo -e "${YELLOW}No proxy changes detected. Skipping rebuild.${NC}"
 fi
 
 echo -e "${YELLOW}Starting containers...${NC}"
-docker compose --env-file ../.env up -d
+docker compose --env-file "$ENV_FILE" up -d
 
 sleep 3
 
