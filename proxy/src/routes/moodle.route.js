@@ -1,6 +1,6 @@
 import {
   getMoodlePing,
-  getSiteInformation,
+  getUserId,
   getUserCoursesController,
   getUserInformation,
 } from "../controllers/moodleController.js";
@@ -11,7 +11,7 @@ import {
 export default async function moodleRoutes(fastify) {
   fastify.get("/moodle/ping", getMoodlePing);
 
-  fastify.get("/moodle/site-info", getSiteInformation);
+  fastify.get("/moodle/whoami", getUserId);
 
   fastify.get("/moodle/user/:userId", getUserInformation);
 

@@ -29,11 +29,17 @@ export async function getMoodlePing(request, reply) {
   }
 }
 
-// getSiteInfo
-export async function getSiteInformation(request, reply) {
+// getUserId
+export async function getUserId(request, reply) {
   try {
-    const info = await getSiteInfo();
-    return { status: "ok", data: info };
+    const siteInfo = await getSiteInfo();
+    return {
+      status: "ok",
+      userId: siteInfo.userid,
+      username: siteInfo.username,
+      firstname: siteInfo.firstname,
+      lastname: siteInfo.lastname,
+    };
   } catch (error) {
     reply.code(500);
     return { status: "error", message: error.message };
