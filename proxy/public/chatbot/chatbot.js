@@ -3,20 +3,18 @@ import { removeMessage } from "./removeMessage.js";
 
 const API_BASE_URL = "http://192.168.178.49:3000"; // api raspi
 
-const toogleButton = document.getElementById("chatbot-toogle");
-const chatWindow = document.getElementById("chatbot-window");
-const closeButton = document.getElementById("chatbot-close");
-const messagesContainer = document.getElementById("chatbot-messages");
-const inputField = document.getElementById("chatbot-input");
-const sendButton = document.getElementById("chatbot-send");
+let toogleButton;
+let chatWindow;
+let closeButton;
+let messagesContainer;
+let inputField;
+let sendButton;
 
 let currentUser = null;
 let moodleToken = null;
 
 const TOKEN_STORAGE_KEY = "moodle_token";
 const USER_STORAGE_KEY = "moodle_user";
-
-restoreStoredSession();
 
 // function to open and close the chat window
 const openChat = async () => {
@@ -228,18 +226,47 @@ function createEmptyBotMessage() {
   return messageDiv;
 }
 
-// event listeners
-toogleButton.addEventListener("click", openChat);
-closeButton.addEventListener("click", closeChat);
-sendButton.addEventListener("click", sendMessageStream);
+// Initialize when DOM is ready
+function initChatbot() {
+  // Get DOM elements
+  toogleButton = document.getElementById("chatbot-toogle");
+  chatWindow = document.getElementById("chatbot-window");
+  closeButton = document.getElementById("chatbot-close");
+  messagesContainer = document.getElementById("chatbot-messages");
+  inputField = document.getElementById("chatbot-input");
+  sendButton = document.getElementById("chatbot-send");
 
-// allow sending message with Enter key
-
-inputField.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") {
-    sendMessageStream();
+  // Check if all elements exist
+  if (!toogleButton || !chatWindow || !closeButton || !messagesContainer || !inputField || !sendButton) {
+    console.error("Chatbot: Required DOM elements not found");
+    return;
   }
-});
+
+  // Restore session
+  restoreStoredSession();
+
+  // event listeners
+  toogleButton.addEventListener("click", openChat);
+  closeButton.addEventListener("click", closeChat);
+  sendButton.addEventListener("click", sendMessageStream);
+
+  // allow sending message with Enter key
+  inputField.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      sendMessageStream();
+    }
+  });
+
+  console.log("✅ Chatbot initialized");
+}
+
+// Initialize when DOM is loaded
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initChatbot);
+} else {
+  // DOM already loaded
+  initChatbot();
+}
 
 function setCurrentUser(userData) {
   currentUser = userData;
