@@ -1,6 +1,7 @@
 import {
   getMoodlePing,
   getCurrentUserProfile,
+  loginWithMoodleCredentials,
 } from "../controllers/moodleController.js";
 
 /**
@@ -11,4 +12,7 @@ export default async function moodleRoutes(fastify) {
 
   // get full profile of current user
   fastify.get("/moodle/me", getCurrentUserProfile);
+
+  // login user with Moodle credentials and issue token
+  fastify.post("/moodle/login", loginWithMoodleCredentials);
 }
