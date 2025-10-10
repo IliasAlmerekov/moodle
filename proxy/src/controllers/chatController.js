@@ -20,7 +20,7 @@ export async function handleChatStream(request, reply) {
   const systemPrompt = await buildSystemPrompt(user);
   const fullPrompt = `${systemPrompt}\n\ndie Frage: ${message}`;
 
-  if (user && user.firstname) {
+  if (user) {
     try {
       const ollamaStream = await callOllamaStream(
         fullPrompt,
