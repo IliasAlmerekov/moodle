@@ -2,7 +2,6 @@
 const {
   MOODLE_URL,
   MOODLE_TOKEN,
-  MOODLE_SERVICE_SHORTNAME,
   OLLAMA_URL,
   OLLAMA_MODEL,
   PORT = "3000",
@@ -15,6 +14,7 @@ const ollamaBaseUrl = OLLAMA_URL ? OLLAMA_URL.replace(/\/$/, "") : "";
 //define required variables
 const requiredVars = {
   MOODLE_URL,
+  MOODLE_TOKEN,
   OLLAMA_URL,
   OLLAMA_MODEL,
 };
@@ -27,10 +27,6 @@ for (const [key, value] of Object.entries(requiredVars)) {
   }
 }
 
-if (!MOODLE_TOKEN && !MOODLE_SERVICE_SHORTNAME) {
-  missingVars.push("MOODLE_TOKEN or MOODLE_SERVICE_SHORTNAME");
-}
-
 // export the configuration object
 const config = {
   // server config
@@ -40,10 +36,7 @@ const config = {
   moodle: {
     url: moodleBaseUrl,
     token: MOODLE_TOKEN,
-    serviceShortName: MOODLE_SERVICE_SHORTNAME || "",
-    isConfigured: Boolean(
-      moodleBaseUrl && (MOODLE_TOKEN || MOODLE_SERVICE_SHORTNAME)
-    ),
+    isConfigured: Boolean(moodleBaseUrl && MOODLE_TOKEN),
   },
 
   // ollama config
