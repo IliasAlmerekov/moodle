@@ -40,31 +40,39 @@ const addMessage = (content, isUser = false) => {
 const getUserId = () => {
   let userId = null;
 
+  // Try 1: From Moodle global JS object (if available)
   try {
-    if (window.parent && window.parent.M && window.parent.M.cfg) {
-      userId = window.parent.M.cfg.userid;
-      console.log("Moodle userId found:", userId);
+    if (window.M && window.M.cfg && window.M.cfg.userid) {
+      // was saveed in global moodle object like window.M ={cfg: userid: 2}
+      userId = window.M.cfg.userid;
+      // Save to localStorage for future use
+      localStorage.setItem("moodle_userid", userId);
+      return userId;
     }
   } catch (error) {
-    console.warn("Cannot access parent window:", error);
+    console.warn("Cannot access Moodle global object:", error);
   }
 
+  // Try 2: From URL parameter (?userid=123)
   if (!userId) {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("userid")) {
       userId = urlParams.get("userid");
-      console.log("userId from URL parameter:", userId);
+      localStorage.setItem("moodle_userid", userId);
+      return userId;
     }
   }
 
+  // Try 3: From localStorage (if previously saved)
   if (!userId) {
     userId = localStorage.getItem("moodle_userid");
     if (userId) {
-      console.log(`UserId from localStorage: ${userId}`);
+      return userId;
     }
   }
 
-  return userId;
+  console.warn("⚠️ No userId found!");
+  return null;
 };
 
 // function to send message
@@ -146,10 +154,10 @@ const sendMessageStream = async () => {
 
 function createEmptyBotMessage() {
   const messageDiv = document.createElement("div");
-  messageDiv.className = "message bot-message";
+  messageDiv.classList = "message bot-message";
 
   const contentDiv = document.createElement("div");
-  contentDiv.className = "message-content";
+  contentDiv.classList = "message-content";
   contentDiv.textContent = "";
 
   messageDiv.appendChild(contentDiv);

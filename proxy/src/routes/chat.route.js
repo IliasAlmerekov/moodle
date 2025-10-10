@@ -1,38 +1,8 @@
-import config from "../config/env.js";
-import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
-import { callOllama, callOllamaStream } from "../services/ollama.service.js";
-
+import { handleChatStream } from "../controllers/chatController.js";
 /**
  * @param {import('fastify').FastifyInstance} fastify
  */
 export default async function chatRoutes(fastify) {
-  // endpoint for non-streaming response
-  fastify.post("/api/chat", async (request, reply) => {
-    const { message } = request.body;
-
-    if (!message) {
-      reply.code(400);
-      return { error: "Message is required" };
-    }
-
-    fastify.log.info(`Received message: ${message}`);
-
-    try {
-      const aiResponse = await callOllama(message, config.ollamaModel);
-      return { reply: aiResponse };
-    } catch (error) {
-      // log error
-      request.log.error({ error: error }, "Failed to get response from Ollama");
-
-      // return a 502 Bad Gateway error
-      reply.code(502);
-      return {
-        error: "Unable to reach AI service",
-        details: error.message,
-      };
-    }
-  });
-
   // endpoint for streaming response
   fastify.post("/api/chat-stream", async (request, reply) => {
     const { message, userId } = request.body;
@@ -201,4 +171,5 @@ export default async function chatRoutes(fastify) {
       }
     }
   });
+  fastify.post("/api/chat-stream", handleChatStream);
 }

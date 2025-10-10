@@ -15,43 +15,6 @@ export const getModels = async () => {
   return response.json();
 };
 
-export const callOllama = async (prompt, model) => {
-  // check if ollama.url is configured
-  if (!config.ollama.url) {
-    throw new Error("OLLAMA_URL is not configured");
-  }
-
-  // construct the url
-  const url = `${config.ollama.url}/api/generate`;
-
-  // construct the body
-  const body = {
-    model: model || config.ollama.model,
-    prompt: prompt,
-    stream: false,
-  };
-
-  // make the request
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  // check for errors
-  if (!response.ok) {
-    throw new Error(`Ollama API returned status: ${response.status}`);
-  }
-
-  // parse the response
-  const data = await response.json();
-
-  // return the response text
-  return data.response;
-};
-
 // streaming version
 /**
  * Send a prompt to the Ollama and get a response.
