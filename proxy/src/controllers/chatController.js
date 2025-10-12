@@ -1,24 +1,72 @@
 import config from "../config/env.js";
+import { appendMessage, getHistory } from "../services/chatMemory.service.js";
+import { smartSearch } from "../services/courseSearch.service.js";
 import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
+import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
 export async function handleChatStream(request, reply) {
-  const { message, user } = request.body;
+  const { message, userId } = request.body;
 
-  if (!message) {
+  if (!message || !userId) {
     reply.code(400);
-    return { error: "Message is required" };
+    return { error: "Message and user ID are required" };
   }
 
-  if (user) {
-    request.log.info(`Chat request from user ID: ${user.id}`);
+  const numericUserId = Number(userId);
+  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+    reply.code(400);
+    return { error: "Invalid user ID" };
   }
+
+  let userProfile = getCachedUser(numericUserId);
+  if (!userProfile) {
+    try {
+      const [info, courses] = await Promise.all([
+        getUserInfo(numericUserId),
+        getUserCourses(numericUserId),
+      ]);
+
+      userProfile = {
+        id: info.id,
+        firstname: info.firstname,
+        lastname: info.lastname,
+        fullname: `${info.firstname} ${info.lastname}`.trim(),
+        email: info.email,
+        courses: courses.map((course) => ({
+          id: course.id,
+          fullname: course.fullname,
+          shortname: course.shortname,
+        })),
+      };
+
+      setCachedUser(numericUserId, userProfile);
+    } catch (error) {
+      request.log.error({ error }, "Failed to resolve Moodle user");
+      reply.code(502);
+      return { error: "Failed to fetch user data from Moodle" };
+    }
+  }
+
+  const sessionId = `moodle-${userProfile.id}`;
+
+  const history = getHistory(sessionId)
+    .map(
+      (turn) => `${turn.role === "user" ? "Student" : "Tutor"}: ${turn.content}`
+    )
+    .join("\n");
+
+  const searchResult = await smartSearch(message, request.log);
+  const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(user?.id || null);
-  const fullPrompt = `${systemPrompt}\n\nFrage des Stedentes: ${message}`;
+  const systemPrompt = await buildSystemPrompt(context, userProfile);
+  const fullPrompt = `${systemPrompt}\n\n${history}\nStudent: ${message}`;
+
+  appendMessage(sessionId, "user", message);
 
   try {
+    let assistantReply = "";
     const ollamaStream = await callOllamaStream(
       fullPrompt,
       config.ollama.model
@@ -36,7 +84,10 @@ export async function handleChatStream(request, reply) {
     });
 
     // Stream response to client
-    await streamOllamaResponse(ollamaStream, reply, request.log);
+    await streamOllamaResponse(ollamaStream, reply, request.log, (chunk) => {
+      assistantReply += chunk;
+    });
+    appendMessage(sessionId, "assistant", assistantReply);
   } catch (error) {
     request.log.error(
       { error },
@@ -53,42 +104,57 @@ export async function handleChatStream(request, reply) {
   }
 }
 
+function formatSearchResult(searchResult) {
+  return `
+  Kurs: ${searchResult.course.name}
+  Link: ${searchResult.course.url}
+  
+  Relelvant Abschnitte:
+  ${searchResult.section
+    .map(
+      (section) => `
+    ### ${section.name}
+    ${section.summary}
+    
+    Materialen:
+    ${section.modules
+      .map(
+        (mod) => `
+      - ${mod.name} (${mod.type})
+      ${mod.description.substring(0, 300)}
+      Link: ${mod.url}
+      `
+      )
+      .join("\n")}
+    `
+    )
+    .join("\n")}
+  `;
+}
+
 // Build system prompt with Moodle context
-async function buildSystemPrompt(userId) {
-  // Default values if user not logged in
-  let userName = "Student";
-  let fullName = "Student";
-  let coursesList = "Keine Kursinformationen verfügbar.";
+function buildSystemPrompt(context, user) {
 
-  if (userId) {
-    try {
-      // Fetch user info and courses from Moodle API using admin token
-      const userInfo = await getUserInfo(userId);
-      const courses = await getUserCourses(userId);
+  const courseLines = (user.courses ?? [])
+  .map((course) => `- ${course.fullname}`)
+  .join("\n");
 
-      userName = userInfo.firstname || "Student";
-      fullName = `${userInfo.firstname} ${userInfo.lastname}` || "Student";
-      coursesList = courses.length
-        ? courses.map((course) => `- ${course.fullname}`).join("\n")
-        : "Keine Kurse gefunden.";
-    } catch (error) {
-      console.error(
-        `Failed to get user info or courses for user ${userId}:`,
-        error
-      );
-    }
-  }
 
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
 
+  Benutzer:
+  - Name: ${user.fullname || "Student"}
+  - E-Mail: ${user.email || "Nicht verfügbar"}
+  - Eingeschriebene Kurse: ${courseLines || "- (keine Daten)"}
+
+  Verfügbare Kursinformationen:
+  ${context || "- (keine relevanten Kursinformationen gefunden)"}
+
 ### Deine Rolle und Aufgaben:
-- Du unterstützt ${fullName} beim Verständnis von Kursmaterialien und Aufgaben
-- Bei Begrüßung nutze den Namen des Benutzers, z.B. "Hallo ${userName}, wie kann ich dir helfen?"
+- Du unterstützt ${user.fullname} beim Verständnis von Kursmaterialien und Aufgaben
+- Bei Begrüßung nutze den Namen des Benutzers, z.B. "Hallo ${user.fullname}, wie kann ich dir helfen?"
 - Hilf bei Lernstrategien und Zeitmanagement
 - Beantworte Fragen zu Kursthemen basierend auf den verfügbaren Kursmaterialien
-
-Eingeschriebene Kurse von ${userName}:
-${coursesList}
 
 ### Kommunikationsstil:
 - Sei professionell und freundlich
@@ -124,8 +190,8 @@ Wenn du auf einen Kurs verweist, nutze <a href="URL">Kursname</a> tag."
 }
 
 // stream response from Ollama to client
-async function streamOllamaResponse(ollamaStream, reply, logger) {
-  const reader = ollamaStream.getReader();
+async function streamOllamaResponse(stream, reply, logger, onChunk) {
+  const reader = stream.getReader();
   const decoder = new TextDecoder();
 
   while (true) {
@@ -145,6 +211,7 @@ async function streamOllamaResponse(ollamaStream, reply, logger) {
         const json = JSON.parse(line);
 
         if (json && json.response) {
+          onChunk?.(json.response);
           reply.raw.write(
             `data: ${JSON.stringify({ text: json.response })}\n\n`
           );
