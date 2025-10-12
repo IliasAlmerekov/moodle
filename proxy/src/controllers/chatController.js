@@ -5,6 +5,11 @@ import { smartSearch } from "../services/courseSearch.service.js";
 export async function handleChatStream(request, reply) {
   const { message, user } = request.body;
 
+  if (!message) {
+    reply.code(400);
+    return { error: "Message is required" };
+  }
+
   const searchResult = await smartSearch(message, request.log);
 
   let context = "";
@@ -36,55 +41,47 @@ export async function handleChatStream(request, reply) {
     `;
   }
 
-
-  if (!message) {
-    reply.code(400);
-    return { error: "Message is required" };
-  }
-
-
   // Build system prompt with Moodle context
   const systemPrompt = await buildSystemPrompt(context);
   const fullPrompt = `${systemPrompt}\n\nFrage des Stedentes: ${message}`;
 
-    try {
-      const ollamaStream = await callOllamaStream(
-        fullPrompt,
-        config.ollama.model
-      );
+  try {
+    const ollamaStream = await callOllamaStream(
+      fullPrompt,
+      config.ollama.model
+    );
 
-      // Set streaming headers
-      reply.raw.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      });
+    // Set streaming headers
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    });
 
-      // Stream response to client
-      await streamOllamaResponse(ollamaStream, reply, request.log);
-    } catch (error) {
-      request.log.error(
-        { error },
-        "Failed to get streaming response from Ollama"
-      );
+    // Stream response to client
+    await streamOllamaResponse(ollamaStream, reply, request.log);
+  } catch (error) {
+    request.log.error(
+      { error },
+      "Failed to get streaming response from Ollama"
+    );
 
-      if (!reply.sent) {
-        reply.code(502);
-        return {
-          error: "Unable to reach AI service",
-          detail: error.message,
-        };
-      }
+    if (!reply.sent) {
+      reply.code(502);
+      return {
+        error: "Unable to reach AI service",
+        detail: error.message,
+      };
     }
+  }
 }
 
 // Build system prompt with Moodle context
-async function buildSystemPrompt() {
-
+async function buildSystemPrompt(context) {
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
   ### Deine Rolle und Aufgaben:
 - Unterstütze Studenten beim Verständnis von Kursmaterialien und Aufgaben
@@ -93,7 +90,10 @@ async function buildSystemPrompt() {
 
 
 Verfügbare Kursinformationen:
-${context || "Keine spezifischen Kursinformationen gefunden. Antworte basierend auf allgemeinem Wissen."}
+${
+  context ||
+  "Keine spezifischen Kursinformationen gefunden. Antworte basierend auf allgemeinem Wissen."
+}
 
 
 
