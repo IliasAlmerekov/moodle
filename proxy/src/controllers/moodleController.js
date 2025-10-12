@@ -1,5 +1,5 @@
 import config from "../config/env.js";
-import { getUserCourses } from "../services/moodle.service.js";
+import { getSiteInfo, getUserCourses } from "../services/moodle.service.js";
 
 // Health check for Moodle instance
 export async function getMoodlePing(request, reply) {
@@ -38,10 +38,10 @@ export async function getUserInfoById(request, reply) {
   }
 
   try {
-    const userInfo = await getUserInfoById(userId);
+    const userInfo = await getSiteInfo(userId);
 
     return {
-      staus: "ok",
+      status: "ok",
       userId: userId,
       firstname: userInfo.firstname,
       lastname: userInfo.lastname,
