@@ -74,7 +74,6 @@ async function detectMoodleUser() {
 }
 
 const moodleUserId = await detectMoodleUser();
-console.log("Detected Moodle user:", moodleUserId);
 
 // function to send message
 const sendMessageStream = async () => {
@@ -99,7 +98,7 @@ const sendMessageStream = async () => {
       },
       body: JSON.stringify({
         message: message,
-        user: moodleUserId,
+        userId: moodleUserId.id,
       }),
     });
 
