@@ -40,21 +40,10 @@ export async function callMoodleAPI(functionName, params = {}) {
   }
 }
 
-export async function getSiteInfo() {
-  return callMoodleAPI("core_webservice_get_site_info");
-}
-
-export async function getUserInfo(userId) {
-  const result = await callMoodleAPI("core_user_get_users_by_field", {
-    field: "id",
-    "values[0]": userId,
+export async function getSiteInfo({userId}) {
+  return callMoodleAPI("core_webservice_get_site_info", {
+    userid: userId,
   });
-
-  if (result && result.length > 0) {
-    return result[0];
-  }
-
-  throw new Error(`User with ID ${userId} not found`);
 }
 
 export async function getUserCourses(userId) {

@@ -18,15 +18,15 @@ const fastify = Fastify({
 });
 
 // THEN add hooks
-fastify.addHook("onReady", async () => {
-  try {
-    fastify.log.info("Loading courses structure cache...");
-    await loadCoursesStructure(fastify.log);
-    fastify.log.info("Cache ready!");
-  } catch (error) {
-    fastify.log.error({ error: error }, "Failed to load courses structure");
-  }
-});
+// fastify.addHook("onReady", async () => {
+//   try {
+//     fastify.log.info("Loading courses structure cache...");
+//     await loadCoursesStructure(fastify.log);
+//     fastify.log.info("Cache ready!");
+//   } catch (error) {
+//     fastify.log.error({ error: error }, "Failed to load courses structure");
+//   }
+// });
 
 // register cors plugin
 await fastify.register(cors, {

@@ -1,6 +1,7 @@
 import config from "../config/env.js";
 import { callOllamaStream } from "../services/ollama.service.js";
 import { smartSearch } from "../services/courseSearch.service.js";
+import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 
 export async function handleChatStream(request, reply) {
   const { message, user } = request.body;
@@ -10,39 +11,12 @@ export async function handleChatStream(request, reply) {
     return { error: "Message is required" };
   }
 
-  const searchResult = await smartSearch(message, request.log);
-
-  let context = "";
-  if (searchResult.found) {
-    context = `
-    Kurse: ${searchResult.course.name}
-    Link: ${searchResult.course.url}
-
-    Relevante Abschnitte:
-    ${searchResult.section
-      .map(
-        (section) => `
-      ### ${section.name}
-      ${section.summary}
-      
-      Materialien:
-      ${section.modules
-        .map(
-          (mod) => `
-        - ${mod.name} (${mod.type})
-        ${mod.description.substring(0, 300)}
-        Link: ${mod.url}
-        `
-        )
-        .join("\n")}
-      `
-      )
-      .join("\n")}
-    `;
+  if (user) {
+    request.log.info(`Chat request from user ID: ${user.id}`);
   }
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(context);
+  const systemPrompt = await buildSystemPrompt(user?.id || null);
   const fullPrompt = `${systemPrompt}\n\nFrage des Stedentes: ${message}`;
 
   try {
@@ -81,21 +55,41 @@ export async function handleChatStream(request, reply) {
 }
 
 // Build system prompt with Moodle context
-async function buildSystemPrompt(context) {
+async function buildSystemPrompt(userId) {
+  // Default values if user not logged in
+  let userName = "Student";
+  let fullName = "Student";
+  let coursesList = "Keine Kursinformationen verfügbar.";
+
+  if (userId) {
+    try {
+      // Fetch user info and courses from Moodle API using admin token
+      const userInfo = await getUserInfo(userId);
+      const courses = await getUserCourses(userId);
+
+      userName = userInfo.firstname || "Student";
+      fullName = `${userInfo.firstname} ${userInfo.lastname}` || "Student";
+      coursesList = courses.length
+        ? courses.map((course) => `- ${course.fullname}`).join("\n")
+        : "Keine Kurse gefunden.";
+    } catch (error) {
+      console.error(
+        `Failed to get user info or courses for user ${userId}:`,
+        error
+      );
+    }
+  }
+
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
-  ### Deine Rolle und Aufgaben:
-- Unterstütze Studenten beim Verständnis von Kursmaterialien und Aufgaben
+
+### Deine Rolle und Aufgaben:
+- Du unterstützt ${fullName} beim Verständnis von Kursmaterialien und Aufgaben
+- Bei Begrüßung nutze den Namen des Benutzers, z.B. "Hallo ${userName}, wie kann ich dir helfen?"
 - Hilf bei Lernstrategien und Zeitmanagement
 - Beantworte Fragen zu Kursthemen basierend auf den verfügbaren Kursmaterialien
 
-
-Verfügbare Kursinformationen:
-${
-  context ||
-  "Keine spezifischen Kursinformationen gefunden. Antworte basierend auf allgemeinem Wissen."
-}
-
-
+Eingeschriebene Kurse von ${userName}:
+${coursesList}
 
 ### Kommunikationsstil:
 - Sei professionell und freundlich
