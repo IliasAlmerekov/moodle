@@ -25,7 +25,7 @@ export async function loadCoursesStructure(logger) {
             id: module.id,
             name: module.name,
             type: module.modname,
-            url: config.moodle.url,
+            url: `${MOODLE_URL}/mod/${module.modname}/view.php?id=${module.id}`,
           })),
         })),
       };

@@ -67,7 +67,7 @@ export async function smartSearch(query, logger) {
         summary: fullSection?.summary || "",
         modules:
           fullSection?.modules?.map((module) => ({
-            name: mod.name,
+            name: module.name,
             type: module.type,
             description: module.description || "",
             url: module.url,
