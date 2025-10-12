@@ -10,16 +10,11 @@ const messagesContainer = document.getElementById("chatbot-messages");
 const inputField = document.getElementById("chatbot-input");
 const sendButton = document.getElementById("chatbot-send");
 
-let currentUser = null;
-
 // function to open and close the chat window
 const openChat = () => {
   chatWindow.classList.remove("hidden");
   toogleButton.classList.add("hidden");
   inputField.focus();
-
-  // load user profile
-  fetchUserProfile();
 };
 
 const closeChat = () => {
@@ -60,28 +55,26 @@ const addMessage = (content, isUser = false) => {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 };
 
-// function to get userId
-async function fetchUserProfile() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/moodle/me`);
-    const data = await response.json();
+async function detectMoodleUser() {
+  const profileLink =
+    document.querySelector('#usermenu a[href*="/user/profile.php"]') ||
+    document.querySelector('#usermenu a[href*="/user/view.php"]') ||
+    document.querySelector('a[href*="/user/profile.php?id="]') ||
+    document.querySelector('a[href*="/user/view.php?id="]');
 
-    if (data.status === "ok") {
-      currentUser = {
-        id: data.user.id,
-        firstname: data.user.firstname,
-        lastname: data.user.lastname,
-        email: data.user.email,
-        courses: data.courses, // array of courses
-      };
+  if (!profileLink) return null;
 
-      localStorage.setItem("moodle_user", JSON.stringify(currentUser));
-      console.log("User profile fetched:", currentUser);
-    }
-  } catch (error) {
-    console.warn("Could not fetch userId from API:", error);
-  }
+  const url = new URL(profileLink.href, window.location.origin);
+  const id = Number(url.searchParams.get("id"));
+  if (!id) return null;
+
+  return {
+    id: Number(id),
+  };
 }
+
+const moodleUserId = await detectMoodleUser();
+console.log("Detected Moodle user:", moodleUserId);
 
 // function to send message
 const sendMessageStream = async () => {
@@ -106,7 +99,7 @@ const sendMessageStream = async () => {
       },
       body: JSON.stringify({
         message: message,
-        user: currentUser,
+        user: moodleUserId,
       }),
     });
 

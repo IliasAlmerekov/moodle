@@ -1,9 +1,5 @@
 import config from "../config/env.js";
-import {
-  getUserInfo,
-  getUserCourses,
-  getSiteInfo,
-} from "../services/moodle.service.js";
+import { getUserCourses } from "../services/moodle.service.js";
 
 // Health check for Moodle instance
 export async function getMoodlePing(request, reply) {
@@ -29,36 +25,71 @@ export async function getMoodlePing(request, reply) {
   }
 }
 
-export async function getCurrentUserProfile(request, reply) {
+export async function getUserInfoById(request, reply) {
+  const rawId = request.params?.id;
+  const userId = Number(rawId);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    reply.code(400);
+    return {
+      status: "error",
+      message: "Invalid user ID",
+    };
+  }
+
   try {
-    // step 1: get userId from token
-    const siteInfo = await getSiteInfo(); // return userId
-    const userId = siteInfo.userid;
+    const userInfo = await getUserInfoById(userId);
 
-    // step 2: get user info
-    const userInfo = await getUserInfo(userId); // return {firstname, lastname}
+    return {
+      staus: "ok",
+      userId: userId,
+      firstname: userInfo.firstname,
+      lastname: userInfo.lastname,
+      fullname: userInfo.fullname,
+      email: userInfo.email,
+    };
+  } catch (error) {
+    request.log.error(
+      { error },
+      `Failed to get info for user ${request.params.userId}`
+    );
+    reply.code(500);
+    return {
+      status: "error",
+      message: error.message,
+    };
+  }
+}
 
-    // step 3: get user courses
-    const userCourses = await getUserCourses(userId); //return [{id, fullname, ...}]
+export async function getUserCoursesById(request, reply) {
+  const rawId = request.params?.id;
+  const userId = Number(rawId);
 
-    // step 4: return combined response
+  if (!Number.isInteger(userId) || userId <= 0) {
+    reply.code(400);
+    return {
+      status: "error",
+      message: "Invalid user ID",
+    };
+  }
+
+  try {
+    const courses = await getUserCourses(userId);
+
     return {
       status: "ok",
-      user: {
-        id: userId,
-        username: siteInfo.username,
-        firstname: userInfo.firstname,
-        lastname: userInfo.lastname,
-        email: userInfo.email || siteInfo.useremail,
-      },
-      courses: userCourses.map((course) => ({
+      userId: userId,
+      courses: courses.map((course) => ({
         id: course.id,
         name: course.fullname,
         shortname: course.shortname,
       })),
     };
   } catch (error) {
-    request.log.error({ error }, "Failed to get current user profile");
+    request.log.error(
+      { error },
+      `Failed to get courses for user ${request.params.userId}`
+    );
     reply.code(500);
     return {
       status: "error",
