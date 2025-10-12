@@ -27,61 +27,70 @@ export function findModuleInCourse(course, moduleName) {
 }
 
 export async function smartSearch(query, logger) {
-  const courses = getCoursesStructure();
-  const queryLower = query.toLowerCase();
+  try {
+    const courses = getCoursesStructure();
+    const queryLower = query.toLowerCase();
 
-  const course = courses.find(
-    (c) =>
-      queryLower.includes(c.name.toLowerCase()) ||
-      queryLower.includes(c.shortname.toLowerCase())
-  );
-
-  if (!course) {
-    return { found: false, message: "Course not found" };
-  }
-
-  const words = queryLower.split(" ");
-  let relevantSections = [];
-
-  for (const section of course.sections) {
-    const sectionMatch = words.some((word) =>
-      section.name.toLowerCase().includes(word)
+    const course = courses.find(
+      (c) =>
+        queryLower.includes(c.name.toLowerCase()) ||
+        queryLower.includes(c.shortname.toLowerCase())
     );
 
-    if (sectionMatch) {
-      relevantSections.push(section);
+    if (!course) {
+      return { found: false, message: "Course not found" };
     }
+
+    const words = queryLower.split(" ");
+    let relevantSections = [];
+
+    for (const section of course.sections) {
+      const sectionMatch = words.some((word) =>
+        section.name.toLowerCase().includes(word)
+      );
+
+      if (sectionMatch) {
+        relevantSections.push(section);
+      }
+    }
+
+    if (relevantSections.length === 0) {
+      relevantSections = course.sections;
+    }
+
+    const detailedSections = await Promise.all(
+      relevantSections.slice(0, 3).map(async (section) => {
+        const fullContents = await getCourseContents(course.id);
+        const fullSection = fullContents.find((s) => s.id === section.id);
+
+        return {
+          name: section.name,
+          summary: fullSection?.summary || "",
+          modules:
+            fullSection?.modules?.map((module) => ({
+              name: module.name,
+              type: module.type,
+              description: module.description || "",
+              url: module.url,
+            })) || [],
+        };
+      })
+    );
+
+    return {
+      found: true,
+      course: {
+        name: course.name,
+        url: course.url,
+      },
+      section: detailedSections,
+    };
+  } catch (error) {
+    logger?.warn("Smart search failed, cache not loaded:", error.message);
+    return {
+      found: false,
+      message:
+        "Course search unavailable - cache not loaded. Please create a valid Moodle token first.",
+    };
   }
-
-  if (relevantSections.length === 0) {
-    relevantSections = course.sections;
-  }
-
-  const detailedSections = await Promise.all(
-    relevantSections.slice(0, 3).map(async (section) => {
-      const fullContents = await getCourseContents(course.id);
-      const fullSection = fullContents.find((s) => s.id === section.id);
-
-      return {
-        name: section.name,
-        summary: fullSection?.summary || "",
-        modules:
-          fullSection?.modules?.map((module) => ({
-            name: module.name,
-            type: module.type,
-            description: module.description || "",
-            url: module.url,
-          })) || [],
-      };
-    })
-  );
-
-  return {
-    found: true,
-    course: {
-      name: course.name,
-      url: course.url,
-    },
-    section: detailedSections,
-  };
 }
