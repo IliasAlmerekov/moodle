@@ -1,5 +1,5 @@
-import { getCoursesStructure } from "./courseCache.service";
-import { getCourseContents } from "./moodle.service";
+import { getCoursesStructure } from "./courseCache.service.js";
+import { getCourseContents } from "./moodle.service.js";
 
 export function findCourse(searchTerm) {
   const courses = getCoursesStructure();
