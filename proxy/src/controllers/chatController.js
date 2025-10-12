@@ -44,7 +44,7 @@ export async function handleChatStream(request, reply) {
 
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(user);
+  const systemPrompt = await buildSystemPrompt(context);
   const fullPrompt = `${systemPrompt}\n\nFrage des Stedentes: ${message}`;
 
     try {
