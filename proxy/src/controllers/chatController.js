@@ -14,7 +14,7 @@ export async function handleChatStream(request, reply) {
     Link: ${searchResult.course.url}
 
     Relevante Abschnitte:
-    ${searchResult.sections
+    ${searchResult.section
       .map(
         (section) => `
       ### ${section.name}
