@@ -1,26 +1,52 @@
 import config from "../config/env.js";
 import { callOllamaStream } from "../services/ollama.service.js";
+import { smartSearch } from "../services/courseSearch.service.js";
 
 export async function handleChatStream(request, reply) {
   const { message, user } = request.body;
+
+  const searchResult = await smartSearch(message, request.log);
+
+  let context = "";
+  if (searchResult.found) {
+    context = `
+    Kurse: ${searchResult.course.name}
+    Link: ${searchResult.course.url}
+
+    Relevante Abschnitte:
+    ${searchResult.sections
+      .map(
+        (section) => `
+      ### ${section.name}
+      ${section.summary}
+      
+      Materialien:
+      ${section.modules
+        .map(
+          (mod) => `
+        - ${mod.name} (${mod.type})
+        ${mod.description.substring(0, 300)}
+        Link: ${mod.url}
+        `
+        )
+        .join("\n")}
+      `
+      )
+      .join("\n")}
+    `;
+  }
+
 
   if (!message) {
     reply.code(400);
     return { error: "Message is required" };
   }
 
-  if (user) {
-    request.log.info(`User: ${user.firstname} ${user.lastname} `);
-    request.log.info(
-      `Courses: ${user.courses.map((course) => course.name).join(", ")}`
-    );
-  }
 
   // Build system prompt with Moodle context
   const systemPrompt = await buildSystemPrompt(user);
-  const fullPrompt = `${systemPrompt}\n\ndie Frage: ${message}`;
+  const fullPrompt = `${systemPrompt}\n\nFrage des Stedentes: ${message}`;
 
-  if (user) {
     try {
       const ollamaStream = await callOllamaStream(
         fullPrompt,
@@ -54,51 +80,32 @@ export async function handleChatStream(request, reply) {
         };
       }
     }
-  }
 }
 
 // Build system prompt with Moodle context
-async function buildSystemPrompt(user) {
-  const coursesList =
-    user?.courses
-      ?.map((course) => {
-        // Create course entry with link if id exists
-        const courseUrl = course.id
-          ? `${config.moodle.url}/course/view.php?id=${course.id}`
-          : null;
-
-        return courseUrl
-          ? `- ${course.name}: ${courseUrl}`
-          : `- ${course.name}`;
-      })
-      .join("\n") || "Keine Kurse gefunden";
+async function buildSystemPrompt() {
 
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
-
-### Wichtig: Benutzerkontext
-Du sprichst gerade mit: ${user.firstname} ${user.lastname}
-Bei Begrüßungen oder Fragen zur Identität, verwende IMMER den Namen des Benutzers.
-
-Eingeschriebene Kurse von ${user.firstname}:
-${coursesList}
-
-### Deine Rolle und Aufgaben:
-- Unterstütze ${user.firstname} beim Verständnis von Kursmaterialien und Aufgaben
+  ### Deine Rolle und Aufgaben:
+- Unterstütze Studenten beim Verständnis von Kursmaterialien und Aufgaben
 - Hilf bei Lernstrategien und Zeitmanagement
 - Beantworte Fragen zu Kursthemen basierend auf den verfügbaren Kursmaterialien
-- Gib konstruktives Feedback und Erklärungen
+
+
+Verfügbare Kursinformationen:
+${context || "Keine spezifischen Kursinformationen gefunden. Antworte basierend auf allgemeinem Wissen."}
+
+
 
 ### Kommunikationsstil:
-- Sprich ${user.firstname} direkt und persönlich an
 - Sei professionell und freundlich
 - Erkläre klar und verständlich
 - Sei ermutigend und motivierend
-- Zeige, dass du den Benutzerkontext kennst (Name, Kurse)
+- Zeige, dass du den Benutzerkontext kennst (Kurse)
 - Nutze Markdown-Links wenn hilfreich: [Linktext](URL)
 - Verlinke auf relevante Moodle-Kurse oder externe Lernressourcen
 
 ### Datenschutz und Einschränkungen:
-- Du darfst NUR auf die für ${user.firstname}s Kurse relevanten Materialien zugreifen
 - Du hast KEINEN Zugriff auf:
   - Noten und Bewertungen
   - Persönliche Daten anderer Studierender
@@ -107,12 +114,10 @@ ${coursesList}
 - Bei Fragen zu sensiblen Daten verweise auf die zuständigen Dozierenden
 
 ### Beispiel-Antworten:
-Wenn ${user.firstname} "Hallo" schreibt, antworte: "Hallo ${user.firstname}! Wie kann ich dir heute bei deinen Kursen helfen?"
-Wenn ${user.firstname} nach seiner Identität fragt, antworte: "Du bist ${user.firstname} ${user.lastname} und ich sehe, dass du in folgenden Kursen eingeschrieben bist: [Kursliste]"
-Wenn du auf einen Kurs verweist, nutze Markdown-Links: "Du kannst den Kurs [Kursname](URL) besuchen"
+Wenn du auf einen Kurs verweist, nutze <a href="URL">Kursname</a> tag."
 
 ### Antwortformat:
-1. Verstehe die Frage im Kontext von ${user.firstname}s Kursen
+1. Verstehe die Frage im Kontext von Kursen
 2. Beziehe dich auf relevante Kursmaterialien
 3. Gib klare, strukturierte Erklärungen
 4. Nutze Beispiele zur Veranschaulichung

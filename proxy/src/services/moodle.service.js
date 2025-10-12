@@ -16,7 +16,6 @@ export async function callMoodleAPI(functionName, params = {}) {
 
   const url = `${config.moodle.url}/webservice/rest/server.php?${urlParams}`;
 
-
   try {
     // make the API call
     const response = await fetch(url);
@@ -61,5 +60,24 @@ export async function getUserInfo(userId) {
 export async function getUserCourses(userId) {
   return callMoodleAPI("core_enrol_get_users_courses", {
     userid: userId,
+  });
+}
+
+// Get all available courses (for admin token)
+export async function getAllCourses() {
+  return callMoodleAPI("core_course_get_courses");
+}
+
+// Get detailed course contents (sections, modules, resources)
+export async function getCourseContents(courseId) {
+  return callMoodleAPI("core_course_get_contents", {
+    courseid: courseId,
+  });
+}
+
+// Get full content of module
+export async function getModuleContent(moduleId) {
+  return callMoodleAPI("core_course_get_course_module", {
+    cmid: moduleId,
   });
 }

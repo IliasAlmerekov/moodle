@@ -1,3 +1,4 @@
+import { loadCoursesStructure } from "./services/courseCache.service.js";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import path from "path";
@@ -8,6 +9,16 @@ import healthRoutes from "./routes/health.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import ollamaRoutes from "./routes/ollama.route.js";
 import moodleRoutes from "./routes/moodle.route.js";
+
+fastify.addHook("onReady", async () => {
+  try {
+    fastify.log.info("Loading courses structure cache...");
+    await loadCoursesStructure(fastify.log);
+    fastify.log.info("Cache ready!");
+  } catch (error) {
+    fastify.log.error({ error: error }, "Failed to load courses structure");
+  }
+});
 
 // Initialize Fastify
 const fastify = Fastify({
