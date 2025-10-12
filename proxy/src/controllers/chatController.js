@@ -1,7 +1,6 @@
 import config from "../config/env.js";
+import { getSiteInfo, getUserCourses } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
-import { smartSearch } from "../services/courseSearch.service.js";
-import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 
 export async function handleChatStream(request, reply) {
   const { message, user } = request.body;
@@ -64,7 +63,7 @@ async function buildSystemPrompt(userId) {
   if (userId) {
     try {
       // Fetch user info and courses from Moodle API using admin token
-      const userInfo = await getUserInfo(userId);
+      const userInfo = await getSiteInfo(userId);
       const courses = await getUserCourses(userId);
 
       userName = userInfo.firstname || "Student";
