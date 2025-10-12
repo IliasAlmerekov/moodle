@@ -1,5 +1,9 @@
 import config from "../config/env.js";
-import { getSiteInfo, getUserCourses } from "../services/moodle.service.js";
+import {
+  getSiteInfo,
+  getUserInfo,
+  getUserCourses,
+} from "../services/moodle.service.js";
 
 // Health check for Moodle instance
 export async function getMoodlePing(request, reply) {
@@ -38,7 +42,7 @@ export async function getUserInfoById(request, reply) {
   }
 
   try {
-    const userInfo = await getSiteInfo(userId);
+    const userInfo = await getUserInfo(userId);
 
     return {
       status: "ok",
@@ -51,7 +55,7 @@ export async function getUserInfoById(request, reply) {
   } catch (error) {
     request.log.error(
       { error },
-      `Failed to get info for user ${request.params.userId}`
+      `Failed to get info for user ${request.params.id}`
     );
     reply.code(500);
     return {
@@ -62,7 +66,7 @@ export async function getUserInfoById(request, reply) {
 }
 
 export async function getUserCoursesById(request, reply) {
-  const rawId = request.params?.id;
+  const rawId = request.params?.userId;
   const userId = Number(rawId);
 
   if (!Number.isInteger(userId) || userId <= 0) {
