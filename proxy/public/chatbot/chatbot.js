@@ -136,12 +136,17 @@ const sendMessageStream = async () => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
+    let fullText = ""; // Накапливаем весь текст здесь
+
     while (true) {
       const { done, value } = await reader.read();
 
       if (done) {
         // После завершения стриминга - исправь поломанные ссылки
-        contentDiv.innerHTML = fixBrokenLinks(contentDiv.innerHTML);
+        const fixedText = fixBrokenLinks(fullText);
+        console.log("Original text:", fullText);
+        console.log("Fixed text:", fixedText);
+        contentDiv.innerHTML = fixedText;
         break;
       }
 
@@ -164,9 +169,10 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            // WICHTIG: HTML-Tags direkt rendern, nicht escapen
-            // Akkumuliere Text und rendere als HTML (für klickbare Links)
-            contentDiv.innerHTML += text;
+            // Накапливаем текст
+            fullText += text;
+            // Отображаем текст как HTML (для прогрессивного рендеринга)
+            contentDiv.innerHTML = fullText;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
