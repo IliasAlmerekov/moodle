@@ -22,6 +22,17 @@ const closeChat = () => {
   toogleButton.classList.remove("hidden");
 };
 
+// function to convert markdown links to HTML
+// Example: [Moodle](https://moodle.org) -> <a href="https://moodle.org" target="_blank">Moodle</a>
+const convertMarkdownLinks = (text) => {
+  // Convert markdown links [text](url) to HTML <a> tags
+  // Opens links in new tab with security attributes
+  return text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+};
+
 // function to add messages to the chat window
 const addMessage = (content, isUser = false) => {
   const messageDiv = document.createElement("div");
@@ -29,7 +40,14 @@ const addMessage = (content, isUser = false) => {
 
   const contentDiv = document.createElement("div");
   contentDiv.className = "message-content";
-  contentDiv.textContent = content;
+
+  if (isUser) {
+    // User messages as plain text (for security)
+    contentDiv.textContent = content;
+  } else {
+    // Bot messages support links
+    contentDiv.innerHTML = convertMarkdownLinks(content);
+  }
 
   messageDiv.appendChild(contentDiv);
   messagesContainer.appendChild(messageDiv);
@@ -37,58 +55,25 @@ const addMessage = (content, isUser = false) => {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 };
 
-const getUserId = () => {
-  let userId = null;
+async function detectMoodleUser() {
+  const profileLink =
+    document.querySelector('#usermenu a[href*="/user/profile.php"]') ||
+    document.querySelector('#usermenu a[href*="/user/view.php"]') ||
+    document.querySelector('a[href*="/user/profile.php?id="]') ||
+    document.querySelector('a[href*="/user/view.php?id="]');
 
-  // === ДИАГНОСТИКА ===
-  console.log("🔍 Checking for userId...");
-  console.log("window.M exists?", typeof window.M !== "undefined");
-  console.log("window.M:", window.M);
+  if (!profileLink) return null;
 
-  if (window.M) {
-    console.log("window.M.cfg exists?", typeof window.M.cfg !== "undefined");
-    console.log("window.M.cfg:", window.M.cfg);
+  const url = new URL(profileLink.href, window.location.origin);
+  const id = Number(url.searchParams.get("id"));
+  if (!id) return null;
 
-    if (window.M.cfg) {
-      console.log("window.M.cfg.userid:", window.M.cfg.userid);
-    }
-  }
+  return {
+    id: Number(id),
+  };
+}
 
-  // Try 1: From Moodle global JS object (if available)
-  try {
-    if (window.M && window.M.cfg && window.M.cfg.userid) {
-      userId = window.M.cfg.userid;
-      console.log("✅ userId from Moodle global:", userId);
-      localStorage.setItem("moodle_userid", userId);
-      return userId;
-    }
-  } catch (error) {
-    console.warn("Cannot access Moodle global object:", error);
-  }
-
-  // Try 2: From URL parameter (?userid=123)
-  if (!userId) {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has("userid")) {
-      userId = urlParams.get("userid");
-      console.log("✅ userId from URL parameter:", userId);
-      localStorage.setItem("moodle_userid", userId);
-      return userId;
-    }
-  }
-
-  // Try 3: From localStorage (if previously saved)
-  if (!userId) {
-    userId = localStorage.getItem("moodle_userid");
-    if (userId) {
-      console.log("✅ userId from localStorage:", userId);
-      return userId;
-    }
-  }
-
-  console.warn("⚠️ No userId found!");
-  return null;
-};
+const moodleUserId = await detectMoodleUser();
 
 // function to send message
 const sendMessageStream = async () => {
@@ -106,13 +91,15 @@ const sendMessageStream = async () => {
   const contentDiv = botMessageDiv.querySelector(".message-content");
 
   try {
-    const userId = getUserId();
     const response = await fetch(`${API_BASE_URL}/api/chat-stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message, userId: userId }),
+      body: JSON.stringify({
+        message: message,
+        userId: moodleUserId.id,
+      }),
     });
 
     removeMessage(loadingId);
@@ -148,7 +135,9 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            contentDiv.textContent += text;
+            // Append text and convert markdown links
+            const currentText = contentDiv.textContent + text;
+            contentDiv.innerHTML = convertMarkdownLinks(currentText);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
@@ -159,7 +148,7 @@ const sendMessageStream = async () => {
   } catch (error) {
     removeMessage(loadingId);
     console.error("Error:", error);
-    contentDiv.textContent =
+    contentDiv.innerHTML =
       "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
   } finally {
     sendButton.disabled = false;

@@ -1,22 +1,72 @@
 import config from "../config/env.js";
-import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
+import { appendMessage, getHistory } from "../services/chatMemory.service.js";
+import { smartSearch } from "../services/courseSearch.service.js";
+import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
+import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
 export async function handleChatStream(request, reply) {
   const { message, userId } = request.body;
 
-  if (!message) {
+  if (!message || !userId) {
     reply.code(400);
-    return { error: "Message is required" };
+    return { error: "Message and user ID are required" };
   }
 
-  request.log.info(`Received streaming message: ${message}, userId: ${userId}`);
+  const numericUserId = Number(userId);
+  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
+    reply.code(400);
+    return { error: "Invalid user ID" };
+  }
+
+  let userProfile = getCachedUser(numericUserId);
+  if (!userProfile) {
+    try {
+      const [info, courses] = await Promise.all([
+        getUserInfo(numericUserId),
+        getUserCourses(numericUserId),
+      ]);
+
+      userProfile = {
+        id: info.id,
+        firstname: info.firstname,
+        lastname: info.lastname,
+        fullname: `${info.firstname} ${info.lastname}`.trim(),
+        email: info.email,
+        courses: courses.map((course) => ({
+          id: course.id,
+          fullname: course.fullname,
+          shortname: course.shortname,
+        })),
+      };
+
+      setCachedUser(numericUserId, userProfile);
+    } catch (error) {
+      request.log.error({ error }, "Failed to resolve Moodle user");
+      reply.code(502);
+      return { error: "Failed to fetch user data from Moodle" };
+    }
+  }
+
+  const sessionId = `moodle-${userProfile.id}`;
+
+  const history = getHistory(sessionId)
+    .map(
+      (turn) => `${turn.role === "user" ? "Student" : "Tutor"}: ${turn.content}`
+    )
+    .join("\n");
+
+  const searchResult = await smartSearch(message, request.log);
+  const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(userId, request.log);
-  const fullPrompt = `${systemPrompt}\n\ndie Frage: ${message}`;
+  const systemPrompt = await buildSystemPrompt(context, userProfile);
+  const fullPrompt = `${systemPrompt}\n\n${history}\nStudent: ${message}`;
+
+  appendMessage(sessionId, "user", message);
 
   try {
+    let assistantReply = "";
     const ollamaStream = await callOllamaStream(
       fullPrompt,
       config.ollama.model
@@ -34,7 +84,10 @@ export async function handleChatStream(request, reply) {
     });
 
     // Stream response to client
-    await streamOllamaResponse(ollamaStream, reply, request.log);
+    await streamOllamaResponse(ollamaStream, reply, request.log, (chunk) => {
+      assistantReply += chunk;
+    });
+    appendMessage(sessionId, "assistant", assistantReply);
   } catch (error) {
     request.log.error(
       { error },
@@ -51,17 +104,67 @@ export async function handleChatStream(request, reply) {
   }
 }
 
-// Build system prompt with Moodle context
-async function buildSystemPrompt(userId, logger) {
-  let systemPrompt = `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. Deine Aufgabe ist es, Studierenden beim Lernen und Verstehen ihrer Kursinhalte zu unterstützen.
-    ### Rolle und Verantwortlichkeiten:
-- Du unterstützt beim Verständnis von Kursmaterialien und Aufgaben
-- Du hilfst bei Lernstrategien und Zeitmanagement
-- Du beantwortest Fragen zu Kursthemen basierend auf den verfügbaren Kursmaterialien
-- Du gibst konstruktives Feedback und Erklärungen
+function formatSearchResult(searchResult) {
+  return `
+  Kurs: ${searchResult.course.name}
+  Link: ${searchResult.course.url}
+  
+  Relelvant Abschnitte:
+  ${searchResult.section
+    .map(
+      (section) => `
+    ### ${section.name}
+    ${section.summary}
+    
+    Materialen:
+    ${section.modules
+      .map(
+        (mod) => `
+      - ${mod.name} (${mod.type})
+      ${mod.description.substring(0, 300)}
+      Link: ${mod.url}
+      `
+      )
+      .join("\n")}
+    `
+    )
+    .join("\n")}
+  `;
+}
 
-    ### Datenschutz und Einschränkungen:
-- Du darfst NUR auf die für den aktiven Kurs relevanten Materialien zugreifen
+// Build system prompt with Moodle context
+function buildSystemPrompt(context, user) {
+
+  const courseLines = (user.courses ?? [])
+  .map((course) => `- ${course.fullname}`)
+  .join("\n");
+
+
+  return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
+
+  Benutzer:
+  - Name: ${user.fullname || "Student"}
+  - E-Mail: ${user.email || "Nicht verfügbar"}
+  - Eingeschriebene Kurse: ${courseLines || "- (keine Daten)"}
+
+  Verfügbare Kursinformationen:
+  ${context || "- (keine relevanten Kursinformationen gefunden)"}
+
+### Deine Rolle und Aufgaben:
+- Du unterstützt ${user.fullname} beim Verständnis von Kursmaterialien und Aufgaben
+- Bei Begrüßung nutze den Namen des Benutzers, z.B. "Hallo ${user.fullname}, wie kann ich dir helfen?"
+- Hilf bei Lernstrategien und Zeitmanagement
+- Beantworte Fragen zu Kursthemen basierend auf den verfügbaren Kursmaterialien
+
+### Kommunikationsstil:
+- Sei professionell und freundlich
+- Erkläre klar und verständlich
+- Sei ermutigend und motivierend
+- Zeige, dass du den Benutzerkontext kennst (Kurse)
+- Nutze Markdown-Links wenn hilfreich: [Linktext](URL)
+- Verlinke auf relevante Moodle-Kurse oder externe Lernressourcen
+
+### Datenschutz und Einschränkungen:
 - Du hast KEINEN Zugriff auf:
   - Noten und Bewertungen
   - Persönliche Daten anderer Studierender
@@ -69,67 +172,26 @@ async function buildSystemPrompt(userId, logger) {
   - Prüfungslösungen und Musterlösungen
 - Bei Fragen zu sensiblen Daten verweise auf die zuständigen Dozierenden
 
-    ### Kommunikationsstil:
-- Professionell und freundlich
-- Klar und verständlich
-- Ermutigend und motivierend
-- Geduldig bei Nachfragen
-- Fokussiert auf Lerninhalte
-    `;
+### Beispiel-Antworten:
+Wenn du auf einen Kurs verweist, nutze <a href="URL">Kursname</a> tag."
 
-  if (!userId) {
-    logger.info("No userId provided, using default system prompt");
-    return systemPrompt;
-  }
+### Antwortformat:
+1. Verstehe die Frage im Kontext von Kursen
+2. Beziehe dich auf relevante Kursmaterialien
+3. Gib klare, strukturierte Erklärungen
+4. Nutze Beispiele zur Veranschaulichung
+5. Ermutige zu eigenständigem Denken
 
-  try {
-    logger.info(`Fetching user info for userId: ${userId}`);
-
-    const userInfo = await getUserInfo(userId);
-    logger.info(`User: ${userInfo.firstname} ${userInfo.lastname}`);
-
-    const userCourses = await getUserCourses(userId);
-    logger.info(`Found ${userCourses.length} courses`);
-
-    const coursesList = userCourses
-      .map((course) => `- ${course.fullname}`)
-      .join("\n");
-
-    systemPrompt = `Du unterstützt ${userInfo.firstname} ${userInfo.lastname}.
-Aktuell ist der Benutzer in folgenden Kursen eingeschrieben:
-${coursesList}
-
-    ### Antwortformat:
-1. Verstehen der Frage im Kontext des Kurses
-2. Bezug auf relevante Kursmaterialien
-3. Klare, strukturierte Erklärung
-4. Bei Bedarf Beispiele zur Veranschaulichung
-5. Ermutigung zu eigenständigem Denken
-
-    ### Sicherheitsrichtlinien:
+### Sicherheitsrichtlinien:
 - Keine Weitergabe von Login-Daten oder Zugangscodes
 - Keine Hilfe bei der Umgehung von Moodle-Sicherheitsmaßnahmen
 - Keine Unterstützung bei unethischem Verhalten
-- Bei Sicherheitsbedenken auf Moodle-Support verweisen
-
-    ### Feedback und Hilfestellung:
-- Gib spezifisches, konstruktives Feedback
-- Zeige verschiedene Lösungsansätze auf
-- Fördere kritisches Denken
-- Verweise auf zusätzliche Ressourcen im Kurs
-`;
-
-    logger.info("Moodle context added to prompt");
-  } catch (error) {
-    logger.warn(`Could not fetch Moodle context: ${error.message}`);
-  }
-
-  return systemPrompt;
+- Bei Sicherheitsbedenken auf Moodle-Support verweisen`;
 }
 
 // stream response from Ollama to client
-async function streamOllamaResponse(ollamaStream, reply, logger) {
-  const reader = ollamaStream.getReader();
+async function streamOllamaResponse(stream, reply, logger, onChunk) {
+  const reader = stream.getReader();
   const decoder = new TextDecoder();
 
   while (true) {
@@ -149,6 +211,7 @@ async function streamOllamaResponse(ollamaStream, reply, logger) {
         const json = JSON.parse(line);
 
         if (json && json.response) {
+          onChunk?.(json.response);
           reply.raw.write(
             `data: ${JSON.stringify({ text: json.response })}\n\n`
           );

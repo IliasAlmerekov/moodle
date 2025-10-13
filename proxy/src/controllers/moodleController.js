@@ -1,8 +1,8 @@
 import config from "../config/env.js";
 import {
+  getSiteInfo,
   getUserInfo,
   getUserCourses,
-  getSiteInfo,
 } from "../services/moodle.service.js";
 
 // Health check for Moodle instance
@@ -29,37 +29,75 @@ export async function getMoodlePing(request, reply) {
   }
 }
 
-// getSiteInfo
-export async function getSiteInformation(request, reply) {
+export async function getUserInfoById(request, reply) {
+  const rawId = request.params?.id;
+  const userId = Number(rawId);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    reply.code(400);
+    return {
+      status: "error",
+      message: "Invalid user ID",
+    };
+  }
+
   try {
-    const info = await getSiteInfo();
-    return { status: "ok", data: info };
+    const userInfo = await getUserInfo(userId);
+
+    return {
+      status: "ok",
+      userId: userId,
+      firstname: userInfo.firstname,
+      lastname: userInfo.lastname,
+      fullname: userInfo.fullname,
+      email: userInfo.email,
+    };
   } catch (error) {
+    request.log.error(
+      { error },
+      `Failed to get info for user ${request.params.id}`
+    );
     reply.code(500);
-    return { status: "error", message: error.message };
+    return {
+      status: "error",
+      message: error.message,
+    };
   }
 }
 
-// getUserInfo
-export async function getUserInformation(request, reply) {
-  try {
-    const userId = request.params.userId;
-    const user = await getUserInfo(userId);
-    return { status: "ok", data: user };
-  } catch (error) {
-    reply.code(500);
-    return { status: "error", message: error.message };
-  }
-}
+export async function getUserCoursesById(request, reply) {
+  const rawId = request.params?.userId;
+  const userId = Number(rawId);
 
-// getUserCourses
-export async function getUserCoursesController(request, reply) {
+  if (!Number.isInteger(userId) || userId <= 0) {
+    reply.code(400);
+    return {
+      status: "error",
+      message: "Invalid user ID",
+    };
+  }
+
   try {
-    const userId = request.params.userId;
     const courses = await getUserCourses(userId);
-    return { status: "ok", data: courses };
+
+    return {
+      status: "ok",
+      userId: userId,
+      courses: courses.map((course) => ({
+        id: course.id,
+        name: course.fullname,
+        shortname: course.shortname,
+      })),
+    };
   } catch (error) {
+    request.log.error(
+      { error },
+      `Failed to get courses for user ${request.params.userId}`
+    );
     reply.code(500);
-    return { status: "error", message: error.message };
+    return {
+      status: "error",
+      message: error.message,
+    };
   }
 }

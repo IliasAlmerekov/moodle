@@ -1,8 +1,7 @@
 import {
   getMoodlePing,
-  getSiteInformation,
-  getUserCoursesController,
-  getUserInformation,
+  getUserCoursesById,
+  getUserInfoById,
 } from "../controllers/moodleController.js";
 
 /**
@@ -11,9 +10,7 @@ import {
 export default async function moodleRoutes(fastify) {
   fastify.get("/moodle/ping", getMoodlePing);
 
-  fastify.get("/moodle/site-info", getSiteInformation);
-
-  fastify.get("/moodle/user/:userId", getUserInformation);
-
-  fastify.get("/moodle/user/:userId/courses", getUserCoursesController);
+  // get user courses by userId
+  fastify.get("/moodle/users/:userId/courses", getUserCoursesById);
+  fastify.get("/moodle/user/:id", getUserInfoById);
 }

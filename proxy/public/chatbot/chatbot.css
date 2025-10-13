@@ -136,6 +136,23 @@ body {
   align-self: flex-end;
 }
 
+/* Styles for links in bot messages */
+.bot-message .message-content a {
+  color: #0f6cbf;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.bot-message .message-content a:hover {
+  color: #f27f22;
+  text-decoration: none;
+}
+
+.bot-message .message-content a:visited {
+  color: #0a5191;
+}
+
 .chatbot-input-area {
   display: flex;
   padding: 12px;
