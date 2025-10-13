@@ -9,6 +9,7 @@ const closeButton = document.getElementById("chatbot-close");
 const messagesContainer = document.getElementById("chatbot-messages");
 const inputField = document.getElementById("chatbot-input");
 const sendButton = document.getElementById("chatbot-send");
+const newChatButton = document.getElementById("chatbot-new-chat");
 
 // function to open and close the chat window
 const openChat = () => {
@@ -20,20 +21,6 @@ const openChat = () => {
 const closeChat = () => {
   chatWindow.classList.add("hidden");
   toogleButton.classList.remove("hidden");
-};
-
-// function to convert markdown links to HTML and preserve existing HTML links
-// Example: [Moodle](https://moodle.org) -> <a href="https://moodle.org" target="_blank">Moodle</a>
-const convertMarkdownLinks = (text) => {
-  // Convert markdown links [text](url) to HTML <a> tags
-  let result = text.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
-
-  // HTML-Links sind bereits vorhanden, nichts zu tun
-  // Die Funktion gibt den Text einfach zurück (mit konvertierten Markdown-Links)
-  return result;
 };
 
 // Fix broken HTML links (when <a is missing from stream)
@@ -98,13 +85,52 @@ async function detectMoodleUser() {
   };
 }
 
-const moodleUserId = await detectMoodleUser();
+const storageKey = (userId) => `chat-session:${userId}`;
+
+let moodleUser = null;
+let chatId = null;
+
+async function initChat() {
+  moodleUser = await detectMoodleUser();
+  if (!moodleUser) return;
+
+  chatId =
+    localStorage.getItem(storageKey(moodleUser.id)) ||
+    `moodle-${moodleUser.id}-${crypto.randomUUID()}`;
+
+  localStorage.setItem(storageKey(moodleUser.id), chatId);
+
+  await restoreChatHistory();
+}
+
+async function restoreChatHistory() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    messagesContainer.innerHTML = "";
+
+    if (!data.messages.length) {
+      addMessage(
+        "Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?",
+        false
+      );
+      return;
+    }
+    data.messages.forEach((msg) =>
+      addMessage(msg.content, msg.role === "user")
+    );
+  } catch (error) {
+    console.warn("Error restoring chat history:", error);
+  }
+}
 
 // function to send message
 const sendMessageStream = async () => {
   const message = inputField.value.trim();
 
-  if (!message) return;
+  if (!message || moodleUser) return;
 
   addMessage(message, true);
   inputField.value = "";
@@ -122,8 +148,9 @@ const sendMessageStream = async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: message,
-        userId: moodleUserId.id,
+        chatId,
+        message,
+        userId: moodleUser.id,
       }),
     });
 
@@ -135,17 +162,15 @@ const sendMessageStream = async () => {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let latestSessionId = chatId;
 
-    let fullText = ""; // Накапливаем весь текст здесь
+    let fullText = "";
 
     while (true) {
       const { done, value } = await reader.read();
 
       if (done) {
-        // После завершения стриминга - исправь поломанные ссылки
         const fixedText = fixBrokenLinks(fullText);
-        console.log("Original text:", fullText);
-        console.log("Fixed text:", fixedText);
         contentDiv.innerHTML = fixedText;
         break;
       }
@@ -165,13 +190,16 @@ const sendMessageStream = async () => {
           }
 
           const data = JSON.parse(jsonStr);
+          if (data.sessionId && data.sessionId !== chatId) {
+            chatId = data.sessionId;
+            latestSessionId = data.sessionId;
+            localStorage.setItem(storageKey(moodleUser.id), chatId);
+          }
 
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            // Накапливаем текст
             fullText += text;
-            // Отображаем текст как HTML (для прогрессивного рендеринга)
             contentDiv.innerHTML = fullText;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
@@ -180,6 +208,8 @@ const sendMessageStream = async () => {
         }
       }
     }
+
+    localStorage.setItem(storageKey(moodleUser.id), latestSessionId);
   } catch (error) {
     removeMessage(loadingId);
     console.error("Error:", error);
@@ -190,6 +220,21 @@ const sendMessageStream = async () => {
     inputField.focus();
   }
 };
+
+async function startNewChat() {
+  try {
+    await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    console.warn("Failed to reset chat history:", error);
+  }
+
+  messagesContainer.innerHTML = "";
+  localStorage.removeItem(storageKey(moodleUser.id));
+  chatId = `moodle-${moodleUser.id}-${crypto.randomUUID()}`;
+  localStorage.setItem(storageKey(moodleUser.id), chatId);
+}
 
 function createEmptyBotMessage() {
   const messageDiv = document.createElement("div");
@@ -210,6 +255,7 @@ function createEmptyBotMessage() {
 toogleButton.addEventListener("click", openChat);
 closeButton.addEventListener("click", closeChat);
 sendButton.addEventListener("click", sendMessageStream);
+newChatButton.addEventListener("click", startNewChat);
 
 // allow sending message with Enter key
 
@@ -218,3 +264,5 @@ inputField.addEventListener("keypress", (e) => {
     sendMessageStream();
   }
 });
+
+initChat(); // Initialize chat on page load
