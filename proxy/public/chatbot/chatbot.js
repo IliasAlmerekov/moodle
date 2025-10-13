@@ -36,6 +36,27 @@ const convertMarkdownLinks = (text) => {
   return result;
 };
 
+// Fix broken HTML links (when <a is missing from stream)
+// Example: href="url" target="_blank">text</a> -> <a href="url" target="_blank">text</a>
+const fixBrokenLinks = (text) => {
+  // Fix missing <a tag
+  let fixed = text.replace(
+    /href="([^"]+)"\s+target="_blank">([^<]+)<\/a>/g,
+    '<a href="$1" target="_blank">$2</a>'
+  );
+
+  // Also fix URLs without proper link tags - convert plain URLs to clickable links
+  fixed = fixed.replace(/(https?:\/\/[^\s<>"]+)/g, (match, url) => {
+    // Don't replace if already inside an <a> tag
+    if (fixed.indexOf(`href="${url}"`) !== -1) {
+      return match;
+    }
+    return `<a href="${url}" target="_blank">${url}</a>`;
+  });
+
+  return fixed;
+};
+
 // function to add messages to the chat window
 const addMessage = (content, isUser = false) => {
   const messageDiv = document.createElement("div");
@@ -118,7 +139,11 @@ const sendMessageStream = async () => {
     while (true) {
       const { done, value } = await reader.read();
 
-      if (done) break;
+      if (done) {
+        // После завершения стриминга - исправь поломанные ссылки
+        contentDiv.innerHTML = fixBrokenLinks(contentDiv.innerHTML);
+        break;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
 

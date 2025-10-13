@@ -151,10 +151,12 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 ✅ Vermeide lange Texte und Absätze
 
 ### KRITISCH - Links Format:
-🔗 Nutze IMMER HTML für Links: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
-🔗 Beispiel: <a href="https://docs.docker.com" target="_blank">Docker Dokumentation</a>
+🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!
+🔗 Format: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
+🔗 Beispiel richtig: <a href="https://docs.docker.com" target="_blank">Docker Docs</a>
+🔗 Beispiel FALSCH: href="..." target="_blank">text</a> (fehlt <a am Anfang!)
 🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
-🔗 Links müssen IMMER klickbar sein - nutze <a> Tags!
+🔗 Stelle sicher dass JEDER Link mit <a href= beginnt und mit </a> endet!
 
 ### Beispiel gute Antwort:
 "Hallo ${user.fullname}! 👋
