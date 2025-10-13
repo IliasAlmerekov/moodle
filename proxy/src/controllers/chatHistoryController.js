@@ -1,4 +1,4 @@
-import { getHistory, clearHistory } from "../services/chatMemory.service";
+import { getHistory, clearHistory } from "../services/chatMemory.service.js";
 
 export async function getChatHistory(request, reply) {
   const { chatId } = request.params;
