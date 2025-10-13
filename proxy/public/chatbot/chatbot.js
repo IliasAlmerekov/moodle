@@ -96,7 +96,7 @@ async function initChat() {
 
   chatId =
     localStorage.getItem(storageKey(moodleUser.id)) ||
-    `moodle-${moodleUser.id}-${crypto.randomUUID()}`;
+    generateChatId(moodleUser.id);
 
   localStorage.setItem(storageKey(moodleUser.id), chatId);
 
@@ -124,6 +124,26 @@ async function restoreChatHistory() {
   } catch (error) {
     console.warn("Error restoring chat history:", error);
   }
+}
+
+function generateChatId(userId) {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `moodle-${userId}-${crypto.randomUUID()}`;
+  }
+
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+    const random = template.replace(/[xy]/g, (c) => {
+      const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+    return `moodle-${userId}-${random}`;
+  }
+
+  const fallback =
+    Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return `moodle-${userId}-${fallback}`;
 }
 
 // function to send message
@@ -232,7 +252,7 @@ async function startNewChat() {
 
   messagesContainer.innerHTML = "";
   localStorage.removeItem(storageKey(moodleUser.id));
-  chatId = `moodle-${moodleUser.id}-${crypto.randomUUID()}`;
+  chatId = generateChatId(moodleUser.id);
   localStorage.setItem(storageKey(moodleUser.id), chatId);
 }
 
