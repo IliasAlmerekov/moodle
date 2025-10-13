@@ -25,18 +25,14 @@ const closeChat = () => {
 // function to convert markdown links to HTML and preserve existing HTML links
 // Example: [Moodle](https://moodle.org) -> <a href="https://moodle.org" target="_blank">Moodle</a>
 const convertMarkdownLinks = (text) => {
-  // First, convert markdown links [text](url) to HTML <a> tags
+  // Convert markdown links [text](url) to HTML <a> tags
   let result = text.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
   );
   
-  // Ensure all <a> tags have proper attributes (target="_blank" and rel)
-  result = result.replace(
-    /<a\s+href="([^"]+)"(?![^>]*target="_blank")/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer"'
-  );
-  
+  // HTML-Links sind bereits vorhanden, nichts zu tun
+  // Die Funktion gibt den Text einfach zurück (mit konvertierten Markdown-Links)
   return result;
 };
 
@@ -142,11 +138,13 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            // Append text - preserve HTML and convert markdown links
-            // Use innerHTML to get current content (to preserve HTML), then append new text
+            // WICHTIG: HTML-Tags direkt rendern, nicht escapen
+            // Hole aktuellen Inhalt als HTML (um bereits gerenderte Links zu behalten)
             const currentHTML = contentDiv.innerHTML;
-            const newContent = currentHTML + text;
-            contentDiv.innerHTML = convertMarkdownLinks(newContent);
+            // Füge neuen Text hinzu
+            const newHTML = currentHTML + text;
+            // Setze als innerHTML (rendert HTML-Tags wie <a href>)
+            contentDiv.innerHTML = newHTML;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
