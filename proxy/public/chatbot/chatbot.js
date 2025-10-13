@@ -48,8 +48,9 @@ const addMessage = (content, isUser = false) => {
     // User messages as plain text (for security)
     contentDiv.textContent = content;
   } else {
-    // Bot messages support links
-    contentDiv.innerHTML = convertMarkdownLinks(content);
+    // Bot messages: Render HTML directly (for links like <a href="...">)
+    // NO escaping - HTML tags should work!
+    contentDiv.innerHTML = content;
   }
 
   messageDiv.appendChild(contentDiv);
