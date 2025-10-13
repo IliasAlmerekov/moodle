@@ -1,4 +1,5 @@
 import { handleChatStream } from "../controllers/chatController.js";
+
 /**
  * @param {import('fastify').FastifyInstance} fastify
  */
