@@ -6,11 +6,11 @@ import { callOllamaStream } from "../services/ollama.service.js";
 import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
 export async function handleChatStream(request, reply) {
-  const { message, userId } = request.body;
+  const { message, userId, chatId } = request.body;
 
-  if (!message || !userId) {
+  if (!message || !userId || !chatId) {
     reply.code(400);
-    return { error: "Message and user ID are required" };
+    return { error: "Message, user ID, and chat ID are required" };
   }
 
   const numericUserId = Number(userId);
@@ -48,7 +48,7 @@ export async function handleChatStream(request, reply) {
     }
   }
 
-  const sessionId = `moodle-${userProfile.id}`;
+  const sessionId = chatId || `moodle-${userProfile.id}`;
 
   const history = getHistory(sessionId)
     .map(
@@ -86,7 +86,7 @@ export async function handleChatStream(request, reply) {
     // Stream response to client
     await streamOllamaResponse(ollamaStream, reply, request.log, (chunk) => {
       assistantReply += chunk;
-    });
+    }, sessionId);
     appendMessage(sessionId, "assistant", assistantReply);
   } catch (error) {
     request.log.error(
@@ -183,7 +183,7 @@ Antworte jetzt kurz, klar und mit klickbaren HTML-Links!`;
 }
 
 // stream response from Ollama to client
-async function streamOllamaResponse(stream, reply, logger, onChunk) {
+async function streamOllamaResponse(stream, reply, logger, onChunk, sessionId) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
 
@@ -206,7 +206,7 @@ async function streamOllamaResponse(stream, reply, logger, onChunk) {
         if (json && json.response) {
           onChunk?.(json.response);
           reply.raw.write(
-            `data: ${JSON.stringify({ text: json.response })}\n\n`
+            `data: ${JSON.stringify({ text: json.response, sessionId })}\n\n`
           );
         }
 
