@@ -152,7 +152,7 @@ function generateChatId(userId) {
 const sendMessageStream = async () => {
   const message = inputField.value.trim();
 
-  if (!message || moodleUser) return;
+  if (!message || !moodleUser) return;
 
   addMessage(message, true);
   inputField.value = "";
