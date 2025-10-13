@@ -60,7 +60,7 @@ export async function handleChatStream(request, reply) {
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
-  const systemPrompt = await buildSystemPrompt(context, userProfile);
+  const systemPrompt = buildSystemPrompt(context, userProfile);
   const fullPrompt = `${systemPrompt}\n\n${history}\nStudent: ${message}`;
 
   appendMessage(sessionId, "user", message);
@@ -134,11 +134,9 @@ function formatSearchResult(searchResult) {
 
 // Build system prompt with Moodle context
 function buildSystemPrompt(context, user) {
-
   const courseLines = (user.courses ?? [])
-  .map((course) => `- ${course.fullname}`)
-  .join("\n");
-
+    .map((course) => `- ${course.fullname}`)
+    .join("\n");
 
   return `Du bist ein hilfreicher Lernassistent in der Moodle-Lernplattform. 
 
@@ -151,8 +149,12 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 ✅ Nutze Bullet Points (•, -, *) für Listen
 ✅ Maximal 3-5 Stichpunkte pro Antwort
 ✅ Vermeide lange Texte und Absätze
-✅ Für Links nutze HTML: <a href="URL" target="_blank">Linktext</a>
-✅ Links müssen IMMER klickbar sein
+
+### KRITISCH - Links Format:
+🔗 Nutze IMMER HTML für Links: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
+🔗 Beispiel: <a href="https://docs.docker.com" target="_blank">Docker Dokumentation</a>
+🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
+🔗 Links müssen IMMER klickbar sein - nutze <a> Tags!
 
 ### Beispiel gute Antwort:
 "Hallo ${user.fullname}! 👋
@@ -175,7 +177,7 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 • Administrative Daten teilen
 • Lange, komplizierte Erklärungen geben
 
-Antworte jetzt kurz, klar und mit klickbaren Links!`;
+Antworte jetzt kurz, klar und mit klickbaren HTML-Links!`;
 }
 
 // stream response from Ollama to client

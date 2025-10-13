@@ -140,17 +140,27 @@ body {
 .bot-message .message-content a {
   color: #0f6cbf;
   text-decoration: underline;
-  font-weight: 500;
-  transition: color 0.2s;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  word-break: break-word;
 }
 
 .bot-message .message-content a:hover {
   color: #f27f22;
   text-decoration: none;
+  background-color: rgba(242, 127, 34, 0.1);
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 .bot-message .message-content a:visited {
   color: #0a5191;
+}
+
+.bot-message .message-content a:active {
+  color: #f27f22;
+  transform: scale(0.98);
 }
 
 .chatbot-input-area {
