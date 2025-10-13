@@ -86,6 +86,27 @@ async function detectMoodleUser() {
 }
 
 const storageKey = (userId) => `chat-session:${userId}`;
+const historyKey = (chatId) => `chat-history:${chatId}`;
+
+// Save message to localStorage
+const saveMessageToHistory = (chatId, role, content) => {
+  if (!chatId) return;
+
+  const key = historyKey(chatId);
+  const history = JSON.parse(localStorage.getItem(key) || "[]");
+  history.push({ role, content, timestamp: Date.now() });
+
+  // Keep only last 50 messages
+  const trimmed = history.slice(-50);
+  localStorage.setItem(key, JSON.stringify(trimmed));
+};
+
+// Load history from localStorage
+const loadHistoryFromStorage = (chatId) => {
+  if (!chatId) return [];
+  const key = historyKey(chatId);
+  return JSON.parse(localStorage.getItem(key) || "[]");
+};
 
 let moodleUser = null;
 let chatId = null;
@@ -105,6 +126,18 @@ async function initChat() {
 
 async function restoreChatHistory() {
   try {
+    // first try to load history from localStorage
+    const localHistory = loadHistoryFromStorage(chatId);
+
+    if (localHistory.length > 0) {
+      messagesContainer.innerHTML = "";
+      localHistory.forEach((msg) =>
+        addMessage(msg.content, msg.role === "user")
+      );
+      return;
+    }
+
+    // if no local history, fetch from server
     const response = await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
@@ -120,11 +153,15 @@ async function restoreChatHistory() {
       );
       return;
     }
-    messages.forEach((msg) =>
-      addMessage(msg.content, msg.role === "user")
-    );
+    messages.forEach((msg) => addMessage(msg.content, msg.role === "user"));
   } catch (error) {
     console.warn("Error restoring chat history:", error);
+    // If there's an error, show a welcome message
+    messagesContainer.innerHTML = "";
+    addMessage(
+      "Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?",
+      false
+    );
   }
 }
 
@@ -155,6 +192,7 @@ const sendMessageStream = async () => {
   if (!message || !moodleUser) return;
 
   addMessage(message, true);
+  saveMessageToHistory(chatId, "user", message); // save in localStorage
   inputField.value = "";
   sendButton.disabled = true;
 
@@ -194,6 +232,7 @@ const sendMessageStream = async () => {
       if (done) {
         const fixedText = fixBrokenLinks(fullText);
         contentDiv.innerHTML = fixedText;
+        saveMessageToHistory(chatId, "assistant", fixedText); // save bot response
         break;
       }
 
@@ -252,10 +291,19 @@ async function startNewChat() {
     console.warn("Failed to reset chat history:", error);
   }
 
+  // Clear localStorage for old chatId
+  localStorage.removeItem(historyKey(chatId));
+
   messagesContainer.innerHTML = "";
   localStorage.removeItem(storageKey(moodleUser.id));
   chatId = generateChatId(moodleUser.id);
   localStorage.setItem(storageKey(moodleUser.id), chatId);
+
+  // Show welcome message
+  addMessage(
+    "Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?",
+    false
+  );
 }
 
 function createEmptyBotMessage() {
