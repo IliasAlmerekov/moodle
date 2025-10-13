@@ -22,15 +22,22 @@ const closeChat = () => {
   toogleButton.classList.remove("hidden");
 };
 
-// function to convert markdown links to HTML
+// function to convert markdown links to HTML and preserve existing HTML links
 // Example: [Moodle](https://moodle.org) -> <a href="https://moodle.org" target="_blank">Moodle</a>
 const convertMarkdownLinks = (text) => {
-  // Convert markdown links [text](url) to HTML <a> tags
-  // Opens links in new tab with security attributes
-  return text.replace(
+  // First, convert markdown links [text](url) to HTML <a> tags
+  let result = text.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
   );
+  
+  // Ensure all <a> tags have proper attributes (target="_blank" and rel)
+  result = result.replace(
+    /<a\s+href="([^"]+)"(?![^>]*target="_blank")/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer"'
+  );
+  
+  return result;
 };
 
 // function to add messages to the chat window
@@ -135,9 +142,11 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            // Append text and convert markdown links
-            const currentText = contentDiv.textContent + text;
-            contentDiv.innerHTML = convertMarkdownLinks(currentText);
+            // Append text - preserve HTML and convert markdown links
+            // Use innerHTML to get current content (to preserve HTML), then append new text
+            const currentHTML = contentDiv.innerHTML;
+            const newContent = currentHTML + text;
+            contentDiv.innerHTML = convertMarkdownLinks(newContent);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
