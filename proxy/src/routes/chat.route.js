@@ -1,8 +1,38 @@
-import { handleChatStream } from "../controllers/chatController.js";
+import config from "../config/env.js";
+import { getUserCourses, getUserInfo } from "../services/moodle.service.js";
+import { callOllama, callOllamaStream } from "../services/ollama.service.js";
+
 /**
  * @param {import('fastify').FastifyInstance} fastify
  */
 export default async function chatRoutes(fastify) {
+  // endpoint for non-streaming response
+  fastify.post("/api/chat", async (request, reply) => {
+    const { message } = request.body;
+
+    if (!message) {
+      reply.code(400);
+      return { error: "Message is required" };
+    }
+
+    fastify.log.info(`Received message: ${message}`);
+
+    try {
+      const aiResponse = await callOllama(message, config.ollamaModel);
+      return { reply: aiResponse };
+    } catch (error) {
+      // log error
+      request.log.error({ error: error }, "Failed to get response from Ollama");
+
+      // return a 502 Bad Gateway error
+      reply.code(502);
+      return {
+        error: "Unable to reach AI service",
+        details: error.message,
+      };
+    }
+  });
+
   // endpoint for streaming response
   fastify.post("/api/chat-stream", async (request, reply) => {
     const { message, userId } = request.body;
@@ -39,9 +69,29 @@ export default async function chatRoutes(fastify) {
 - Klar und verständlich
 - Ermutigend und motivierend
 - Geduldig bei Nachfragen
-- Fokussiert auf Lerninhalte
+- Fokussiert auf Lerninhalte`;
 
-### Antwortformat:
+    if (userId) {
+      try {
+        fastify.log.info(`Fetching user info for userId: ${userId}`);
+
+        // get info about user from moodle
+        const userInfo = await getUserInfo(userId);
+        fastify.log.info(`User: ${user.firstname} ${user.lastname}`);
+
+        // get user courses
+        const userCourses = await getUserCourses(userId);
+        fastify.log.info(`Found ${userCourses.length} courses`);
+
+        // context for ai
+        const coursesList = userCourses
+          .map((course) => `- ${course.fullname}`)
+          .join("\n");
+
+        systemPrompt = ` ${userInfo.firstname} ${userInfo.lastname}.
+  
+        ${coursesList}
+        ### Antwortformat:
 1. Verstehen der Frage im Kontext des Kurses
 2. Bezug auf relevante Kursmaterialien
 3. Klare, strukturierte Erklärung
@@ -59,30 +109,6 @@ export default async function chatRoutes(fastify) {
 - Zeige verschiedene Lösungsansätze auf
 - Fördere kritisches Denken
 - Verweise auf zusätzliche Ressourcen im Kurs`;
-
-    if (userId) {
-      try {
-        fastify.log.info(`Fetching user info for userId: ${userId}`);
-
-        // get info about user from moodle
-        const userInfo = await getUserInfo(userId);
-        fastify.log.info(`User: ${user.firstname} ${user.lastname}`);
-
-        // get user courser
-        const userCourses = await getUserCourses(userId);
-        fastify.log.info(`Found ${userCourses.length} courses`);
-
-        // context for ai
-        const coursesList = userCourses
-          .map((course) => `- ${course.fullname}`)
-          .join("\n");
-
-        systemPrompt = `You support ${userInfo.firstname} ${userInfo.lastname}.
-        Currently, the user is enrolled in the following courses:
-        ${coursesList}
-
-        Answer the in German language if user ask in German, but you support all languages. Also support user with questions about learn fields on Moodle.
-        `;
 
         fastify.log.info("Moodle context added to prompt");
       } catch (error) {
@@ -171,5 +197,4 @@ export default async function chatRoutes(fastify) {
       }
     }
   });
-  fastify.post("/api/chat-stream", handleChatStream);
 }
