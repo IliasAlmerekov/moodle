@@ -30,7 +30,7 @@ const convertMarkdownLinks = (text) => {
     /\[([^\]]+)\]\(([^)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
   );
-  
+
   // HTML-Links sind bereits vorhanden, nichts zu tun
   // Die Funktion gibt den Text einfach zurück (mit konvertierten Markdown-Links)
   return result;
@@ -140,12 +140,8 @@ const sendMessageStream = async () => {
           const text = data.response || data.text || "";
           if (text) {
             // WICHTIG: HTML-Tags direkt rendern, nicht escapen
-            // Hole aktuellen Inhalt als HTML (um bereits gerenderte Links zu behalten)
-            const currentHTML = contentDiv.innerHTML;
-            // Füge neuen Text hinzu
-            const newHTML = currentHTML + text;
-            // Setze als innerHTML (rendert HTML-Tags wie <a href>)
-            contentDiv.innerHTML = newHTML;
+            // Akkumuliere Text und rendere als HTML (für klickbare Links)
+            contentDiv.innerHTML += text;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
