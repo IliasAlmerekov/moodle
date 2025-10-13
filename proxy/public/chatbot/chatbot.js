@@ -109,16 +109,18 @@ async function restoreChatHistory() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
+    const messages = Array.isArray(data.messages) ? data.messages : [];
+
     messagesContainer.innerHTML = "";
 
-    if (!data.messages.length) {
+    if (!messages.length) {
       addMessage(
         "Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?",
         false
       );
       return;
     }
-    data.messages.forEach((msg) =>
+    messages.forEach((msg) =>
       addMessage(msg.content, msg.role === "user")
     );
   } catch (error) {
