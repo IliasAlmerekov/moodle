@@ -1,15 +1,4 @@
 import config from "../config/env.js";
-function rewriteOrigin(url, origin) {
-  if (!url || !origin) return url;
-  try {
-    const u = new URL(url);
-    const o = new URL(origin);
-    u.protocol = o.protocol;
-    u.host = o.host;
-    return u.toString();
-  } catch {
-    return url;
-  }
 }
 
 import { appendMessage, getHistory } from "../services/chatMemory.service.js";
@@ -70,7 +59,6 @@ export async function handleChatStream(request, reply) {
     .join("\n");
 
   const searchResult = await smartSearch(message, request.log);
-  const clientOrigin = request.headers.origin || (request.headers.referer ? new URL(request.headers.referer).origin : "");
   const context = searchResult.found ? formatSearchResult(searchResult, clientOrigin) : "";
 
   // Build system prompt with Moodle context
@@ -118,14 +106,12 @@ export async function handleChatStream(request, reply) {
   }
 }
 
-function formatSearchResult(searchResult, clientOrigin) {
+function formatSearchResult(searchResult) {
   const formatLink = (url, label) =>
     url ? `<a href="${url}" target="_blank">${label}</a>` : label;
 
   return `
-  Kurs: ${formatLink(rewriteOrigin(searchResult.course.url, clientOrigin), searchResult.course.name)}
-  
-  Relevante Abschnitte:
+  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}\n\nKurzinfo: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : ""}\n\nRelevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
@@ -136,7 +122,7 @@ function formatSearchResult(searchResult, clientOrigin) {
     ${section.modules
       .map((mod) => {
         const description = (mod.description || "").substring(0, 300);
-        const moduleLink = formatLink(rewriteOrigin(mod.url, clientOrigin), "Zum Material");
+        const moduleLink = formatLink(mod.url, "Zum Material");
         const fileLines =
           mod.files && mod.files.length
             ? `
@@ -145,7 +131,7 @@ function formatSearchResult(searchResult, clientOrigin) {
         .map((file) => {
           const fileLabel = file.filename || "Datei";
           return `
-        * ${formatLink(rewriteOrigin(file.url, clientOrigin), fileLabel)}${
+        * ${formatLink(file.url, fileLabel)}${
             file.mimetype ? ` (${file.mimetype})` : ""
           }
         `;
@@ -180,7 +166,7 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 
 ${context ? `Verf√ºgbare Kursinformationen:\n${context}` : ""}
 
-### Antwortregeln:\n- Antworte kurz und eindeutig.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, GIB IMMER den direkten Link aus.\n- Keine generischen Hinweise wie "Ich habe keinen Zugriff" ñ du bekommst Links im Kontext.\n\n### Kontext (falls vorhanden):\n`;
+### Antwortregeln:\n- Antworte in der Sprache der letzten Nutzer-Nachricht (z. B. DE/RU/EN).\n- Antworte kurz, klar und konkret.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, gib IMMER den direkten Link aus.\n- Vermeide generische Hinweise wie "Ich habe keinen Zugriff" ñ nutze den Kontext aus den Kursdaten.\n\n### Aufgaben:\n- Erkl‰re Ziele des Kurses anhand von Kurs- und Abschnitts-Beschreibungen.\n- Fasse Materialien knapp zusammen und verweise mit Links.\n- Biete Lern- und Bearbeitungstipps anhand der vorhandenen Inhalte.\n\n### Kontext (falls vorhanden):\n`;
 }
 
 // stream response from Ollama to client

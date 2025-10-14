@@ -69,6 +69,7 @@ export async function smartSearch(query, logger) {
       course: {
         name: course.name,
         url: course.url,
+        summary: course.summary || "",
       },
       section: detailedSections,
     };
@@ -98,7 +99,7 @@ function formatModule(module) {
     name: module.name,
     type: module.modname || module.type || "",
     description: module.description || "",
-    url: (module.url || (config.moodle.url + "/mod/" + (module.modname || module.type || "") + "/view.php?id=" + module.id)),
+    url: (module.url || null),
     files:
       module.contents
         ?.filter((content) => content.type === "file")
@@ -174,5 +175,4 @@ function tokenize(text) {
 function normalize(text) {
   return (text || "").toLowerCase().trim();
 }
-
 

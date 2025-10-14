@@ -18,6 +18,8 @@ export async function loadCoursesStructure(logger) {
         id: course.id,
         name: course.fullname,
         shortname: course.shortname,
+        
+        summary: (course.summary || ''),
         url: `${MOODLE_URL}/course/view.php?id=${course.id}`,
         sections: contents.map((section) => ({
           id: section.id,
