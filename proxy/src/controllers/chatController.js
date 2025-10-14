@@ -1,4 +1,4 @@
-import config from "../config/env.js";
+﻿import config from "../config/env.js";
 import { appendMessage, getHistory } from "../services/chatMemory.service.js";
 import { smartSearch } from "../services/courseSearch.service.js";
 import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
@@ -56,7 +56,9 @@ export async function handleChatStream(request, reply) {
     )
     .join("\n");
 
-  const searchResult = await smartSearch(message, request.log);
+  const searchResult = await smartSearch(message, request.log, {
+    allowedCourseIds: (userProfile.courses || []).map((c) => c.id),
+  });
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
@@ -105,26 +107,46 @@ export async function handleChatStream(request, reply) {
 }
 
 function formatSearchResult(searchResult) {
+  const formatLink = (url, label) =>
+    url ? `<a href="${url}" target="_blank">${label}</a>` : label;
+
   return `
-  Kurs: ${searchResult.course.name}
-  Link: ${searchResult.course.url}
-  
-  Relelvant Abschnitte:
+  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}\n\nKurzinfo: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : ""}\n\nRelevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
     ### ${section.name}
-    ${section.summary}
+    ${section.summary || ""}
     
-    Materialen:
+    Materialien:
     ${section.modules
-      .map(
-        (mod) => `
-      - ${mod.name} (${mod.type})
-      ${mod.description.substring(0, 300)}
-      Link: ${mod.url}
+      .map((mod) => {
+        const description = (mod.description || "").substring(0, 300);
+        const moduleLink = formatLink(mod.url, "Zum Material");
+        const fileLines =
+          mod.files && mod.files.length
+            ? `
+      Dateien:
+      ${mod.files
+        .map((file) => {
+          const fileLabel = file.filename || "Datei";
+          return `
+        * ${formatLink(file.url, fileLabel)}${
+            file.mimetype ? ` (${file.mimetype})` : ""
+          }
+        `;
+        })
+        .join("\n")}
       `
-      )
+            : "";
+
+        return `
+      - ${mod.name} (${mod.type})
+      ${description}
+      ${moduleLink}
+      ${fileLines}
+      `;
+      })
       .join("\n")}
     `
     )

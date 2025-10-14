@@ -90,6 +90,14 @@ body {
   margin-left: auto;
 }
 
+/* Button section - group buttons together */
+.button-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .chatbot-close {
   background: transparent;
   border: none;

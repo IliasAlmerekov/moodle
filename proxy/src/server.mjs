@@ -15,11 +15,13 @@ const fastify = Fastify({
   logger: {
     level: "info",
   },
+  pluginTimeout: 60000, // allow up to 60s for slow startup hooks (e.g. Moodle cache warmup)
 });
 
 // THEN add hooks
 fastify.addHook("onReady", async () => {
   try {
+    fastify.log.info(`Moodle URL: ${config.moodle.url}`);
     fastify.log.info("Loading courses structure cache...");
     await loadCoursesStructure(fastify.log);
     fastify.log.info("Cache ready!");
