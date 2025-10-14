@@ -1,4 +1,17 @@
 import config from "../config/env.js";
+function rewriteOrigin(url, origin) {
+  if (!url || !origin) return url;
+  try {
+    const u = new URL(url);
+    const o = new URL(origin);
+    u.protocol = o.protocol;
+    u.host = o.host;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 import { appendMessage, getHistory } from "../services/chatMemory.service.js";
 import { smartSearch } from "../services/courseSearch.service.js";
 import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
@@ -57,7 +70,8 @@ export async function handleChatStream(request, reply) {
     .join("\n");
 
   const searchResult = await smartSearch(message, request.log);
-  const context = searchResult.found ? formatSearchResult(searchResult) : "";
+  const clientOrigin = request.headers.origin || (request.headers.referer ? new URL(request.headers.referer).origin : "");
+  const context = searchResult.found ? formatSearchResult(searchResult, clientOrigin) : "";
 
   // Build system prompt with Moodle context
   const systemPrompt = buildSystemPrompt(context, userProfile);
@@ -104,12 +118,12 @@ export async function handleChatStream(request, reply) {
   }
 }
 
-function formatSearchResult(searchResult) {
+function formatSearchResult(searchResult, clientOrigin) {
   const formatLink = (url, label) =>
     url ? `<a href="${url}" target="_blank">${label}</a>` : label;
 
   return `
-  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}
+  Kurs: ${formatLink(rewriteOrigin(searchResult.course.url, clientOrigin), searchResult.course.name)}
   
   Relevante Abschnitte:
   ${searchResult.section
@@ -122,7 +136,7 @@ function formatSearchResult(searchResult) {
     ${section.modules
       .map((mod) => {
         const description = (mod.description || "").substring(0, 300);
-        const moduleLink = formatLink(mod.url, "Zum Material");
+        const moduleLink = formatLink(rewriteOrigin(mod.url, clientOrigin), "Zum Material");
         const fileLines =
           mod.files && mod.files.length
             ? `
@@ -131,7 +145,7 @@ function formatSearchResult(searchResult) {
         .map((file) => {
           const fileLabel = file.filename || "Datei";
           return `
-        * ${formatLink(file.url, fileLabel)}${
+        * ${formatLink(rewriteOrigin(file.url, clientOrigin), fileLabel)}${
             file.mimetype ? ` (${file.mimetype})` : ""
           }
         `;

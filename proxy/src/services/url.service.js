@@ -14,10 +14,6 @@ export function toUserFacingFileUrl(fileUrl) {
       u.searchParams.delete('token');
     }
 
-    // normalize origin to Moodle base (protocol+host+port)
-    u.protocol = base.protocol;
-    u.host = base.host;
-
     return u.toString();
   } catch {
     return fileUrl;
