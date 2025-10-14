@@ -6,21 +6,18 @@ import { callOllamaStream } from "../services/ollama.service.js";
 import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
 export async function handleChatStream(request, reply) {
-  const { message, userId, chatId } = request.body;
+  const { message, userId, chatId } = request.body || {};
 
-  if (!message || !userId || !chatId) {
+  if (!message) {
     reply.code(400);
-    return { error: "Message, user ID, and chat ID are required" };
+    return { error: "Message is required" };
   }
 
   const numericUserId = Number(userId);
-  if (!Number.isInteger(numericUserId) || numericUserId <= 0) {
-    reply.code(400);
-    return { error: "Invalid user ID" };
-  }
+  const validUserId = Number.isInteger(numericUserId) && numericUserId > 0;
 
-  let userProfile = getCachedUser(numericUserId);
-  if (!userProfile) {
+  let userProfile = validUserId ? getCachedUser(numericUserId) : null;
+  if (!userProfile && validUserId) {
     try {
       const [info, courses] = await Promise.all([
         getUserInfo(numericUserId),
@@ -33,7 +30,7 @@ export async function handleChatStream(request, reply) {
         lastname: info.lastname,
         fullname: `${info.firstname} ${info.lastname}`.trim(),
         email: info.email,
-        courses: courses.map((course) => ({
+        courses: (courses || []).map((course) => ({
           id: course.id,
           fullname: course.fullname,
           shortname: course.shortname,
@@ -42,13 +39,22 @@ export async function handleChatStream(request, reply) {
 
       setCachedUser(numericUserId, userProfile);
     } catch (error) {
-      request.log.error({ error }, "Failed to resolve Moodle user");
-      reply.code(502);
-      return { error: "Failed to fetch user data from Moodle" };
+      request.log.warn({ error }, "Proceeding without user profile (Moodle fetch failed)");
     }
   }
 
-  const sessionId = chatId || `moodle-${userProfile.id}`;
+  if (!userProfile) {
+    userProfile = {
+      id: validUserId ? numericUserId : 0,
+      firstname: "",
+      lastname: "",
+      fullname: "Student",
+      email: "",
+      courses: [],
+    };
+  }
+
+  const sessionId = chatId || `moodle-${userProfile.id || 0}`;
 
   const history = getHistory(sessionId)
     .map(
@@ -56,9 +62,7 @@ export async function handleChatStream(request, reply) {
     )
     .join("\n");
 
-  const searchResult = await smartSearch(message, request.log, {
-    allowedCourseIds: (userProfile.courses || []).map((c) => c.id),
-  });
+  const searchResult = await smartSearch(message, request.log);
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
