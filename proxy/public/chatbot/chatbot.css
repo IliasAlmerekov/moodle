@@ -102,24 +102,11 @@ body {
   background: rgba(0, 0, 0, 0.1);
 }
 
-.chatbot-new-chat {
-  background: transparent;
-  border: none;
-  color: #0f6cbf;
-  font-size: 20px;
+.chatbot-new-chat img .new-chat{
   cursor: pointer;
   padding: 0;
   width: 30px;
   height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  margin-left: auto;
-}
-
-.chatbot-new-chat:hover {
-  background: rgba(15, 108, 191, 0.1);
 }
 
 /* Chatbot messages area */
