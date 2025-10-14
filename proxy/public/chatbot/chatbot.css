@@ -90,6 +90,14 @@ body {
   margin-left: auto;
 }
 
+/* Button section - group buttons together */
+.button-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .chatbot-close {
   background: transparent;
   border: none;
@@ -131,8 +139,8 @@ body {
 }
 
 .chatbot-new-chat img.new-chat {
-  width: 18px;
-  height: 18px;
+  width: 23px;
+  height: 23px;
   object-fit: contain;
 }
 
