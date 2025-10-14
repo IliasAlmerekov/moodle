@@ -82,6 +82,14 @@ body {
   color: #f27f22;
 }
 
+/* Button section - group buttons together */
+.button-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .chatbot-close {
   background: transparent;
   border: none;
@@ -103,18 +111,29 @@ body {
 }
 
 .chatbot-new-chat {
+  background: transparent;
+  border: none;
+  color: #0f6cbf;
+  font-size: 20px;
   cursor: pointer;
   padding: 0;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
-img .new-chat {
-  cursor: pointer;
-  padding: 0;
-  width: 25px;
-  height: 25px;
+.chatbot-new-chat:hover {
+  background: rgba(15, 108, 191, 0.1);
+}
+
+.chatbot-new-chat img.new-chat {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
 }
 
 /* Chatbot messages area */

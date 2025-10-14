@@ -198,8 +198,8 @@ const sendMessageStream = async () => {
 
   const loadingId = addLoadingMessage(messagesContainer);
 
-  const botMessageDiv = createEmptyBotMessage();
-  const contentDiv = botMessageDiv.querySelector(".message-content");
+  let botMessageDiv = null;
+  let contentDiv = null;
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/chat-stream`, {
@@ -230,9 +230,11 @@ const sendMessageStream = async () => {
       const { done, value } = await reader.read();
 
       if (done) {
-        const fixedText = fixBrokenLinks(fullText);
-        contentDiv.innerHTML = fixedText;
-        saveMessageToHistory(chatId, "assistant", fixedText); // save bot response
+        if (contentDiv) {
+          const fixedText = fixBrokenLinks(fullText);
+          contentDiv.innerHTML = fixedText;
+          saveMessageToHistory(chatId, "assistant", fixedText); // save bot response
+        }
         break;
       }
 
@@ -260,6 +262,12 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
+            // Создаем message-content только при первом чанке текста
+            if (!botMessageDiv) {
+              botMessageDiv = createEmptyBotMessage();
+              contentDiv = botMessageDiv.querySelector(".message-content");
+            }
+
             fullText += text;
             contentDiv.innerHTML = fullText;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -274,6 +282,13 @@ const sendMessageStream = async () => {
   } catch (error) {
     removeMessage(loadingId);
     console.error("Error:", error);
+
+    // create error message only if it doesn't exist yet
+    if (!botMessageDiv) {
+      botMessageDiv = createEmptyBotMessage();
+      contentDiv = botMessageDiv.querySelector(".message-content");
+    }
+
     contentDiv.innerHTML =
       "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
   } finally {
