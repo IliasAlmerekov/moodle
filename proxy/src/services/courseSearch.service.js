@@ -1,5 +1,7 @@
 import { getCoursesStructure } from "./courseCache.service.js";
 import { getCourseContents } from "./moodle.service.js";
+import config from "../config/env.js";
+import { toUserFacingFileUrl, withForcedDownload } from "./url.service.js";
 
 export function findCourse(searchTerm) {
   const courses = getCoursesStructure();
@@ -96,14 +98,14 @@ function formatModule(module) {
     name: module.name,
     type: module.modname || module.type || "",
     description: module.description || "",
-    url: module.url,
+    url: (module.url || (config.moodle.url + "/mod/" + (module.modname || module.type || "") + "/view.php?id=" + module.id)),
     files:
       module.contents
         ?.filter((content) => content.type === "file")
         ?.map((file) => ({
           filename: file.filename,
           mimetype: file.mimetype,
-          url: appendForcedDownload(sanitiseFileUrl(file.fileurl)),
+          url: withForcedDownload(toUserFacingFileUrl(file.fileurl)),
         })) || [],
   };
 }
@@ -173,34 +175,4 @@ function normalize(text) {
   return (text || "").toLowerCase().trim();
 }
 
-function sanitiseFileUrl(fileUrl) {
-  if (!fileUrl) {
-    return fileUrl;
-  }
 
-  try {
-    const url = new URL(fileUrl);
-    if (url.searchParams.has("token")) {
-      url.searchParams.delete("token");
-    }
-    return url.toString();
-  } catch {
-    return fileUrl;
-  }
-}
-
-function appendForcedDownload(url) {
-  if (!url) {
-    return url;
-  }
-
-  try {
-    const parsed = new URL(url);
-    if (!parsed.searchParams.has("forcedownload")) {
-      parsed.searchParams.set("forcedownload", "1");
-    }
-    return parsed.toString();
-  } catch {
-    return url;
-  }
-}
