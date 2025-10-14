@@ -52,10 +52,7 @@ export async function smartSearch(query, logger) {
       relevantSections = fallback.sections;
     } else {
       for (const section of course.sections) {
-        const sectionMatch =
-          words.length === 0
-            ? section.name.toLowerCase().includes(queryLower)
-            : words.some((word) => section.name.toLowerCase().includes(word));
+        const sectionMatch = words.some((word) => section.name.toLowerCase().includes(word));
 
         if (sectionMatch) {
           relevantSections.push(section);
