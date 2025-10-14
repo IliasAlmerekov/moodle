@@ -1,7 +1,6 @@
 import { getCoursesStructure } from "./courseCache.service.js";
 import { getCourseContents } from "./moodle.service.js";
-import config from "../config/env.js";
-import { toUserFacingFileUrl, withForcedDownload } from "./url.service.js";
+// Note: keep this service self-contained to avoid cross-import issues
 
 export function findCourse(searchTerm) {
   const courses = getCoursesStructure();
@@ -124,18 +123,14 @@ function formatModule(module) {
     name: module.name,
     type: module.modname || module.type || "",
     description: module.description || "",
-    url:
-      module.url ||
-      (module.id && (module.modname || module.type)
-        ? `${config.moodle.url}/mod/${module.modname || module.type}/view.php?id=${module.id}`
-        : null),
+    url: module.url || null,
     files:
       module.contents
         ?.filter((content) => content.type === "file")
         ?.map((file) => ({
           filename: file.filename,
           mimetype: file.mimetype,
-          url: withForcedDownload(toUserFacingFileUrl(file.fileurl)),
+          url: file.fileurl,
         })) || [],
   };
 }
