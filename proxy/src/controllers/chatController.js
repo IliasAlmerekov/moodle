@@ -1,6 +1,4 @@
-import config from "../config/env.js";
-}
-
+ï»¿import config from "../config/env.js";
 import { appendMessage, getHistory } from "../services/chatMemory.service.js";
 import { smartSearch } from "../services/courseSearch.service.js";
 import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
@@ -59,7 +57,7 @@ export async function handleChatStream(request, reply) {
     .join("\n");
 
   const searchResult = await smartSearch(message, request.log);
-  const context = searchResult.found ? formatSearchResult(searchResult, clientOrigin) : "";
+  const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
   const systemPrompt = buildSystemPrompt(context, userProfile);
@@ -166,7 +164,7 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 
 ${context ? `VerfÃ¼gbare Kursinformationen:\n${context}` : ""}
 
-### Antwortregeln:\n- Antworte in der Sprache der letzten Nutzer-Nachricht (z. B. DE/RU/EN).\n- Antworte kurz, klar und konkret.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, gib IMMER den direkten Link aus.\n- Vermeide generische Hinweise wie "Ich habe keinen Zugriff" – nutze den Kontext aus den Kursdaten.\n\n### Aufgaben:\n- Erkläre Ziele des Kurses anhand von Kurs- und Abschnitts-Beschreibungen.\n- Fasse Materialien knapp zusammen und verweise mit Links.\n- Biete Lern- und Bearbeitungstipps anhand der vorhandenen Inhalte.\n\n### Kontext (falls vorhanden):\n`;
+### Antwortregeln:\n- Antworte in der Sprache der letzten Nutzer-Nachricht (z. B. DE/RU/EN).\n- Antworte kurz, klar und konkret.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, gib IMMER den direkten Link aus.\n- Vermeide generische Hinweise wie "Ich habe keinen Zugriff" ï¿½ nutze den Kontext aus den Kursdaten.\n\n### Aufgaben:\n- Erklï¿½re Ziele des Kurses anhand von Kurs- und Abschnitts-Beschreibungen.\n- Fasse Materialien knapp zusammen und verweise mit Links.\n- Biete Lern- und Bearbeitungstipps anhand der vorhandenen Inhalte.\n\n### Kontext (falls vorhanden):\n`;
 }
 
 // stream response from Ollama to client
