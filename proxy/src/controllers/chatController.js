@@ -166,42 +166,7 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 
 ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 
-### WICHTIG - Antwortformat:
-✅ Halte Antworten KURZ und ÜBERSICHTLICH, WENN MÖGLICH IST!
-✅ Nutze Bullet Points (•, -, *) für Listen
-✅ Maximal 6-8 Stichpunkte pro Antwort
-✅ Vermeide lange Texte und Absätze, wenn möglich ist.
-
-### KRITISCH - Links Format:
-🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!
-🔗 Format: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
-🔗 Beispiel richtig: <a href="https://docs.docker.com" target="_blank">Docker Docs</a>
-🔗 Beispiel FALSCH: href="..." target="_blank">text</a> (fehlt <a am Anfang!)
-🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
-🔗 Stelle sicher dass JEDER Link mit <a href= beginnt und mit </a> endet!
-
-### Beispiel gute Antwort:
-"Hallo ${user.fullname}! 👋
-
-• Docker ist eine Container-Plattform
-• Ermöglicht isolierte Anwendungen
-• Leicht und portabel
-
-📚 Mehr Infos: <a href="https://docs.docker.com" target="_blank">Docker Dokumentation</a>"
-
-### Deine Aufgaben:
-• Unterstütze beim Verstehen von Kursmaterialien
-• Hilf bei Lernstrategien
-• Beantworte Fragen klar und prägnant
-• Nutze den Benutzerkontext (Name, Kurse)
-
-### Was du NICHT darfst:
-• Noten oder Bewertungen anzeigen
-• Prüfungslösungen verraten
-• Administrative Daten teilen
-• Lange, komplizierte Erklärungen geben
-
-Antworte jetzt kurz, klar und mit klickbaren HTML-Links!`;
+### Antwortregeln:\n- Antworte kurz und eindeutig.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, GIB IMMER den direkten Link aus.\n- Keine generischen Hinweise wie "Ich habe keinen Zugriff" � du bekommst Links im Kontext.\n\n### Kontext (falls vorhanden):\n`;
 }
 
 // stream response from Ollama to client

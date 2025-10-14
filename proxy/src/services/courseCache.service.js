@@ -1,5 +1,6 @@
 import { getAllCourses, getCourseContents } from "./moodle.service.js";
 import config from "../config/env.js";
+import { toUserFacingFileUrl } from "./url.service.js";
 
 let coursesStructure = null;
 let lastUpdate = null;
@@ -31,7 +32,7 @@ export async function loadCoursesStructure(logger) {
               .map((file) => ({
                 filename: file.filename,
                 mimetype: file.mimetype,
-                url: sanitiseFileUrl(file.fileurl),
+                url: toUserFacingFileUrl(file.fileurl),
               })),
           })),
         })),
@@ -50,19 +51,7 @@ export async function loadCoursesStructure(logger) {
   return structure;
 }
 
-function sanitiseFileUrl(fileUrl) {
-  if (!fileUrl) {
-    return fileUrl;
-  }
 
-  try {
-    const url = new URL(fileUrl);
-    url.searchParams.delete("token");
-    return url.toString();
-  } catch {
-    return fileUrl;
-  }
-}
 
 export function getCoursesStructure() {
   if (!coursesStructure || Date.now() - lastUpdate > CACHE_TTL) {
