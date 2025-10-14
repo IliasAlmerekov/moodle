@@ -32,23 +32,20 @@ export async function smartSearch(query, logger) {
   try {
     const courses = getCoursesStructure();
     const tokens = tokenize(query);
+    const phrases = extractQuotedPhrases(query);
     const fallbackTokens = tokens.length ? tokens : [normalize(query)];
 
-    const directMatch = courses.find((course) =>
-      courseMatchesTokens(course, fallbackTokens)
-    );
-
-    const contentMatch = directMatch
-      ? null
-      : findCourseByContent(courses, fallbackTokens);
-
-    const course = directMatch ?? contentMatch?.course;
+    // Score all courses by name + content; prefer phrase matches
+    const ranked = rankCourses(courses, fallbackTokens, phrases);
+    const best = ranked[0];
+    const course = best?.course;
     if (!course) {
       return { found: false, message: "Course not found" };
     }
 
-    const sectionIds =
-      contentMatch?.sectionIds ?? pickSectionIds(course, fallbackTokens);
+    const sectionIds = best.sectionIds?.size
+      ? best.sectionIds
+      : pickSectionIds(course, fallbackTokens);
 
     const selectedSections = course.sections.filter((section) =>
       sectionIds.has(section.id)
@@ -99,7 +96,11 @@ function formatModule(module) {
     name: module.name,
     type: module.modname || module.type || "",
     description: module.description || "",
-    url: (module.url || null),
+    url:
+      module.url ||
+      (module.id && (module.modname || module.type)
+        ? `${config.moodle.url}/mod/${module.modname || module.type}/view.php?id=${module.id}`
+        : null),
     files:
       module.contents
         ?.filter((content) => content.type === "file")
@@ -169,10 +170,66 @@ function tokenize(text) {
   return text
     .split(/\s+/)
     .map((part) => normalize(part))
-    .filter((part) => part.length >= 3);
+    .filter((part) => part.length >= 2);
 }
 
 function normalize(text) {
   return (text || "").toLowerCase().trim();
 }
 
+// Extract phrases in quotes to improve precision, e.g. "Hackathon - Lernformat ..."
+function extractQuotedPhrases(text) {
+  const matches = text.match(/"([^"]+)"/g) || [];
+  return matches.map((m) => normalize(m.replace(/^"|"$/g, ""))).filter(Boolean);
+}
+
+function rankCourses(courses, tokens, phrases) {
+  const results = [];
+
+  for (const course of courses) {
+    const name = normalize(course.name || "");
+    const shortname = normalize(course.shortname || "");
+
+    let score = 0;
+    let tokenMatches = 0;
+
+    // Strong weight on quoted phrases in title/shortname
+    for (const ph of phrases) {
+      if (ph && (name.includes(ph) || shortname.includes(ph))) {
+        score += 200 + ph.length; // very strong signal
+      }
+    }
+
+    // Token matches in title/shortname
+    for (const t of tokens) {
+      const matchInName = name.includes(t);
+      const matchInShort = shortname.includes(t);
+      if (matchInName || matchInShort) {
+        tokenMatches++;
+        score += 20; // strong signal on course title
+      }
+    }
+
+    // Content-based hints via sections/modules/files
+    let sectionScore = 0;
+    const sectionIds = pickSectionIds(course, tokens, false);
+    if (sectionIds.size) {
+      // weight by how many sections match
+      sectionScore += Math.min(50, sectionIds.size * 10);
+    }
+
+    score += sectionScore;
+
+    // If no tokens matched anywhere, skip
+    if (score === 0 && !tokens.length && !phrases.length) continue;
+
+    results.push({ course, score, tokenMatches, sectionIds });
+  }
+
+  // Highest score first; tie-breaker: more token matches; then more sections
+  results.sort((a, b) =>
+    b.score - a.score || b.tokenMatches - a.tokenMatches || (b.sectionIds?.size || 0) - (a.sectionIds?.size || 0)
+  );
+
+  return results;
+}
