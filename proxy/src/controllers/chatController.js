@@ -1,4 +1,4 @@
-import config from "../config/env.js";
+﻿import config from "../config/env.js";
 import { appendMessage, getHistory } from "../services/chatMemory.service.js";
 import { smartSearch } from "../services/courseSearch.service.js";
 import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
@@ -56,7 +56,9 @@ export async function handleChatStream(request, reply) {
     )
     .join("\n");
 
-  const searchResult = await smartSearch(message, request.log);
+  const searchResult = await smartSearch(message, request.log, {
+    allowedCourseIds: (userProfile.courses || []).map((c) => c.id),
+  });
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context
@@ -105,26 +107,46 @@ export async function handleChatStream(request, reply) {
 }
 
 function formatSearchResult(searchResult) {
+  const formatLink = (url, label) =>
+    url ? `<a href="${url}" target="_blank">${label}</a>` : label;
+
   return `
-  Kurs: ${searchResult.course.name}
-  Link: ${searchResult.course.url}
-  
-  Relelvant Abschnitte:
+  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}\n\nKurzinfo: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : ""}\n\nRelevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
     ### ${section.name}
-    ${section.summary}
+    ${section.summary || ""}
     
-    Materialen:
+    Materialien:
     ${section.modules
-      .map(
-        (mod) => `
-      - ${mod.name} (${mod.type})
-      ${mod.description.substring(0, 300)}
-      Link: ${mod.url}
+      .map((mod) => {
+        const description = (mod.description || "").substring(0, 300);
+        const moduleLink = formatLink(mod.url, "Zum Material");
+        const fileLines =
+          mod.files && mod.files.length
+            ? `
+      Dateien:
+      ${mod.files
+        .map((file) => {
+          const fileLabel = file.filename || "Datei";
+          return `
+        * ${formatLink(file.url, fileLabel)}${
+            file.mimetype ? ` (${file.mimetype})` : ""
+          }
+        `;
+        })
+        .join("\n")}
       `
-      )
+            : "";
+
+        return `
+      - ${mod.name} (${mod.type})
+      ${description}
+      ${moduleLink}
+      ${fileLines}
+      `;
+      })
       .join("\n")}
     `
     )
@@ -144,42 +166,7 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 
 ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 
-### WICHTIG - Antwortformat:
-✅ Halte Antworten KURZ und ÜBERSICHTLICH
-✅ Nutze Bullet Points (•, -, *) für Listen
-✅ Maximal 3-5 Stichpunkte pro Antwort
-✅ Vermeide lange Texte und Absätze
-
-### KRITISCH - Links Format:
-🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!
-🔗 Format: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
-🔗 Beispiel richtig: <a href="https://docs.docker.com" target="_blank">Docker Docs</a>
-🔗 Beispiel FALSCH: href="..." target="_blank">text</a> (fehlt <a am Anfang!)
-🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
-🔗 Stelle sicher dass JEDER Link mit <a href= beginnt und mit </a> endet!
-
-### Beispiel gute Antwort:
-"Hallo ${user.fullname}! 👋
-
-• Docker ist eine Container-Plattform
-• Ermöglicht isolierte Anwendungen
-• Leicht und portabel
-
-📚 Mehr Infos: <a href="https://docs.docker.com" target="_blank">Docker Dokumentation</a>"
-
-### Deine Aufgaben:
-• Unterstütze beim Verstehen von Kursmaterialien
-• Hilf bei Lernstrategien
-• Beantworte Fragen klar und prägnant
-• Nutze den Benutzerkontext (Name, Kurse)
-
-### Was du NICHT darfst:
-• Noten oder Bewertungen anzeigen
-• Prüfungslösungen verraten
-• Administrative Daten teilen
-• Lange, komplizierte Erklärungen geben
-
-Antworte jetzt kurz, klar und mit klickbaren HTML-Links!`;
+### Antwortregeln:\n- Antworte in der Sprache der letzten Nutzer-Nachricht (z. B. DE/RU/EN).\n- Antworte kurz, klar und konkret.\n- Verwende HTML-Links: <a href="URL" target="_blank">Text</a> (kein Markdown).\n- Wenn Kurs/Datei im Kontext vorhanden ist, gib IMMER den direkten Link aus.\n- Vermeide generische Hinweise wie "Ich habe keinen Zugriff" � nutze den Kontext aus den Kursdaten.\n\n### Aufgaben:\n- Erkl�re Ziele des Kurses anhand von Kurs- und Abschnitts-Beschreibungen.\n- Fasse Materialien knapp zusammen und verweise mit Links.\n- Biete Lern- und Bearbeitungstipps anhand der vorhandenen Inhalte.\n\n### Kontext (falls vorhanden):\n`;
 }
 
 // stream response from Ollama to client
