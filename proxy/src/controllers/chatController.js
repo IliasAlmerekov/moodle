@@ -105,41 +105,48 @@ export async function handleChatStream(request, reply) {
 }
 
 function formatSearchResult(searchResult) {
+  const formatLink = (url, label) =>
+    url ? `<a href="${url}" target="_blank">${label}</a>` : label;
+
   return `
-  Kurs: ${searchResult.course.name}
-  Link: ${searchResult.course.url}
+  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}
   
   Relevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
     ### ${section.name}
-    ${section.summary}
+    ${section.summary || ""}
     
-    Materialen:
+    Materialien:
     ${section.modules
-      .map(
-        (mod) => `
-      - ${mod.name} (${mod.type})
-      ${mod.description.substring(0, 300)}
-      Link: ${mod.url}
-      ${
-        mod.files && mod.files.length
-          ? `
+      .map((mod) => {
+        const description = (mod.description || "").substring(0, 300);
+        const moduleLink = formatLink(mod.url, "Zum Material");
+        const fileLines =
+          mod.files && mod.files.length
+            ? `
       Dateien:
       ${mod.files
-        .map(
-          (file) => `
-        * ${file.filename}
-          Link: ${file.url}
-        `
-        )
+        .map((file) => {
+          const fileLabel = file.filename || "Datei";
+          return `
+        * ${formatLink(file.url, fileLabel)}${
+            file.mimetype ? ` (${file.mimetype})` : ""
+          }
+        `;
+        })
         .join("\n")}
       `
-          : ""
-      }
-      `
-      )
+            : "";
+
+        return `
+      - ${mod.name} (${mod.type})
+      ${description}
+      ${moduleLink}
+      ${fileLines}
+      `;
+      })
       .join("\n")}
     `
     )
