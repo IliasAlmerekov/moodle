@@ -128,13 +128,13 @@ function findCourseByModuleOrFile(courses, words, queryLower) {
         const moduleName = module.name?.toLowerCase() || "";
         const moduleMatches =
           moduleName.includes(queryLower) ||
-          words.some((word) => word && moduleName.includes(word));
+          words.some((word) => moduleName.includes(word));
 
         const fileMatches = module.files?.some((file) => {
           const filename = file.filename?.toLowerCase() || "";
           return (
             filename.includes(queryLower) ||
-            words.some((word) => word && filename.includes(word))
+            words.some((word) => filename.includes(word))
           );
         });
 
