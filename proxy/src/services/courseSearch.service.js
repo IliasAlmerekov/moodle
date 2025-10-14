@@ -31,20 +31,21 @@ export async function smartSearch(query, logger) {
     const courses = getCoursesStructure();
     const queryLower = query.toLowerCase();
 
-    let course = courses.find(
-      (c) =>
-        queryLower.includes(c.name.toLowerCase()) ||
-        queryLower.includes(c.shortname.toLowerCase())
-    );
-
     const words = queryLower
-      .split(" ")
+      .split(/\s+/)
       .map((word) => word.trim())
       .filter(Boolean);
+
+    let course = courses.find((c) =>
+      matchesCourse(c, queryLower, words.length ? words : [queryLower])
+    );
     let relevantSections = [];
 
     if (!course) {
-      const fallback = findCourseByModuleOrFile(courses, words, queryLower);
+      const fallback = findCourseByContent(
+        courses,
+        words.length ? words : [queryLower]
+      );
       if (!fallback) {
         return { found: false, message: "Course not found" };
       }
@@ -52,10 +53,11 @@ export async function smartSearch(query, logger) {
       relevantSections = fallback.sections;
     } else {
       for (const section of course.sections) {
+        const sectionName = section.name?.toLowerCase() || "";
         const sectionMatch =
           words.length === 0
-            ? section.name.toLowerCase().includes(queryLower)
-            : words.some((word) => section.name.toLowerCase().includes(word));
+            ? sectionName.includes(queryLower)
+            : words.some((word) => sectionName.includes(word));
 
         if (sectionMatch) {
           relevantSections.push(section);
@@ -124,20 +126,49 @@ function sanitiseFileUrl(fileUrl) {
   }
 }
 
-function findCourseByModuleOrFile(courses, words, queryLower) {
+function matchesCourse(course, queryLower, terms) {
+  const courseName = course.name?.toLowerCase() || "";
+  const shortName = course.shortname?.toLowerCase() || "";
+
+  if (
+    (courseName && queryLower.includes(courseName)) ||
+    (shortName && queryLower.includes(shortName))
+  ) {
+    return true;
+  }
+
+  return terms.some((term) => {
+    const normalized = term.toLowerCase();
+    return (
+      normalized.length >= 3 &&
+      (courseName.includes(normalized) || shortName.includes(normalized))
+    );
+  });
+}
+
+function findCourseByContent(courses, terms) {
   for (const course of courses) {
     const matchingSections = course.sections.filter((section) => {
+      const sectionName = section.name?.toLowerCase() || "";
+      const sectionMatches = terms.some((term) =>
+        sectionName.includes(term.toLowerCase())
+      );
+
+      if (sectionMatches) {
+        return true;
+      }
+
       return section.modules?.some((module) => {
         const moduleName = module.name?.toLowerCase() || "";
         const moduleMatches =
-          moduleName.includes(queryLower) ||
-          words.some((word) => word && moduleName.includes(word));
+          moduleName &&
+          terms.some((term) => moduleName.includes(term.toLowerCase()));
 
         const fileMatches = module.files?.some((file) => {
           const filename = file.filename?.toLowerCase() || "";
           return (
-            filename.includes(queryLower) ||
-            words.some((word) => word && filename.includes(word))
+            filename &&
+            terms.some((term) => filename.includes(term.toLowerCase()))
           );
         });
 
