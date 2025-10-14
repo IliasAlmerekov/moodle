@@ -56,7 +56,9 @@ export async function handleChatStream(request, reply) {
     )
     .join("\n");
 
-  const searchResult = await smartSearch(message, request.log);
+  const searchResult = await smartSearch(message, request.log, {
+    allowedCourseIds: (userProfile.courses || []).map((c) => c.id),
+  });
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
   // Build system prompt with Moodle context

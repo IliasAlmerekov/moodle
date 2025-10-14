@@ -28,9 +28,13 @@ export function findModuleInCourse(course, moduleName) {
   return null;
 }
 
-export async function smartSearch(query, logger) {
+export async function smartSearch(query, logger, options) {
   try {
-    const courses = getCoursesStructure();
+    const allCourses = getCoursesStructure();
+    const allowedIds = options?.allowedCourseIds || [];
+    const courses = Array.isArray(allowedIds) && allowedIds.length
+      ? allCourses.filter((c) => allowedIds.includes(c.id))
+      : allCourses;
     const tokens = tokenize(query);
     const phrases = extractQuotedPhrases(query);
     const fallbackTokens = tokens.length ? tokens : [normalize(query)];
@@ -44,6 +48,7 @@ export async function smartSearch(query, logger) {
         query,
         tokens,
         phrases,
+        filteredByUserCourses: Array.isArray(allowedIds) && allowedIds.length ? allowedIds : null,
         rankedTop: ranked
           .slice(0, 3)
           .map((r) => ({ id: r.course.id, name: r.course.name, score: r.score })),
@@ -59,14 +64,16 @@ export async function smartSearch(query, logger) {
       ? best.sectionIds
       : pickSectionIds(course, fallbackTokens);
 
-    const selectedSections = course.sections.filter((section) =>
-      sectionIds.has(section.id)
-    );
+    const selectedSections = course.sections
+      .filter((section) => sectionIds.has(section.id))
+      .sort((a, b) => scoreSection(b, fallbackTokens) - scoreSection(a, fallbackTokens));
 
     const limitedSections = (selectedSections.length
       ? selectedSections
       : course.sections
-    ).slice(0, 3);
+    )
+      .sort((a, b) => scoreSection(b, fallbackTokens) - scoreSection(a, fallbackTokens))
+      .slice(0, 3);
 
     const fullContents = await getCourseContents(course.id);
     const detailedSections = limitedSections.map((section) =>
@@ -212,6 +219,25 @@ function normalize(text) {
   return (text || "").toLowerCase().trim();
 }
 
+function scoreSection(section, tokens) {
+  try {
+    let s = 0;
+    const secName = normalize(section.name || "");
+    for (const t of tokens) if (t && secName.includes(t)) s += 5;
+    for (const mod of section.modules || []) {
+      const mname = normalize(mod.name || "");
+      for (const t of tokens) if (t && mname.includes(t)) s += 8;
+      for (const f of mod.files || []) {
+        const fname = normalize(f.filename || "");
+        for (const t of tokens) if (t && fname.includes(t)) s += 12;
+      }
+    }
+    return s;
+  } catch {
+    return 0;
+  }
+}
+
 // Extract phrases in quotes to improve precision, e.g. "Hackathon - Lernformat ..."
 function extractQuotedPhrases(text) {
   const matches = text.match(/"([^"]+)"/g) || [];
@@ -252,6 +278,12 @@ function rankCourses(courses, tokens, phrases) {
       }
     }
 
+    // If user mentions 'bili', prefer Hackathon courses that also include KI & Moodle
+    if (tokens.includes("bili") && (name.includes("hackathon") || shortname.includes("hackathon"))) {
+      if (name.includes("ki") || shortname.includes("ki")) score += 25;
+      if (name.includes("moodle") || shortname.includes("moodle")) score += 25;
+    }
+
     // Content-based hints via sections/modules/files
     let sectionScore = 0;
     const sectionIds = pickSectionIds(course, tokens, false);
@@ -260,7 +292,31 @@ function rankCourses(courses, tokens, phrases) {
       sectionScore += Math.min(50, sectionIds.size * 10);
     }
 
-    score += sectionScore;
+    // Extra boost for filename matches of all tokens (e.g., "problem_tree.pdf")
+    let fileBoost = 0;
+    try {
+      for (const section of course.sections || []) {
+        for (const mod of section.modules || []) {
+          const files = mod.files || [];
+          for (const f of files) {
+            const fname = normalize(f.filename || "");
+            if (!fname) continue;
+            let perFileHits = 0;
+            for (const t of tokens) {
+              if (t && fname.includes(t)) perFileHits++;
+            }
+            if (perFileHits > 0) {
+              fileBoost += perFileHits * 25; // strong per-token hit in filename
+              if (tokens.length > 0 && perFileHits === tokens.length) {
+                fileBoost += 50; // all tokens appear in single filename
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    score += sectionScore + fileBoost;
 
     // If no tokens matched anywhere, skip
     if (score === 0 && !tokens.length && !phrases.length) continue;
