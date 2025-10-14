@@ -21,11 +21,18 @@ export async function loadCoursesStructure(logger) {
         sections: contents.map((section) => ({
           id: section.id,
           name: section.name,
-          modules: section.modules.map((module) => ({
+          modules: (section.modules || []).map((module) => ({
             id: module.id,
             name: module.name,
             type: module.modname,
             url: `${MOODLE_URL}/mod/${module.modname}/view.php?id=${module.id}`,
+            files: (module.contents || [])
+              .filter((content) => content.type === "file")
+              .map((file) => ({
+                filename: file.filename,
+                mimetype: file.mimetype,
+                url: sanitiseFileUrl(file.fileurl),
+              })),
           })),
         })),
       };
@@ -41,6 +48,20 @@ export async function loadCoursesStructure(logger) {
     } KB`
   );
   return structure;
+}
+
+function sanitiseFileUrl(fileUrl) {
+  if (!fileUrl) {
+    return fileUrl;
+  }
+
+  try {
+    const url = new URL(fileUrl);
+    url.searchParams.delete("token");
+    return url.toString();
+  } catch {
+    return fileUrl;
+  }
 }
 
 export function getCoursesStructure() {
