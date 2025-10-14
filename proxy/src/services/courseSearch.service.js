@@ -31,31 +31,40 @@ export async function smartSearch(query, logger) {
     const courses = getCoursesStructure();
     const queryLower = query.toLowerCase();
 
-    const course = courses.find(
+    let course = courses.find(
       (c) =>
         queryLower.includes(c.name.toLowerCase()) ||
         queryLower.includes(c.shortname.toLowerCase())
     );
 
-    if (!course) {
-      return { found: false, message: "Course not found" };
-    }
-
-    const words = queryLower.split(" ");
+    const words = queryLower
+      .split(" ")
+      .map((word) => word.trim())
+      .filter(Boolean);
     let relevantSections = [];
 
-    for (const section of course.sections) {
-      const sectionMatch = words.some((word) =>
-        section.name.toLowerCase().includes(word)
-      );
-
-      if (sectionMatch) {
-        relevantSections.push(section);
+    if (!course) {
+      const fallback = findCourseByModuleOrFile(courses, words, queryLower);
+      if (!fallback) {
+        return { found: false, message: "Course not found" };
       }
-    }
+      course = fallback.course;
+      relevantSections = fallback.sections;
+    } else {
+      for (const section of course.sections) {
+        const sectionMatch =
+          words.length === 0
+            ? section.name.toLowerCase().includes(queryLower)
+            : words.some((word) => section.name.toLowerCase().includes(word));
 
-    if (relevantSections.length === 0) {
-      relevantSections = course.sections;
+        if (sectionMatch) {
+          relevantSections.push(section);
+        }
+      }
+
+      if (relevantSections.length === 0) {
+        relevantSections = course.sections;
+      }
     }
 
     const fullContents = await getCourseContents(course.id);
@@ -113,4 +122,33 @@ function sanitiseFileUrl(fileUrl) {
   } catch {
     return fileUrl;
   }
+}
+
+function findCourseByModuleOrFile(courses, words, queryLower) {
+  for (const course of courses) {
+    const matchingSections = course.sections.filter((section) => {
+      return section.modules?.some((module) => {
+        const moduleName = module.name?.toLowerCase() || "";
+        const moduleMatches =
+          moduleName.includes(queryLower) ||
+          words.some((word) => word && moduleName.includes(word));
+
+        const fileMatches = module.files?.some((file) => {
+          const filename = file.filename?.toLowerCase() || "";
+          return (
+            filename.includes(queryLower) ||
+            words.some((word) => word && filename.includes(word))
+          );
+        });
+
+        return moduleMatches || fileMatches;
+      });
+    });
+
+    if (matchingSections.length > 0) {
+      return { course, sections: matchingSections };
+    }
+  }
+
+  return null;
 }
