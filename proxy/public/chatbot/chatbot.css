@@ -115,13 +115,11 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: all 0.2s;
   margin-left: auto;
 }
 
 .chatbot-new-chat:hover {
   background: rgba(15, 108, 191, 0.1);
-  transform: rotate(180deg);
 }
 
 /* Chatbot messages area */

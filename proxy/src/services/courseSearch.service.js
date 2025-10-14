@@ -58,24 +58,30 @@ export async function smartSearch(query, logger) {
       relevantSections = course.sections;
     }
 
-    const detailedSections = await Promise.all(
-      relevantSections.slice(0, 3).map(async (section) => {
-        const fullContents = await getCourseContents(course.id);
-        const fullSection = fullContents.find((s) => s.id === section.id);
+    const fullContents = await getCourseContents(course.id);
+    const detailedSections = relevantSections.slice(0, 3).map((section) => {
+      const fullSection = fullContents.find((s) => s.id === section.id);
 
-        return {
-          name: section.name,
-          summary: fullSection?.summary || "",
-          modules:
-            fullSection?.modules?.map((module) => ({
-              name: module.name,
-              type: module.type,
-              description: module.description || "",
-              url: module.url,
-            })) || [],
-        };
-      })
-    );
+      return {
+        name: section.name,
+        summary: fullSection?.summary || "",
+        modules:
+          fullSection?.modules?.map((module) => ({
+            name: module.name,
+            type: module.modname || module.type || "",
+            description: module.description || "",
+            url: module.url,
+            files:
+              module.contents
+                ?.filter((content) => content.type === "file")
+                ?.map((file) => ({
+                  filename: file.filename,
+                  mimetype: file.mimetype,
+                  url: sanitiseFileUrl(file.fileurl),
+                })) || [],
+          })) || [],
+      };
+    });
 
     return {
       found: true,
@@ -92,5 +98,19 @@ export async function smartSearch(query, logger) {
       message:
         "Course search unavailable - cache not loaded. Please create a valid Moodle token first.",
     };
+  }
+}
+
+function sanitiseFileUrl(fileUrl) {
+  if (!fileUrl) {
+    return fileUrl;
+  }
+
+  try {
+    const url = new URL(fileUrl);
+    url.searchParams.delete("token");
+    return url.toString();
+  } catch {
+    return fileUrl;
   }
 }

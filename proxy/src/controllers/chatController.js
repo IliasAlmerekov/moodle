@@ -109,7 +109,7 @@ function formatSearchResult(searchResult) {
   Kurs: ${searchResult.course.name}
   Link: ${searchResult.course.url}
   
-  Relelvant Abschnitte:
+  Relevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
@@ -123,6 +123,21 @@ function formatSearchResult(searchResult) {
       - ${mod.name} (${mod.type})
       ${mod.description.substring(0, 300)}
       Link: ${mod.url}
+      ${
+        mod.files && mod.files.length
+          ? `
+      Dateien:
+      ${mod.files
+        .map(
+          (file) => `
+        * ${file.filename}
+          Link: ${file.url}
+        `
+        )
+        .join("\n")}
+      `
+          : ""
+      }
       `
       )
       .join("\n")}
@@ -145,10 +160,10 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 
 ### WICHTIG - Antwortformat:
-✅ Halte Antworten KURZ und ÜBERSICHTLICH
+✅ Halte Antworten KURZ und ÜBERSICHTLICH, WENN MÖGLICH IST!
 ✅ Nutze Bullet Points (•, -, *) für Listen
-✅ Maximal 3-5 Stichpunkte pro Antwort
-✅ Vermeide lange Texte und Absätze
+✅ Maximal 6-8 Stichpunkte pro Antwort
+✅ Vermeide lange Texte und Absätze, wenn möglich ist.
 
 ### KRITISCH - Links Format:
 🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!
