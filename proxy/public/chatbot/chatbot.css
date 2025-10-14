@@ -102,11 +102,19 @@ body {
   background: rgba(0, 0, 0, 0.1);
 }
 
-.chatbot-new-chat img .new-chat{
+.chatbot-new-chat {
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+img .new-chat {
+  cursor: pointer;
+  padding: 0;
+  width: 25px;
+  height: 25px;
 }
 
 /* Chatbot messages area */
