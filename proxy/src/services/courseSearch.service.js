@@ -38,6 +38,18 @@ export async function smartSearch(query, logger) {
     // Score all courses by name + content; prefer phrase matches
     const ranked = rankCourses(courses, fallbackTokens, phrases);
     const best = ranked[0];
+
+    logger?.info(
+      {
+        query,
+        tokens,
+        phrases,
+        rankedTop: ranked
+          .slice(0, 3)
+          .map((r) => ({ id: r.course.id, name: r.course.name, score: r.score })),
+      },
+      "smartSearch ranking"
+    );
     const course = best?.course;
     if (!course) {
       return { found: false, message: "Course not found" };
@@ -59,6 +71,15 @@ export async function smartSearch(query, logger) {
     const fullContents = await getCourseContents(course.id);
     const detailedSections = limitedSections.map((section) =>
       enrichSection(section, fullContents)
+    );
+
+    logger?.info(
+      {
+        selectedCourse: { id: course.id, name: course.name, url: course.url },
+        sectionIds: Array.from(sectionIds),
+        limitedSections: limitedSections.map((s) => ({ id: s.id, name: s.name })),
+      },
+      "smartSearch selected course/sections"
     );
 
     return {
@@ -167,10 +188,24 @@ function courseMatchesTokens(course, tokens) {
 }
 
 function tokenize(text) {
+  const STOP = new Set([
+    // de
+    "ich","du","er","sie","es","wir","ihr","sie",
+    "und","oder","aber","auch","nur","noch","schon",
+    "der","die","das","den","dem","des","ein","eine","einer","einem","eines",
+    "zu","zum","zur","mit","ohne","für","im","in","am","an","auf","von","nach","bei",
+    "bitte","hallo","danke","hi","servus","moin",
+    "brauche","need","ichbrauche","hilfe",
+    "link","links","url","kurslink",
+    // en
+    "i","you","we","they","and","or","the","a","an","to","for","with","without","of",
+    // ru
+    "я","мне","мои","мой","тебе","ты","и","или","но","это","в","на","для","с","без","до","после",
+  ]);
   return text
     .split(/\s+/)
     .map((part) => normalize(part))
-    .filter((part) => part.length >= 2);
+    .filter((part) => part.length >= 2 && !STOP.has(part));
 }
 
 function normalize(text) {
@@ -207,6 +242,13 @@ function rankCourses(courses, tokens, phrases) {
       if (matchInName || matchInShort) {
         tokenMatches++;
         score += 20; // strong signal on course title
+      }
+      // Boost typical LF patterns (e.g., "lf" or numbers like "07") when present in shortname
+      if (t === "lf" && shortname.includes("lf")) {
+        score += 15;
+      }
+      if (/^\d+$/.test(t) && shortname.includes(t)) {
+        score += 25;
       }
     }
 
