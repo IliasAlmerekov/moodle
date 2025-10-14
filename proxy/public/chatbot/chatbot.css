@@ -82,6 +82,14 @@ body {
   color: #f27f22;
 }
 
+/* Button section - group buttons together */
+.button-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .chatbot-close {
   background: transparent;
   border: none;
@@ -116,12 +124,16 @@ body {
   justify-content: center;
   border-radius: 4px;
   transition: all 0.2s;
-  margin-left: auto;
 }
 
 .chatbot-new-chat:hover {
   background: rgba(15, 108, 191, 0.1);
-  transform: rotate(180deg);
+}
+
+.chatbot-new-chat img.new-chat {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
 }
 
 /* Chatbot messages area */
