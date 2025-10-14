@@ -19,9 +19,23 @@
       <div class="chatbot-header">
         <img src="assets/moodle_logo.svg" alt="AI Logo" class="chatbot-logo" />
         <h2 class="chatbot-title">AI Assistent</h2>
-        <button id="chatbot-close" class="chatbot-close" aria-label="Schließen">
-          ✖
-        </button>
+        <div class="button-section">
+          <button
+            id="chatbot-new-chat"
+            class="chatbot-new-chat"
+            aria-label="Neuer Chat"
+            title="Neuer Chat"
+          >
+            <img src="assets/write.png" alt="pencil" class="new-chat" />
+          </button>
+          <button
+            id="chatbot-close"
+            class="chatbot-close"
+            aria-label="Schließen"
+          >
+            ✖
+          </button>
+        </div>
       </div>
 
       <div id="chatbot-messages" class="chatbot-messages">
