@@ -29,70 +29,38 @@ export function findModuleInCourse(course, moduleName) {
 export async function smartSearch(query, logger) {
   try {
     const courses = getCoursesStructure();
-    const queryLower = query.toLowerCase();
+    const tokens = tokenize(query);
+    const fallbackTokens = tokens.length ? tokens : [normalize(query)];
 
-    const words = queryLower
-      .split(/\s+/)
-      .map((word) => word.trim())
-      .filter(Boolean);
-
-    let course = courses.find((c) =>
-      matchesCourse(c, queryLower, words.length ? words : [queryLower])
+    const directMatch = courses.find((course) =>
+      courseMatchesTokens(course, fallbackTokens)
     );
-    let relevantSections = [];
 
+    const contentMatch = directMatch
+      ? null
+      : findCourseByContent(courses, fallbackTokens);
+
+    const course = directMatch ?? contentMatch?.course;
     if (!course) {
-      const fallback = findCourseByContent(
-        courses,
-        words.length ? words : [queryLower]
-      );
-      if (!fallback) {
-        return { found: false, message: "Course not found" };
-      }
-      course = fallback.course;
-      relevantSections = fallback.sections;
-    } else {
-      for (const section of course.sections) {
-        const sectionName = section.name?.toLowerCase() || "";
-        const sectionMatch =
-          words.length === 0
-            ? sectionName.includes(queryLower)
-            : words.some((word) => sectionName.includes(word));
-
-        if (sectionMatch) {
-          relevantSections.push(section);
-        }
-      }
-
-      if (relevantSections.length === 0) {
-        relevantSections = course.sections;
-      }
+      return { found: false, message: "Course not found" };
     }
 
-    const fullContents = await getCourseContents(course.id);
-    const detailedSections = relevantSections.slice(0, 3).map((section) => {
-      const fullSection = fullContents.find((s) => s.id === section.id);
+    const sectionIds =
+      contentMatch?.sectionIds ?? pickSectionIds(course, fallbackTokens);
 
-      return {
-        name: section.name,
-        summary: fullSection?.summary || "",
-        modules:
-          fullSection?.modules?.map((module) => ({
-            name: module.name,
-            type: module.modname || module.type || "",
-            description: module.description || "",
-            url: module.url,
-            files:
-              module.contents
-                ?.filter((content) => content.type === "file")
-                ?.map((file) => ({
-                  filename: file.filename,
-                  mimetype: file.mimetype,
-                  url: sanitiseFileUrl(file.fileurl),
-                })) || [],
-          })) || [],
-      };
-    });
+    const selectedSections = course.sections.filter((section) =>
+      sectionIds.has(section.id)
+    );
+
+    const limitedSections = (selectedSections.length
+      ? selectedSections
+      : course.sections
+    ).slice(0, 3);
+
+    const fullContents = await getCourseContents(course.id);
+    const detailedSections = limitedSections.map((section) =>
+      enrichSection(section, fullContents)
+    );
 
     return {
       found: true,
@@ -112,6 +80,99 @@ export async function smartSearch(query, logger) {
   }
 }
 
+function enrichSection(section, fullContents) {
+  const fullSection = fullContents.find((s) => s.id === section.id) ?? {};
+  const modules = fullSection.modules ?? [];
+
+  return {
+    name: section.name,
+    summary: fullSection.summary || "",
+    modules: modules.map(formatModule),
+  };
+}
+
+function formatModule(module) {
+  return {
+    name: module.name,
+    type: module.modname || module.type || "",
+    description: module.description || "",
+    url: module.url,
+    files:
+      module.contents
+        ?.filter((content) => content.type === "file")
+        ?.map((file) => ({
+          filename: file.filename,
+          mimetype: file.mimetype,
+          url: appendForcedDownload(sanitiseFileUrl(file.fileurl)),
+        })) || [],
+  };
+}
+
+function pickSectionIds(course, tokens, includeAllOnEmpty = true) {
+  const ids = new Set();
+
+  course.sections.forEach((section) => {
+    const sectionName = normalize(section.name);
+    const sectionMatches = tokens.some((token) =>
+      sectionName.includes(token)
+    );
+
+    const moduleMatches = section.modules?.some((module) => {
+      const moduleName = normalize(module.name);
+      const matchesName = tokens.some((token) =>
+        moduleName.includes(token)
+      );
+
+      const fileMatches = module.files?.some((file) => {
+        const fileName = normalize(file.filename);
+        return tokens.some((token) => fileName.includes(token));
+      });
+
+      return matchesName || fileMatches;
+    });
+
+    if (sectionMatches || moduleMatches) {
+      ids.add(section.id);
+    }
+  });
+
+  if (!ids.size && includeAllOnEmpty) {
+    course.sections.forEach((section) => ids.add(section.id));
+  }
+
+  return ids;
+}
+
+function findCourseByContent(courses, tokens) {
+  for (const course of courses) {
+    const sectionIds = pickSectionIds(course, tokens, false);
+    if (sectionIds.size) {
+      return { course, sectionIds };
+    }
+  }
+  return null;
+}
+
+function courseMatchesTokens(course, tokens) {
+  const courseName = normalize(course.name);
+  const shortName = normalize(course.shortname);
+
+  return tokens.some(
+    (token) => courseName.includes(token) || shortName.includes(token)
+  );
+}
+
+function tokenize(text) {
+  return text
+    .split(/\s+/)
+    .map((part) => normalize(part))
+    .filter((part) => part.length >= 3);
+}
+
+function normalize(text) {
+  return (text || "").toLowerCase().trim();
+}
+
 function sanitiseFileUrl(fileUrl) {
   if (!fileUrl) {
     return fileUrl;
@@ -119,67 +180,27 @@ function sanitiseFileUrl(fileUrl) {
 
   try {
     const url = new URL(fileUrl);
-    url.searchParams.delete("token");
+    if (url.searchParams.has("token")) {
+      url.searchParams.delete("token");
+    }
     return url.toString();
   } catch {
     return fileUrl;
   }
 }
 
-function matchesCourse(course, queryLower, terms) {
-  const courseName = course.name?.toLowerCase() || "";
-  const shortName = course.shortname?.toLowerCase() || "";
-
-  if (
-    (courseName && queryLower.includes(courseName)) ||
-    (shortName && queryLower.includes(shortName))
-  ) {
-    return true;
+function appendForcedDownload(url) {
+  if (!url) {
+    return url;
   }
 
-  return terms.some((term) => {
-    const normalized = term.toLowerCase();
-    return (
-      normalized.length >= 3 &&
-      (courseName.includes(normalized) || shortName.includes(normalized))
-    );
-  });
-}
-
-function findCourseByContent(courses, terms) {
-  for (const course of courses) {
-    const matchingSections = course.sections.filter((section) => {
-      const sectionName = section.name?.toLowerCase() || "";
-      const sectionMatches = terms.some((term) =>
-        sectionName.includes(term.toLowerCase())
-      );
-
-      if (sectionMatches) {
-        return true;
-      }
-
-      return section.modules?.some((module) => {
-        const moduleName = module.name?.toLowerCase() || "";
-        const moduleMatches =
-          moduleName &&
-          terms.some((term) => moduleName.includes(term.toLowerCase()));
-
-        const fileMatches = module.files?.some((file) => {
-          const filename = file.filename?.toLowerCase() || "";
-          return (
-            filename &&
-            terms.some((term) => filename.includes(term.toLowerCase()))
-          );
-        });
-
-        return moduleMatches || fileMatches;
-      });
-    });
-
-    if (matchingSections.length > 0) {
-      return { course, sections: matchingSections };
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has("forcedownload")) {
+      parsed.searchParams.set("forcedownload", "1");
     }
+    return parsed.toString();
+  } catch {
+    return url;
   }
-
-  return null;
 }
