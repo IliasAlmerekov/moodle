@@ -5,7 +5,18 @@ import { toUserFacingFileUrl } from "./url.service.js";
 let coursesStructure = null;
 let lastUpdate = null;
 const CACHE_TTL = 3600000; // 1 hour in milliseconds
-const MOODLE_URL = config.moodle.url;
+
+// Helper to ensure URLs always use correct Moodle base
+function buildMoodleUrl(path) {
+  const base = config.moodle.url;
+  if (!base) {
+    throw new Error('MOODLE_URL not configured');
+  }
+  // Ensure no double slashes
+  const cleanBase = base.replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
 
 export async function loadCoursesStructure(logger) {
   const courses = await getAllCourses();
@@ -20,7 +31,7 @@ export async function loadCoursesStructure(logger) {
         shortname: course.shortname,
         
         summary: (course.summary || ''),
-        url: `${MOODLE_URL}/course/view.php?id=${course.id}`,
+        url: buildMoodleUrl(`/course/view.php?id=${course.id}`),
         sections: contents.map((section) => ({
           id: section.id,
           name: section.name,
@@ -28,7 +39,7 @@ export async function loadCoursesStructure(logger) {
             id: module.id,
             name: module.name,
             type: module.modname,
-            url: `${MOODLE_URL}/mod/${module.modname}/view.php?id=${module.id}`,
+            url: buildMoodleUrl(`/mod/${module.modname}/view.php?id=${module.id}`),
             files: (module.contents || [])
               .filter((content) => content.type === "file")
               .map((file) => ({

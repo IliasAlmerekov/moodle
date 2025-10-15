@@ -68,6 +68,15 @@ export async function handleChatStream(request, reply) {
   const searchResult = await smartSearch(message, request.log);
   const context = searchResult.found ? formatSearchResult(searchResult) : "";
 
+  // Log URLs being passed to AI for debugging
+  if (searchResult.found) {
+    request.log.info({
+      courseUrl: searchResult.course.url,
+      sampleModuleUrls: searchResult.section[0]?.modules?.slice(0, 2).map(m => m.url) || [],
+      sampleFileUrls: searchResult.section[0]?.modules?.[0]?.files?.slice(0, 2).map(f => f.url) || []
+    }, "URLs being passed to AI");
+  }
+
   // Build system prompt with Moodle context
   const systemPrompt = buildSystemPrompt(context, userProfile);
   const fullPrompt = `${systemPrompt}\n\n${history}\ndie Frage von ${userProfile.fullname}: ${message}`;
@@ -123,55 +132,47 @@ function formatSearchResult(searchResult) {
   const formatLink = (url, label) =>
     url ? `<a href="${url}" target="_blank">${label}</a>` : label;
 
-  return `
-  Kurs: ${formatLink(
-    searchResult.course.url,
-    searchResult.course.name
-  )}\n\nKurzinfo: ${
-    searchResult.course.summary
-      ? searchResult.course.summary.substring(0, 400)
-      : ""
-  }\n\nRelevante Abschnitte:
-  ${searchResult.section
-    .map(
-      (section) => `
-    ### ${section.name}
-    ${section.summary || ""}
-    
-    Materialien:
-    ${section.modules
-      .map((mod) => {
-        const description = (mod.description || "").substring(0, 300);
-        const moduleLink = formatLink(mod.url, "Zum Material");
-        const fileLines =
-          mod.files && mod.files.length
-            ? `
-      Dateien:
-      ${mod.files
-        .map((file) => {
-          const fileLabel = file.filename || "Datei";
-          return `
-        * ${formatLink(file.url, fileLabel)}${
-            file.mimetype ? ` (${file.mimetype})` : ""
-          }
-        `;
-        })
-        .join("\n")}
-      `
-            : "";
+  // Build structured context with EXACT URLs for AI
+  let context = `\n🎓 KURS: ${searchResult.course.name}\n`;
+  context += `📎 KURS-URL: ${searchResult.course.url}\n`;
+  context += `📖 Beschreibung: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : "Keine Beschreibung"}\n\n`;
+  
+  context += `📚 RELEVANTE ABSCHNITTE:\n\n`;
 
-        return `
-      - ${mod.name} (${mod.type})
-      ${description}
-      ${moduleLink}
-      ${fileLines}
-      `;
-      })
-      .join("\n")}
-    `
-    )
-    .join("\n")}
-  `;
+  searchResult.section.forEach((section, idx) => {
+    context += `${idx + 1}. Abschnitt: ${section.name}\n`;
+    if (section.summary) {
+      context += `   Zusammenfassung: ${section.summary.substring(0, 200)}\n`;
+    }
+    
+    if (section.modules && section.modules.length > 0) {
+      context += `   \n   📝 Materialien:\n`;
+      
+      section.modules.forEach((mod, modIdx) => {
+        context += `   ${modIdx + 1}. ${mod.name} (${mod.type})\n`;
+        
+        if (mod.url) {
+          context += `      🔗 MODUL-URL: ${mod.url}\n`;
+        }
+        
+        if (mod.description) {
+          context += `      Beschreibung: ${mod.description.substring(0, 200)}\n`;
+        }
+        
+        if (mod.files && mod.files.length > 0) {
+          context += `      \n      📎 Dateien:\n`;
+          mod.files.forEach((file, fileIdx) => {
+            context += `      ${fileIdx + 1}. ${file.filename}${file.mimetype ? ` (${file.mimetype})` : ""}\n`;
+            context += `         📥 DATEI-URL: ${file.url}\n`;
+          });
+        }
+        context += `\n`;
+      });
+    }
+    context += `\n`;
+  });
+
+  return context;
 }
 
 // Build system prompt with Moodle context
@@ -196,27 +197,34 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 ✅ Verwende EINFACHE SPRACHE, erkläre komplexe Begriffe
 ✅ Nutze ALLGEMEINWISSEN nur zur Erklärung von Konzepten
 ✅ Vermeide Fachjargon und erkläre Abkürzungen
-✅ Wenn du Links teilst, nutze das vorgegebene HTML-Format
-✅ Wenn ${
-    user.fullname
-  } einen url Link fragt, prüfe bitte den Link, ob es richtig ist bevor du antwortest.
+
+### ⚠️ KRITISCH - URL-VERWENDUNG:
+🚨 NIEMALS SELBST URLs ERFINDEN ODER KONSTRUIEREN!
+🚨 Verwende NUR die URLs aus den "Verfügbare Kursinformationen" oben!
+🚨 Wenn im Context eine "KURS-URL", "MODUL-URL" oder "DATEI-URL" steht, kopiere diese EXAKT!
+🚨 URLs haben das Format: http://192.168.137.102:8080/...
+🚨 NIEMALS URLs mit http://localhost oder anderen Adressen generieren!
 
 ### KRITISCH - Links Format:
-🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!
-🔗 Format: <a href="VOLLSTÄNDIGE_URL" target="_blank">Linktext</a>
-🔗 Beispiel richtig: <a href="https://docs.docker.com" target="_blank">Docker Docs</a>
+🔗 Format: <a href="VOLLSTÄNDIGE_URL_AUS_CONTEXT" target="_blank">Linktext</a>
+🔗 Beispiel richtig: <a href="http://192.168.137.102:8080/course/view.php?id=5" target="_blank">Zum Kurs</a>
 🔗 Beispiel FALSCH: href="..." target="_blank">text</a> (fehlt <a am Anfang!)
+🔗 Beispiel FALSCH: <a href="http://localhost:8080/..." (falsche Basis-URL!)
 🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
 🔗 Stelle sicher dass JEDER Link mit <a href= beginnt und mit </a> endet!
 
-### Beispiel gute Antwort:
+### Beispiel gute Antwort (mit Moodle-Link):
 "Hallo ${user.fullname}! 👋
+
+Zu deiner Frage über Docker:
 
 • Docker ist eine Container-Plattform
 • Ermöglicht isolierte Anwendungen
 • Leicht und portabel
 
-📚 Mehr Infos: <a href="https://docs.docker.com" target="_blank">Docker Dokumentation</a>"
+📚 Kursmaterial: <a href="http://192.168.137.102:8080/course/view.php?id=5" target="_blank">Zum Kurs LF 07</a>
+
+📄 Datei: <a href="http://192.168.137.102:8080/pluginfile.php/123/mod_resource/content/1/docker-intro.pdf" target="_blank">Docker Einführung PDF</a>"
 
 ### Deine Aufgaben:
 • Unterstütze beim Verstehen von Kursmaterialien

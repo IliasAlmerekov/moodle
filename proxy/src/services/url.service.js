@@ -14,8 +14,14 @@ export function toUserFacingFileUrl(fileUrl) {
       u.searchParams.delete('token');
     }
 
+    // Ensure we use the correct Moodle base URL (not localhost or other)
+    u.protocol = base.protocol;
+    u.host = base.host;
+    u.port = base.port;
+
     return u.toString();
-  } catch {
+  } catch (error) {
+    console.warn('Failed to convert file URL:', fileUrl, error);
     return fileUrl;
   }
 }
