@@ -39,7 +39,10 @@ export async function handleChatStream(request, reply) {
 
       setCachedUser(numericUserId, userProfile);
     } catch (error) {
-      request.log.warn({ error }, "Proceeding without user profile (Moodle fetch failed)");
+      request.log.warn(
+        { error },
+        "Proceeding without user profile (Moodle fetch failed)"
+      );
     }
   }
 
@@ -67,7 +70,7 @@ export async function handleChatStream(request, reply) {
 
   // Build system prompt with Moodle context
   const systemPrompt = buildSystemPrompt(context, userProfile);
-  const fullPrompt = `${systemPrompt}\n\n${history}\nStudent: ${message}`;
+  const fullPrompt = `${systemPrompt}\n\n${history}\ndie Frage von ${userProfile.fullname}: ${message}`;
 
   appendMessage(sessionId, "user", message);
 
@@ -90,9 +93,15 @@ export async function handleChatStream(request, reply) {
     });
 
     // Stream response to client
-    await streamOllamaResponse(ollamaStream, reply, request.log, (chunk) => {
-      assistantReply += chunk;
-    }, sessionId);
+    await streamOllamaResponse(
+      ollamaStream,
+      reply,
+      request.log,
+      (chunk) => {
+        assistantReply += chunk;
+      },
+      sessionId
+    );
     appendMessage(sessionId, "assistant", assistantReply);
   } catch (error) {
     request.log.error(
@@ -115,7 +124,14 @@ function formatSearchResult(searchResult) {
     url ? `<a href="${url}" target="_blank">${label}</a>` : label;
 
   return `
-  Kurs: ${formatLink(searchResult.course.url, searchResult.course.name)}\n\nKurzinfo: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : ""}\n\nRelevante Abschnitte:
+  Kurs: ${formatLink(
+    searchResult.course.url,
+    searchResult.course.name
+  )}\n\nKurzinfo: ${
+    searchResult.course.summary
+      ? searchResult.course.summary.substring(0, 400)
+      : ""
+  }\n\nRelevante Abschnitte:
   ${searchResult.section
     .map(
       (section) => `
@@ -171,9 +187,8 @@ Benutzer: ${user.fullname || "Student"} | Kurse: ${courseLines || "keine"}
 ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 
 ### WICHTIG - Antwortformat:
-✅ Halte Antworten KURZ und ÜBERSICHTLICH, WENN ES NÖTIG IST
-✅ Antworte in der SPRACHE der FRAGE
-✅ Beziehe dich NUR auf Moodle-Kursinhalte
+✅ Antworte in der SPRACHE der FRAGE, wenn die letzte Nachricht in einer bestimmtem Sprache ist (DE, EN, RU); 
+✅ Beziehe dich NUR auf Moodle-Kursinhalte, antworte NICHT wenn dich die Antwort nicht auf Kursinhalte oder über Moodle bezieht
 ✅ Wenn du die Antwort nicht kennst, sage "Das weiß ich leider nicht."
 ✅ Nutze Bullet Points (•, -, *) für Listen
 ✅ Maximal 6-8 Stichpunkte pro Antwort
@@ -182,6 +197,9 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 ✅ Nutze ALLGEMEINWISSEN nur zur Erklärung von Konzepten
 ✅ Vermeide Fachjargon und erkläre Abkürzungen
 ✅ Wenn du Links teilst, nutze das vorgegebene HTML-Format
+✅ Wenn ${
+    user.fullname
+  } einen url Link fragt, prüfe bitte den Link, ob es richtig ist bevor du antwortest.
 
 ### KRITISCH - Links Format:
 🔗 WICHTIG: Schreibe HTML-Links KOMPLETT und KORREKT!

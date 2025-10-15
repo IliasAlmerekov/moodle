@@ -1,7 +1,7 @@
 import { addLoadingMessage } from "./loadingMessage.js";
 import { removeMessage } from "./removeMessage.js";
 
-const API_BASE_URL = "http://192.168.178.49:3000"; // api raspi
+const API_BASE_URL = "http://192.168.137.102:3000"; // api raspi
 
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
