@@ -5,6 +5,8 @@ import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
 import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
+const API_BASE_URL = "http://192.168.178.49"; // ip raspi
+
 export async function handleChatStream(request, reply) {
   const { message, userId, chatId } = request.body || {};
 
@@ -70,11 +72,18 @@ export async function handleChatStream(request, reply) {
 
   // Log URLs being passed to AI for debugging
   if (searchResult.found) {
-    request.log.info({
-      courseUrl: searchResult.course.url,
-      sampleModuleUrls: searchResult.section[0]?.modules?.slice(0, 2).map(m => m.url) || [],
-      sampleFileUrls: searchResult.section[0]?.modules?.[0]?.files?.slice(0, 2).map(f => f.url) || []
-    }, "URLs being passed to AI");
+    request.log.info(
+      {
+        courseUrl: searchResult.course.url,
+        sampleModuleUrls:
+          searchResult.section[0]?.modules?.slice(0, 2).map((m) => m.url) || [],
+        sampleFileUrls:
+          searchResult.section[0]?.modules?.[0]?.files
+            ?.slice(0, 2)
+            .map((f) => f.url) || [],
+      },
+      "URLs being passed to AI"
+    );
   }
 
   // Build system prompt with Moodle context
@@ -135,8 +144,12 @@ function formatSearchResult(searchResult) {
   // Build structured context with EXACT URLs for AI
   let context = `\n🎓 KURS: ${searchResult.course.name}\n`;
   context += `📎 KURS-URL: ${searchResult.course.url}\n`;
-  context += `📖 Beschreibung: ${searchResult.course.summary ? searchResult.course.summary.substring(0, 400) : "Keine Beschreibung"}\n\n`;
-  
+  context += `📖 Beschreibung: ${
+    searchResult.course.summary
+      ? searchResult.course.summary.substring(0, 400)
+      : "Keine Beschreibung"
+  }\n\n`;
+
   context += `📚 RELEVANTE ABSCHNITTE:\n\n`;
 
   searchResult.section.forEach((section, idx) => {
@@ -144,25 +157,30 @@ function formatSearchResult(searchResult) {
     if (section.summary) {
       context += `   Zusammenfassung: ${section.summary.substring(0, 200)}\n`;
     }
-    
+
     if (section.modules && section.modules.length > 0) {
       context += `   \n   📝 Materialien:\n`;
-      
+
       section.modules.forEach((mod, modIdx) => {
         context += `   ${modIdx + 1}. ${mod.name} (${mod.type})\n`;
-        
+
         if (mod.url) {
           context += `      🔗 MODUL-URL: ${mod.url}\n`;
         }
-        
+
         if (mod.description) {
-          context += `      Beschreibung: ${mod.description.substring(0, 200)}\n`;
+          context += `      Beschreibung: ${mod.description.substring(
+            0,
+            200
+          )}\n`;
         }
-        
+
         if (mod.files && mod.files.length > 0) {
           context += `      \n      📎 Dateien:\n`;
           mod.files.forEach((file, fileIdx) => {
-            context += `      ${fileIdx + 1}. ${file.filename}${file.mimetype ? ` (${file.mimetype})` : ""}\n`;
+            context += `      ${fileIdx + 1}. ${file.filename}${
+              file.mimetype ? ` (${file.mimetype})` : ""
+            }\n`;
             context += `         📥 DATEI-URL: ${file.url}\n`;
           });
         }
@@ -202,12 +220,12 @@ ${context ? `Verfügbare Kursinformationen:\n${context}` : ""}
 🚨 NIEMALS SELBST URLs ERFINDEN ODER KONSTRUIEREN!
 🚨 Verwende NUR die URLs aus den "Verfügbare Kursinformationen" oben!
 🚨 Wenn im Context eine "KURS-URL", "MODUL-URL" oder "DATEI-URL" steht, kopiere diese EXAKT!
-🚨 URLs haben das Format: http://192.168.137.102:8080/...
+🚨 URLs haben das Format: ${API_BASE_URL}/...
 🚨 NIEMALS URLs mit http://localhost oder anderen Adressen generieren!
 
 ### KRITISCH - Links Format:
 🔗 Format: <a href="VOLLSTÄNDIGE_URL_AUS_CONTEXT" target="_blank">Linktext</a>
-🔗 Beispiel richtig: <a href="http://192.168.137.102:8080/course/view.php?id=5" target="_blank">Zum Kurs</a>
+🔗 Beispiel richtig: <a href="${API_BASE_URL}:8080/course/view.php?id=5" target="_blank">Zum Kurs</a>
 🔗 Beispiel FALSCH: href="..." target="_blank">text</a> (fehlt <a am Anfang!)
 🔗 Beispiel FALSCH: <a href="http://localhost:8080/..." (falsche Basis-URL!)
 🔗 NIEMALS Markdown-Links wie [text](url) verwenden!
@@ -222,9 +240,9 @@ Zu deiner Frage über Docker:
 • Ermöglicht isolierte Anwendungen
 • Leicht und portabel
 
-📚 Kursmaterial: <a href="http://192.168.137.102:8080/course/view.php?id=5" target="_blank">Zum Kurs LF 07</a>
+📚 Kursmaterial: <a href="${API_BASE_URL}:8080/course/view.php?id=5" target="_blank">Zum Kurs LF 07</a>
 
-📄 Datei: <a href="http://192.168.137.102:8080/pluginfile.php/123/mod_resource/content/1/docker-intro.pdf" target="_blank">Docker Einführung PDF</a>"
+📄 Datei: <a href="${API_BASE_URL}:8080/pluginfile.php/123/mod_resource/content/1/docker-intro.pdf" target="_blank">Docker Einführung PDF</a>"
 
 ### Deine Aufgaben:
 • Unterstütze beim Verstehen von Kursmaterialien
