@@ -1,8 +1,7 @@
 name: moodle-stack
 services:
   mariadb:
-    image: docker.io/bitnamilegacy/mariadb:11.8.3-debian-12-r0
-    platform: linux/arm64
+    image: docker.io/bitnami/mariadb:11.8
     restart: unless-stopped
     environment:
       - ALLOW_EMPTY_PASSWORD=no
@@ -17,8 +16,7 @@ services:
     networks: [moodle_net]
 
   moodle:
-    image: docker.io/bitnamilegacy/moodle:4.4.4-debian-12-r4
-    platform: linux/arm64
+    image: docker.io/bitnami/moodle:4.4
     restart: unless-stopped
     depends_on: [mariadb]
     environment:
@@ -38,12 +36,27 @@ services:
       - LC_ALL=de_DE.UTF-8
     ports:
       - "${MOODLE_HTTP_PORT}:8080"
-      # - "8443:8443"
     volumes:
       - ../data/moodle:/bitnami/moodle
       - ../data/moodledata:/bitnami/moodledata
       - ../data/moodle-init:/docker-entrypoint-init.d
     networks: [moodle_net]
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ../data/ollama:/root/.ollama
+    networks: [moodle_net]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on: [ollama]
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL}"]
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    networks: [moodle_net]
+    restart: "no"
 
   proxy:
     build:
@@ -52,14 +65,14 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - MOODLE_URL=${MOODLE_URL}
+      - MOODLE_URL=http://moodle:8080
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
     ports:
       - "${PROXY_PORT}:3000"
     networks: [moodle_net]
-    depends_on: [moodle]
+    depends_on: [moodle, ollama]
 
 networks:
   moodle_net:

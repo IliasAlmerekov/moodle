@@ -36,3 +36,13 @@ Thumbs.db
 .cache/
 .vscode/
 .idea/
+
+#Agents
+.claude/
+.codex/
+
+#Docs
+AGENTS.md
+ARCHITECTURE.md
+ROADMAP.md
+TODO.md
