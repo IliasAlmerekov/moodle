@@ -3,6 +3,16 @@
 <!-- Chatbot Styles -->
 <link rel="stylesheet" href="/chatbot/chatbot.css" />
 
+<!--
+  Configuration contract:
+  Moodle must set window.CHATBOT_CONFIG before this snippet loads.
+  Expected shape:
+    window.CHATBOT_CONFIG = {
+      userId: <number>,   // Moodle user id
+      apiUrl: <string>,   // optional — proxy origin (defaults to window.location.origin)
+    };
+-->
+
 <!-- Chatbot HTML Structure -->
 <button
   id="chatbot-toogle"

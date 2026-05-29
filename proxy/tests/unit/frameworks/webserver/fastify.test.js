@@ -198,6 +198,110 @@ test("fastify instance uses request ID header", async () => {
   assert.equal(body.id, customId, "request id should be taken from x-request-id header");
 });
 
+test("static assets get Cache-Control: public, max-age=86400", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+
+  assert.equal(response.statusCode, 200);
+  const cc = response.headers["cache-control"];
+  assert.ok(cc, "Cache-Control header should be set");
+  assert.ok(cc.includes("max-age=86400"), `Expected max-age=86400, got: ${cc}`);
+});
+
+test("index.html and moodle-embed.html get Cache-Control: no-cache", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  for (const file of ["/chatbot/index.html", "/chatbot/moodle-embed.html"]) {
+    const response = await app.inject({ method: "GET", url: file });
+    assert.equal(response.statusCode, 200, `${file} should return 200`);
+    const cc = response.headers["cache-control"];
+    assert.ok(cc, `Cache-Control should be set for ${file}`);
+    assert.ok(cc.includes("no-cache"), `Expected no-cache for ${file}, got: ${cc}`);
+  }
+});
+
+test("chatbot.js contains normalizeApiUrl for apiUrl validation", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("normalizeApiUrl"),
+    "chatbot.js must validate apiUrl via normalizeApiUrl",
+  );
+  await app.close();
+});
+
+test("chatbot.js uses Number.isInteger for userId validation", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("Number.isInteger"),
+    "chatbot.js must reject non-integer userId values",
+  );
+  await app.close();
+});
+
+test("chatbot.js contains DOM fallback via detectMoodleUser", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("detectMoodleUser"),
+    "chatbot.js must fall back to DOM detection when CHATBOT_CONFIG.userId is absent",
+  );
+  assert.ok(
+    response.body.includes("CHATBOT_CONFIG"),
+    "chatbot.js must read configuration from window.CHATBOT_CONFIG",
+  );
+  await app.close();
+});
+
 test("fastify instance generates request ID when header is missing", async () => {
   const { createFastifyInstance } = await importFastifyFactory();
 

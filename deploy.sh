@@ -87,8 +87,15 @@ docker compose ps
 
 echo -e "${YELLOW}Checking services health...${NC}"
 sleep 2
-if curl -sf http://localhost:3000/health > /dev/null; then
+# Proxy port 3000 is internal-only (behind nginx). Use exec to reach it directly.
+if docker compose --env-file "$ENV_FILE" exec -T proxy curl -sf http://localhost:3000/health > /dev/null; then
     echo -e "${GREEN}✓ Proxy is healthy!${NC}"
+    echo -e "${YELLOW}Invalidating course cache...${NC}"
+    if docker compose --env-file "$ENV_FILE" exec -T proxy curl -sf -X POST http://localhost:3000/admin/cache/invalidate > /dev/null; then
+        echo -e "${GREEN}✓ Course cache invalidated${NC}"
+    else
+        echo -e "${YELLOW}⚠ Cache invalidation failed (non-fatal)${NC}"
+    fi
 else
     echo -e "${RED}✗ Proxy health check failed!${NC}"
 fi

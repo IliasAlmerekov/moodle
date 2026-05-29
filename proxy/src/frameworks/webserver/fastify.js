@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import compress from "@fastify/compress";
 import fastifyStatic from "@fastify/static";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -70,9 +71,21 @@ export async function createFastifyInstance(config) {
     }),
   });
 
+  // SSE routes opt out via config: { compress: false } on the route
+  await app.register(compress, { global: true });
+
+  const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html"]);
+
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "..", "..", "..", "public"),
     prefix: "/",
+    cacheControl: true,
+    maxAge: 86400000,
+    setHeaders(res, filePath) {
+      if (NO_CACHE_FILES.has(path.basename(filePath))) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
   });
 
   return app;

@@ -58,7 +58,10 @@ export async function createApp() {
 
   const controllers = { chat, history, moodle, health };
 
-  await registerRoutes(app, controllers, { verifyMoodleUser });
+  await registerRoutes(app, controllers, {
+    verifyMoodleUser,
+    invalidateCourseCache: () => moodleCache.invalidateCourseCache(),
+  });
 
   app.addHook("onReady", async () => {
     app.log.info("Warming up course cache...");
