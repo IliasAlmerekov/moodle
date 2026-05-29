@@ -1,12 +1,9 @@
 # Technische Anforderungen
 ## 1. Systemarchitektur
 ### Hardware-Anforderungen
-- Raspberry Pi 5 
 - Mindestens 4GB RAM
 - Stabile Netzwerkverbindung
-- Windows 11 Laptop für Ollama-Server
 ### Software-Stack
-- Raspberry Pi OS 64-bit
 - Docker & Docker Compose v2
 - Portainer für Container-Management
 - MariaDB als Datenbank

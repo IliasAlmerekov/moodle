@@ -246,7 +246,9 @@ test("POST /admin/cache/invalidate allows 127.0.0.1", async () => {
   const app = await createFastifyInstance(BASE_CONFIG);
   let called = false;
   await registerRoutes(app, createMockControllers(), {
-    invalidateCourseCache: () => { called = true; },
+    invalidateCourseCache: () => {
+      called = true;
+    },
   });
 
   const res = await app.inject({

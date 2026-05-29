@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Obtain the initial Let's Encrypt certificate for the stack.
 #
-# Run this ONCE on the Raspberry Pi BEFORE the first `docker compose up`.
+# Run this ONCE BEFORE the first `docker compose up`.
 # nginx must NOT be running yet (standalone mode binds to port 80 directly).
 #
 # Prerequisites:

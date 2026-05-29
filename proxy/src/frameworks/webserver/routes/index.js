@@ -96,16 +96,20 @@ export async function registerRoutes(app, controllers, options = {}) {
 
   // Cache invalidation — localhost only
   if (invalidateCourseCache) {
-    app.post("/admin/cache/invalidate", {
-      preHandler: async (request, reply) => {
-        const ip = request.ip;
-        if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
-          reply.code(403).send({ error: "Forbidden" });
-        }
+    app.post(
+      "/admin/cache/invalidate",
+      {
+        preHandler: async (request, reply) => {
+          const ip = request.ip;
+          if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
+            reply.code(403).send({ error: "Forbidden" });
+          }
+        },
       },
-    }, async (_request, reply) => {
-      invalidateCourseCache();
-      return reply.code(200).send({ ok: true });
-    });
+      async (_request, reply) => {
+        invalidateCourseCache();
+        return reply.code(200).send({ ok: true });
+      },
+    );
   }
 }

@@ -1,28 +1,22 @@
-# Team-Setup: Moodle + Ollama Stack auf Raspberry Pi
+# Team-Setup: Moodle + Ollama Stack
 
 ## Überblick
 
 Dieses Dokument beschreibt den vollständigen Aufbau des aktuellen Stacks:
 
-- Raspberry Pi 5 mit 64-bit Raspberry Pi OS
 - Docker, Docker Compose v2 und Portainer
 - Docker-Compose-Stack mit MariaDB, Moodle und Fastify-Proxy
-- Externer Ollama-Server (Windows 11 Laptop) für das LLM
+- Ollama-Server für das LLM
 - Grundkonfiguration von Moodle inklusive deutscher Lokalisierung und Webservice-Token
 
 ## Voraussetzungen
 
-- Raspberry Pi 5 (oder vergleichbar) mit Raspberry Pi OS 64-bit (frisch installiert)
+- Host-System mit Docker-Unterstützung
 - Zugriff per SSH oder direktes Terminal
-- Windows 11 Laptop (oder anderes System) für Ollama
-- Stabile Netzwerkverbindung; Pi und Laptop im selben LAN
+- Ollama-Server (lokal oder extern via `OLLAMA_URL`)
+- Stabile Netzwerkverbindung
 
-IPs anpassen:
-
-- Raspberry Pi: `192.168.178.49` am Raspberry "ifconfig"
-- Windows-Laptop: `192.168.178.35` am Windows "ipconfig"
-
-## Raspberry Pi: Basis vorbereiten
+## Host vorbereiten
 
 1. System aktualisieren und neu starten:
    ```bash
@@ -69,7 +63,7 @@ docker run -d \
   portainer/portainer-ce:latest
 ```
 
-Portainer ist anschließend unter `https://<PI-IP>:9443` erreichbar.
+Portainer ist anschließend unter `https://<HOST-IP>:9443` erreichbar.
 
 ## Projektstruktur
 
@@ -159,7 +153,7 @@ Erst wenn MariaDB in `running` ist, schließt Moodle seine Installation ab.
 
 ## Moodle: Erstkonfiguration
 
-1. Nach 3-4 Minuten ist Moodle unter `http://<PI-IP>:8080` erreichbar.
+1. Nach 3-4 Minuten ist Moodle unter `http://<HOST-IP>:8080` erreichbar.
 2. Mit `admin` / `MOODLE_PASSWORD` einloggen.
 3. Grundeinstellungen (Site-Name, Zeitzone, Support-E-Mail) setzen.
 4. SMTP konfigurieren, falls Mails benötigt werden.
@@ -202,7 +196,7 @@ Erst wenn MariaDB in `running` ist, schließt Moodle seine Installation ab.
   - `GET /ollama/models` ? Liste der verfügbaren Ollama-Modelle
 - Log-Level hängt von `NODE_ENV` ab (in Produktion `info`).
 
-## Ollama auf Windows 11
+## Ollama einrichten
 
 1. Installer von [https://ollama.com/download](https://ollama.com/download) ausführen.
 2. Modelle laden:
@@ -220,7 +214,7 @@ Erst wenn MariaDB in `running` ist, schließt Moodle seine Installation ab.
    ```
    Alternativ per Task Scheduler als Hintergrunddienst ausführen.
 4. Firewall-Regel für TCP 11434 erstellen (eingehend erlauben).
-5. Vom Pi prüfen:
+5. Verbindung prüfen:
    ```bash
    curl http://192.168.178.35:11434/api/tags
    ```
@@ -228,7 +222,7 @@ Erst wenn MariaDB in `running` ist, schließt Moodle seine Installation ab.
 
 ## Proxy testen
 
-Vom Laptop:
+Von einem beliebigen Host:
 
 ```bash
 curl http://192.168.178.49:3000/health
