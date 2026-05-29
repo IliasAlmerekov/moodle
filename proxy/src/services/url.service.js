@@ -20,8 +20,7 @@ export function toUserFacingFileUrl(fileUrl) {
     u.port = base.port;
 
     return u.toString();
-  } catch (error) {
-    console.warn('Failed to convert file URL:', fileUrl, error);
+  } catch {
     return fileUrl;
   }
 }

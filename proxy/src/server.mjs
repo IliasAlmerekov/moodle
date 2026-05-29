@@ -6,18 +6,26 @@ import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import config from "./config/env.js";
+import { setupErrorHandler } from "./middleware/errorHandler.js";
 import healthRoutes from "./routes/health.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import ollamaRoutes from "./routes/ollama.route.js";
 import moodleRoutes from "./routes/moodle.route.js";
 
+const { NODE_ENV } = process.env;
+
 // Initialize Fastify FIRST
 const fastify = Fastify({
   logger: {
-    level: "info",
+    level: config.logLevel,
+    transport: NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
   },
+  requestIdHeader: "x-request-id",
+  genReqId: () => crypto.randomUUID(),
   pluginTimeout: 60000, // allow up to 60s for slow startup hooks (e.g. Moodle cache warmup)
 });
+
+setupErrorHandler(fastify);
 
 // THEN add hooks
 fastify.addHook("onReady", async () => {
@@ -68,5 +76,19 @@ const start = async () => {
     process.exit(1);
   }
 };
+
+async function shutdown(signal) {
+  fastify.log.info(`Received ${signal}, shutting down gracefully`);
+  try {
+    await fastify.close();
+    process.exit(0);
+  } catch (err) {
+    fastify.log.error({ err }, "Error during shutdown");
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 start();
