@@ -9,6 +9,8 @@ const {
   CORS_ORIGIN,
   RATE_LIMIT_MAX = "20",
   RATE_LIMIT_WINDOW = "1 minute",
+  USER_RATE_LIMIT_MAX = "10",
+  USER_RATE_LIMIT_WINDOW_MS = "60000",
   CACHE_TTL_COURSES = "300000",
   CACHE_TTL_USERS = "60000",
   MAX_MESSAGE_LENGTH = "500",
@@ -50,6 +52,11 @@ const config = {
   rateLimit: {
     max: Number(RATE_LIMIT_MAX),
     window: RATE_LIMIT_WINDOW,
+  },
+
+  userRateLimit: {
+    max: Number(USER_RATE_LIMIT_MAX),
+    windowMs: Number(USER_RATE_LIMIT_WINDOW_MS),
   },
 
   cache: {
