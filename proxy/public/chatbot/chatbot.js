@@ -1,7 +1,8 @@
 import { addLoadingMessage } from "./loadingMessage.js";
 import { removeMessage } from "./removeMessage.js";
 
-const API_BASE_URL = window.location.origin;
+const _script = document.querySelector('script[src*="chatbot.js"]');
+const API_BASE_URL = _script ? new URL(_script.src).origin : window.location.origin;
 
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");

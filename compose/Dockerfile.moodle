@@ -1,0 +1,47 @@
+FROM php:8.1-apache
+
+RUN apt-get update && apt-get install -y \
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    libzip-dev libxml2-dev libicu-dev \
+    libonig-dev libcurl4-openssl-dev \
+    libldap2-dev zlib1g-dev unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        gd intl zip xml soap curl mbstring \
+        mysqli opcache exif fileinfo ctype
+
+RUN a2enmod rewrite headers
+
+RUN docker-php-ext-enable opcache
+
+RUN echo "upload_max_filesize=200M\n\
+post_max_size=200M\n\
+memory_limit=1024M\n\
+max_execution_time=300\n\
+date.timezone=Europe/Berlin\n\
+opcache.enable=1\n\
+opcache.memory_consumption=256\n\
+opcache.max_accelerated_files=20000\n\
+opcache.revalidate_freq=60\n\
+opcache.interned_strings_buffer=16" > /usr/local/etc/php/conf.d/moodle.ini
+
+RUN mkdir -p /bitnami/moodle /bitnami/moodledata /tmp/requestdir \
+    && chown -R www-data:www-data /bitnami/moodledata /tmp/requestdir \
+    && chmod 777 /tmp/requestdir \
+    && sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/:80>/:8080>/' /etc/apache2/sites-enabled/000-default.conf 2>/dev/null || true
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
+
+COPY moodle-apache.conf /etc/apache2/sites-available/000-default.conf
+COPY moodle-apache.conf /etc/apache2/sites-enabled/000-default.conf
+
+WORKDIR /bitnami/moodle
+
+EXPOSE 8080
