@@ -1,28 +1,28 @@
 #!/bin/bash
-# Автоматическое резервное копирование Moodle
-# Сохраняет: базу данных, файлы данных, кастомные темы, конфигурацию
+# Automated Moodle backup
+# Saves: database, data files, custom themes, configuration
 
 BACKUP_DIR="/home/admin/moodle/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 COMPOSE_DIR="/home/admin/moodle/compose"
 LOG_FILE="/home/admin/moodle/backup.log"
 
-# Создаем директорию для бэкапов
+# Create backup directory
 mkdir -p "$BACKUP_DIR"
 
-# Функция логирования
+# Logging function
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-log "=== Начало резервного копирования ==="
+log "=== Starting backup ==="
 
-# Включаем режим обслуживания Moodle (опционально, раскомментируйте если нужно)
-# log "Включение режима обслуживания..."
+# Enable Moodle maintenance mode (optional, uncomment if needed)
+# log "Enabling maintenance mode..."
 # docker exec moodle-stack-moodle-1 php /bitnami/moodle/admin/cli/maintenance.php --enable 2>/dev/null
 
-# 1. Создаем дамп базы данных
-log "Создание дампа базы данных..."
+# 1. Create database dump
+log "Creating database dump..."
 docker exec moodle-stack-mariadb-1 mysqldump \
   -u root \
   -p'Supersecretpassword123!' \
@@ -32,14 +32,14 @@ docker exec moodle-stack-mariadb-1 mysqldump \
   bitnami_moodle 2>/dev/null | gzip > "$BACKUP_DIR/moodle_db_$TIMESTAMP.sql.gz"
 
 if [ $? -eq 0 ]; then
-    log "✓ База данных сохранена: moodle_db_$TIMESTAMP.sql.gz"
+    log "✓ Database saved: moodle_db_$TIMESTAMP.sql.gz"
 else
-    log "✗ ОШИБКА при создании дампа базы данных!"
+    log "✗ ERROR creating database dump!"
     exit 1
 fi
 
-# 2. Архивируем пользовательские файлы (moodledata)
-log "Архивация пользовательских файлов..."
+# 2. Archive user files (moodledata)
+log "Archiving user files..."
 if [ -d "/home/admin/moodle/data/moodledata" ]; then
     tar -czf "$BACKUP_DIR/moodledata_$TIMESTAMP.tar.gz" \
       -C /home/admin/moodle/data \
@@ -47,17 +47,17 @@ if [ -d "/home/admin/moodle/data/moodledata" ]; then
       moodledata 2>/dev/null
 
     if [ $? -eq 0 ] || [ $? -eq 1 ]; then
-        # Exit code 1 означает "файлы изменились во время архивации" - это OK
-        log "✓ Пользовательские файлы сохранены: moodledata_$TIMESTAMP.tar.gz"
+        # Exit code 1 means "files changed during archiving" - this is OK
+        log "✓ User files saved: moodledata_$TIMESTAMP.tar.gz"
     else
-        log "✗ ОШИБКА при архивации moodledata!"
+        log "✗ ERROR archiving moodledata!"
     fi
 else
-    log "⚠ Предупреждение: директория moodledata не найдена"
+    log "⚠ Warning: moodledata directory not found"
 fi
 
-# 3. Архивируем кастомные темы и плагины (если есть)
-log "Архивация кастомных файлов Moodle..."
+# 3. Archive custom themes and plugins (if any)
+log "Archiving custom Moodle files..."
 CUSTOM_DIRS=""
 [ -d "/home/admin/moodle/data/moodle/theme" ] && CUSTOM_DIRS="$CUSTOM_DIRS theme/"
 [ -d "/home/admin/moodle/data/moodle/local" ] && CUSTOM_DIRS="$CUSTOM_DIRS local/"
@@ -71,36 +71,36 @@ if [ -n "$CUSTOM_DIRS" ]; then
       $CUSTOM_DIRS 2>/dev/null
 
     if [ $? -eq 0 ] || [ $? -eq 1 ]; then
-        log "✓ Кастомные файлы сохранены: moodle_custom_$TIMESTAMP.tar.gz"
+        log "✓ Custom files saved: moodle_custom_$TIMESTAMP.tar.gz"
     else
-        log "⚠ Предупреждение: не удалось сохранить кастомные файлы"
+        log "⚠ Warning: failed to save custom files"
     fi
 else
-    log "ℹ Кастомные папки (theme/local) не найдены - пропускаем"
+    log "ℹ Custom directories (theme/local) not found - skipping"
 fi
 
-# 4. Сохраняем docker-compose.yml и .env
-log "Сохранение конфигурации Docker..."
+# 4. Save docker-compose.yml and .env
+log "Saving Docker configuration..."
 cp "$COMPOSE_DIR/docker-compose.yml" "$BACKUP_DIR/docker-compose_$TIMESTAMP.yml"
 cp "$COMPOSE_DIR/.env" "$BACKUP_DIR/env_$TIMESTAMP.txt" 2>/dev/null
 
-log "✓ Конфигурация Docker сохранена"
+log "✓ Docker configuration saved"
 
-# 5. Удаляем старые бэкапы (старше 7 дней)
-log "Удаление старых бэкапов (старше 7 дней)..."
+# 5. Remove old backups (older than 7 days)
+log "Removing old backups (older than 7 days)..."
 DELETED=$(find "$BACKUP_DIR" -name "*_*.*" -mtime +7 -delete -print | wc -l)
-log "✓ Удалено старых файлов: $DELETED"
+log "✓ Old files removed: $DELETED"
 
-# Выключаем режим обслуживания (если включали)
-# log "Выключение режима обслуживания..."
+# Disable maintenance mode (if enabled)
+# log "Disabling maintenance mode..."
 # docker exec moodle-stack-moodle-1 php /bitnami/moodle/admin/cli/maintenance.php --disable 2>/dev/null
 
-# 6. Показываем статистику
-log "=== Резервное копирование завершено ==="
-log "Папка бэкапов: $BACKUP_DIR"
-log "Размер последнего бэкапа:"
+# 6. Show statistics
+log "=== Backup completed ==="
+log "Backup directory: $BACKUP_DIR"
+log "Size of latest backup:"
 du -sh "$BACKUP_DIR"/*_$TIMESTAMP.* 2>/dev/null | tee -a "$LOG_FILE"
 
-log "Всего бэкапов в системе:"
-ls -1 "$BACKUP_DIR"/*.gz 2>/dev/null | wc -l | xargs echo "Файлов:" | tee -a "$LOG_FILE"
+log "Total backups in system:"
+ls -1 "$BACKUP_DIR"/*.gz 2>/dev/null | wc -l | xargs echo "Files:" | tee -a "$LOG_FILE"
 du -sh "$BACKUP_DIR" | tee -a "$LOG_FILE"
