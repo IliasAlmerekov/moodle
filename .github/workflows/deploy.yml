@@ -21,18 +21,17 @@ jobs:
         run: |
           echo "Running health check (10 attempts, 5s interval)..."
           for i in $(seq 1 10); do
-            if curl -sf http://localhost:3000/health > /dev/null; then
+            if curl -sf --max-time 3 http://localhost:3000/health > /dev/null; then
               echo "✓ Proxy is healthy (attempt $i/10)"
               exit 0
             fi
             echo "  Attempt $i/10 failed, retrying in 5s..."
-            sleep 5
+            [ $i -lt 10 ] && sleep 5
           done
           echo "✗ Health check failed after 10 attempts"
           exit 1
 
       - name: Show proxy logs on failure
         if: failure()
-        run: |
-          cd compose
-          docker compose logs proxy --tail=50
+        working-directory: compose
+        run: docker compose logs proxy --tail=50
