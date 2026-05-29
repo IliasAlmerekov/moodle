@@ -4,6 +4,7 @@ const {
   MOODLE_TOKEN,
   OLLAMA_URL,
   OLLAMA_MODEL,
+  PUBLIC_MOODLE_URL,
   PORT = "3000",
 } = process.env;
 
@@ -35,6 +36,7 @@ const config = {
   // moodle config
   moodle: {
     url: moodleBaseUrl,
+    publicUrl: PUBLIC_MOODLE_URL?.replace(/\/$/, "") ?? "",
     token: MOODLE_TOKEN,
     isConfigured: Boolean(moodleBaseUrl && MOODLE_TOKEN),
   },

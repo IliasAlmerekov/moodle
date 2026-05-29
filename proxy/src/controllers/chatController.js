@@ -5,15 +5,42 @@ import { getUserInfo, getUserCourses } from "../services/moodle.service.js";
 import { callOllamaStream } from "../services/ollama.service.js";
 import { getCachedUser, setCachedUser } from "../services/userCache.service.js";
 
-const API_BASE_URL = "http://192.168.178.49"; // ip raspi
+const API_BASE_URL = process.env.PUBLIC_MOODLE_URL ?? "";
+
+const INJECTION_PATTERNS = [
+  /ignore.*instructions/i,
+  /<script/i,
+  /jailbreak/i,
+  /DAN mode/i,
+];
+
+function validateMessage(msg) {
+  if (typeof msg !== "string") {
+    throw Object.assign(new Error("Message must be a string."), { statusCode: 400 });
+  }
+  const trimmed = msg.trim();
+  if (trimmed.length < 1 || trimmed.length > 500) {
+    throw Object.assign(new Error("Message must be between 1 and 500 characters."), { statusCode: 400 });
+  }
+  if (INJECTION_PATTERNS.some((p) => p.test(trimmed))) {
+    throw Object.assign(new Error("Invalid input."), { statusCode: 400, isInjectionAttempt: true });
+  }
+  return trimmed;
+}
 
 export async function handleChatStream(request, reply) {
-  const { message, userId, chatId } = request.body || {};
-
-  if (!message) {
-    reply.code(400);
-    return { error: "Message is required" };
+  let message;
+  try {
+    message = validateMessage(request.body?.message);
+  } catch (err) {
+    if (err.isInjectionAttempt) {
+      request.log.warn({ security: true, type: "injection_attempt", ip: request.ip });
+    }
+    reply.code(err.statusCode ?? 400);
+    return { error: err.message };
   }
+
+  const { userId, chatId } = request.body || {};
 
   const numericUserId = Number(userId);
   const validUserId = Number.isInteger(numericUserId) && numericUserId > 0;
