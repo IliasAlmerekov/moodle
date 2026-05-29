@@ -13,6 +13,7 @@ import { createChatController } from "./adapters/controllers/chatController.js";
 import { createHistoryController } from "./adapters/controllers/historyController.js";
 import { createMoodleController } from "./adapters/controllers/moodleController.js";
 import { createHealthController } from "./adapters/controllers/healthController.js";
+import { createVerifyMoodleUser } from "./middleware/auth.js";
 import config from "./config/env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,9 +54,11 @@ export async function createApp() {
     version,
   });
 
+  const verifyMoodleUser = createVerifyMoodleUser({ userRepository: moodleCache });
+
   const controllers = { chat, history, moodle, health };
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { verifyMoodleUser });
 
   app.addHook("onReady", async () => {
     app.log.info("Warming up course cache...");
