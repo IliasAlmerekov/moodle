@@ -1,0 +1,22 @@
+export const STOP_WORDS = new Set([
+  // de
+  "ich","du","er","sie","es","wir","ihr",
+  "und","oder","aber","auch","nur","noch","schon",
+  "der","die","das","den","dem","des","ein","eine","einer","einem","eines",
+  "zu","zum","zur","mit","ohne","für","im","in","am","an","auf","von","nach","bei",
+  "bitte","hallo","danke","hi","servus","moin",
+  "brauche","need","hilfe",
+  "link","links","url","kurslink",
+  // en
+  "i","you","we","they","and","or","the","a","an","to","for","with","without","of",
+  // ru
+  "я","мне","мои","мой","тебе","ты","и","или","но","это","в","на","для","с","без","до","после",
+]);
+
+export const MAX_SECTIONS_IN_RESPONSE = 3;
+
+export const MAX_SQLITE_MESSAGES = 48;
+
+export const CACHE_KEY_COURSES = "courses";
+
+export const CACHE_KEY_USER_PREFIX = "user:";

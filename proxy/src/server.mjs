@@ -59,15 +59,6 @@ await fastify.register(chatRoutes);
 await fastify.register(ollamaRoutes);
 await fastify.register(moodleRoutes);
 
-// warning about missing vars
-if (config.validation.missingVars.length > 0) {
-  fastify.log.warn(
-    `Missing required environment variables: ${config.validation.missingVars.join(
-      ", "
-    )}`
-  );
-}
-
 // Start the server
 const start = async () => {
   try {
