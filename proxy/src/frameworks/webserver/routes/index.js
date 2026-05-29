@@ -15,9 +15,12 @@
  * @param {Function} controllers.moodle.debugCache
  * @param {Object} controllers.health
  * @param {Function} controllers.health.check
+ * @param {Object} [options]
+ * @param {Function} [options.verifyMoodleUser]
  */
-export async function registerRoutes(app, controllers) {
+export async function registerRoutes(app, controllers, options = {}) {
   const { chat, history, moodle, health } = controllers;
+  const { verifyMoodleUser } = options;
 
   // Health check
   app.get("/health", health.check.bind(health));
@@ -37,6 +40,7 @@ export async function registerRoutes(app, controllers) {
           },
         },
       },
+      ...(verifyMoodleUser ? { preHandler: [verifyMoodleUser] } : {}),
     },
     chat.handleStream.bind(chat),
   );

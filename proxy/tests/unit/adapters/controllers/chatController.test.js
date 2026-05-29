@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, beforeEach } from "vitest";
+import { resetCounters } from "../../../../src/middleware/rateLimiter.js";
+
+beforeEach(() => {
+  resetCounters();
+});
 
 async function importControllerModule() {
   process.env.MOODLE_URL = "https://moodle.example.test";
@@ -188,6 +193,52 @@ test("logs injection attempt and returns 400", async () => {
   assert.strictEqual(request._warnings.length, 1);
   assert.strictEqual(request._warnings[0].security, true);
   assert.strictEqual(request._warnings[0].type, "injection_attempt");
+});
+
+test("returns 429 when user exceeds rate limit", async () => {
+  const { createChatController } = await importControllerModule();
+  const deps = createMockRepositories();
+  const controller = createChatController(deps);
+
+  // Exhaust the limit (10 requests)
+  for (let i = 0; i < 10; i++) {
+    const request = createMockRequest({ body: { message: "Hi", userId: 99 } });
+    const reply = createMockReply();
+    await controller.handleStream(request, reply);
+    assert.strictEqual(reply._status, null, `request ${i + 1} should not be blocked`);
+  }
+
+  // 11th request should be rate limited
+  const request = createMockRequest({ body: { message: "Hi", userId: 99 } });
+  const reply = createMockReply();
+  await controller.handleStream(request, reply);
+
+  assert.strictEqual(reply._status, 429);
+  assert.strictEqual(reply._sent.statusCode, 429);
+  assert.strictEqual(reply._sent.error, "Too Many Requests");
+  assert.ok(reply._sent.message.includes("Zu viele Anfragen"));
+  assert.strictEqual(reply.raw._status, null);
+  assert.strictEqual(reply.raw._chunks.length, 0);
+});
+
+test("returns 429 for missing userId when anonymous limit exceeded", async () => {
+  const { createChatController } = await importControllerModule();
+  const deps = createMockRepositories();
+  const controller = createChatController(deps);
+
+  for (let i = 0; i < 10; i++) {
+    const request = createMockRequest({ body: { message: "Hi" } });
+    const reply = createMockReply();
+    await controller.handleStream(request, reply);
+  }
+
+  const request = createMockRequest({ body: { message: "Hi" } });
+  const reply = createMockReply();
+  await controller.handleStream(request, reply);
+
+  assert.strictEqual(reply._status, 429);
+  assert.strictEqual(reply._sent.statusCode, 429);
+  assert.strictEqual(reply._sent.error, "Too Many Requests");
 });
 
 test("parses valid userId and passes it to use case", async () => {

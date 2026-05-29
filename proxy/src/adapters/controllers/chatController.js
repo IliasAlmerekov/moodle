@@ -1,6 +1,7 @@
 import { streamChat } from "../../application/useCases/chat/streamChat.js";
 import { searchCourses } from "../../application/useCases/courses/searchCourses.js";
 import { validateMessage } from "../../middleware/inputGuard.js";
+import { checkUserRateLimit } from "../../middleware/rateLimiter.js";
 import { sanitizeChatId } from "./chatId.js";
 import config from "../../config/env.js";
 
@@ -26,16 +27,28 @@ export function createChatController({
 
       let message;
       try {
-        message = validateMessage(rawMessage);
+        message = validateMessage(rawMessage, { log: request.log, ip: request.ip });
       } catch (err) {
-        if (err.isInjectionAttempt) {
-          request.log.warn({ security: true, type: "injection_attempt", ip: request.ip });
-        }
         return reply.status(err.statusCode ?? 400).send({ error: err.message });
       }
 
       const numericUserId =
         Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : 0;
+
+      const rateLimitResult = checkUserRateLimit(numericUserId, {
+        ip: request.ip,
+        log: request.log,
+        max: config.userRateLimit.max,
+        windowMs: config.userRateLimit.windowMs,
+      });
+      if (!rateLimitResult.allowed) {
+        return reply.status(429).send({
+          statusCode: 429,
+          error: "Too Many Requests",
+          message: "Zu viele Anfragen. Bitte warte eine Minute.",
+        });
+      }
+
       const safeChatId = sanitizeChatId(chatId);
       const sessionId = safeChatId ?? `session-${numericUserId}-${Date.now()}`;
 

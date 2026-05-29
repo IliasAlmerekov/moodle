@@ -177,3 +177,28 @@ test("binds controller methods so they can use this", async () => {
   assert.notStrictEqual(healthRoute.handler, controllers.health.check);
   assert.strictEqual(typeof healthRoute.handler, "function");
 });
+
+test("registers POST /api/chat-stream with preHandler when verifyMoodleUser is provided", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+  const mockPreHandler = async () => {};
+
+  await registerRoutes(app, controllers, { verifyMoodleUser: mockPreHandler });
+
+  const route = app._routes.find((r) => r.path === "/api/chat-stream");
+  assert.ok(route);
+  assert.ok(route.opts);
+  assert.deepStrictEqual(route.opts.preHandler, [mockPreHandler]);
+});
+
+test("registers POST /api/chat-stream without preHandler when verifyMoodleUser is omitted", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await registerRoutes(app, controllers);
+
+  const route = app._routes.find((r) => r.path === "/api/chat-stream");
+  assert.ok(route);
+  assert.ok(route.opts);
+  assert.ok(!("preHandler" in route.opts));
+});

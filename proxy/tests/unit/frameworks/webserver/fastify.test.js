@@ -12,6 +12,7 @@ test("createFastifyInstance returns a configured Fastify app", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: ["http://localhost:8080"] },
     rateLimit: { max: 20, window: "1 minute" },
     moodle: { publicUrl: "https://www.itech-bs14.de" },
@@ -29,6 +30,7 @@ test("registered plugins add expected headers", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: ["http://localhost:8080"] },
     rateLimit: { max: 20, window: "1 minute" },
     moodle: { publicUrl: "https://www.itech-bs14.de" },
@@ -45,9 +47,36 @@ test("registered plugins add expected headers", async () => {
   });
 
   assert.equal(response.statusCode, 200);
-  assert.ok(response.headers["content-security-policy"], "helmet should add CSP header");
+  const csp = response.headers["content-security-policy"];
+  assert.ok(csp, "helmet should add CSP header");
+  assert.ok(csp.includes("https://www.itech-bs14.de"), "CSP connect-src should include Moodle origin");
+  assert.equal(response.headers["x-frame-options"], "SAMEORIGIN", "helmet should allow same-origin iframe");
   assert.ok(response.headers["access-control-allow-origin"], "cors should add ACAO header");
   assert.ok(response.headers["x-ratelimit-limit"], "rate-limit should add x-ratelimit-limit header");
+});
+
+test("CSP connect-src excludes external domains when publicUrl is empty", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  app.get("/csp-test", async () => ({ ok: true }));
+
+  const response = await app.inject({ method: "GET", url: "/csp-test" });
+
+  assert.equal(response.statusCode, 200);
+  const csp = response.headers["content-security-policy"];
+  assert.ok(csp, "helmet should add CSP header");
+  assert.ok(csp.includes("connect-src 'self'"), "CSP connect-src should only contain 'self'");
+  assert.ok(!csp.includes("https://"), "CSP connect-src should not contain any HTTPS origin when publicUrl is empty");
 });
 
 test("rate limit plugin returns German message on 429", async () => {
@@ -55,6 +84,7 @@ test("rate limit plugin returns German message on 429", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: false },
     rateLimit: { max: 1, window: "1 minute" },
     moodle: { publicUrl: "" },
@@ -80,6 +110,7 @@ test("cors rejects disallowed origins", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: ["https://allowed.example"] },
     rateLimit: { max: 100, window: "1 minute" },
     moodle: { publicUrl: "" },
@@ -104,6 +135,7 @@ test("cors allows configured origins", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: ["https://allowed.example"] },
     rateLimit: { max: 100, window: "1 minute" },
     moodle: { publicUrl: "" },
@@ -128,6 +160,7 @@ test("fastify instance uses request ID header", async () => {
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: false },
     rateLimit: { max: 100, window: "1 minute" },
     moodle: { publicUrl: "" },
@@ -153,6 +186,7 @@ test("fastify instance generates request ID when header is missing", async () =>
 
   const config = {
     logLevel: "silent",
+    nodeEnv: "test",
     cors: { origins: false },
     rateLimit: { max: 100, window: "1 minute" },
     moodle: { publicUrl: "" },
