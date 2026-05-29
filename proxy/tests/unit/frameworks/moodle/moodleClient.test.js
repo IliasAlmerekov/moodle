@@ -34,9 +34,16 @@ test("moodleClient calls Moodle REST API with token and wsfunction", async () =>
 
 test("moodleClient converts Moodle API exceptions into useful errors", async () => {
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ exception: "moodle_exception", errorcode: "invalidtoken", message: "Invalid token" }), {
-      status: 200,
-    });
+    new Response(
+      JSON.stringify({
+        exception: "moodle_exception",
+        errorcode: "invalidtoken",
+        message: "Invalid token",
+      }),
+      {
+        status: 200,
+      },
+    );
 
   const { moodleClient } = await importMoodleClient();
 

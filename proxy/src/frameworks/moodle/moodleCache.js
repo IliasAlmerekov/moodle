@@ -84,8 +84,8 @@ export function createMoodleCache({
     const courses = await client.getAllCourses();
     const structure = await Promise.all(
       courses.map(async (course) =>
-        createCourseStructure(course, await client.getCourseContents(course.id))
-      )
+        createCourseStructure(course, await client.getCourseContents(course.id)),
+      ),
     );
 
     courseEntry = {
@@ -145,7 +145,12 @@ export function createMoodleCache({
     },
 
     async getUserInfo(userId) {
-      return getCachedUserEntry(userInfoCache, userId, client.getUserInfo.bind(client), "user-info");
+      return getCachedUserEntry(
+        userInfoCache,
+        userId,
+        client.getUserInfo.bind(client),
+        "user-info",
+      );
     },
 
     async getUserCourses(userId) {
@@ -153,7 +158,7 @@ export function createMoodleCache({
         userCoursesCache,
         userId,
         client.getUserCourses.bind(client),
-        "user-courses"
+        "user-courses",
       );
     },
 

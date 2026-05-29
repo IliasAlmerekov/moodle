@@ -139,7 +139,8 @@ export async function streamChat({
   ]);
 
   const historyArray = historySettled.status === "fulfilled" ? historySettled.value : [];
-  const searchResult = searchSettled.status === "fulfilled" ? searchSettled.value : { found: false };
+  const searchResult =
+    searchSettled.status === "fulfilled" ? searchSettled.value : { found: false };
 
   const history = historyArray
     .map((t) => `${t.role === "user" ? "Student" : "Tutor"}: ${t.content}`)
@@ -168,7 +169,9 @@ export async function streamChat({
           await onChunk(json.response);
         }
         if (json?.done) break outer;
-      } catch { /* skip malformed NDJSON line */ }
+      } catch {
+        /* skip malformed NDJSON line */
+      }
     }
   }
 

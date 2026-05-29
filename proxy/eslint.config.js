@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import n from "eslint-plugin-n";
+import prettier from "eslint-config-prettier";
 
 export default [
   js.configs.recommended,
@@ -10,6 +11,7 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       "eqeqeq": "error",
+      "n/no-unsupported-features/node-builtins": "off",
     },
   },
   {
@@ -18,9 +20,5 @@ export default [
       "n/no-unpublished-import": "off",
     },
   },
-  {
-    rules: {
-      "n/no-unsupported-features/node-builtins": "off",
-    },
-  },
+  prettier,
 ];

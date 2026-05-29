@@ -74,15 +74,24 @@ test("moodleCache loads and reuses structured course data until course TTL expir
   assert.equal(calls.getCourseContents, 2);
   assert.equal(first[0].name, "Learning Field 8");
   assert.equal(first[0].url, "https://moodle.example.test/course/view.php?id=11");
-  assert.equal(sections[0].modules[0].url, "https://moodle.example.test/mod/resource/view.php?id=201");
+  assert.equal(
+    sections[0].modules[0].url,
+    "https://moodle.example.test/mod/resource/view.php?id=201",
+  );
   assert.equal(
     sections[0].modules[0].files[0].url,
-    "https://moodle.example.test/pluginfile.php/1/mod_resource/content/routing.pdf"
+    "https://moodle.example.test/pluginfile.php/1/mod_resource/content/routing.pdf",
   );
   assert.equal(cache.stats.courses.hits, 2);
   assert.equal(cache.stats.courses.misses, 2);
-  assert.equal(logger.entries.some((entry) => entry.message === "Moodle course cache hit"), true);
-  assert.equal(logger.entries.some((entry) => entry.message === "Moodle course cache miss"), true);
+  assert.equal(
+    logger.entries.some((entry) => entry.message === "Moodle course cache hit"),
+    true,
+  );
+  assert.equal(
+    logger.entries.some((entry) => entry.message === "Moodle course cache miss"),
+    true,
+  );
 });
 
 test("moodleCache invalidates course cache explicitly", async () => {
@@ -143,6 +152,12 @@ test("moodleCache caches user info and user courses by user id until user TTL ex
   assert.equal(cache.stats.users.entries, 1);
   assert.equal(cache.stats.users.hits, 2);
   assert.equal(cache.stats.users.misses, 4);
-  assert.equal(logger.entries.some((entry) => entry.message === "Moodle user cache hit"), true);
-  assert.equal(logger.entries.some((entry) => entry.message === "Moodle user cache miss"), true);
+  assert.equal(
+    logger.entries.some((entry) => entry.message === "Moodle user cache hit"),
+    true,
+  );
+  assert.equal(
+    logger.entries.some((entry) => entry.message === "Moodle user cache miss"),
+    true,
+  );
 });

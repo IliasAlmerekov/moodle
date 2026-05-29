@@ -6,7 +6,9 @@ function createMockRequest(overrides = {}) {
   const errors = [];
   return {
     log: {
-      error(data) { errors.push(data); },
+      error(data) {
+        errors.push(data);
+      },
       info() {},
       warn() {},
     },

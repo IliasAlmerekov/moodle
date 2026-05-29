@@ -25,7 +25,9 @@ const mockSection = {
       type: "video",
       url: "https://moodle.example/mod/page/view.php?id=12",
       description: "Einleitendes Video",
-      files: [{ filename: "intro.mp4", mimetype: "video/mp4", url: "https://moodle.example/file.mp4" }],
+      files: [
+        { filename: "intro.mp4", mimetype: "video/mp4", url: "https://moodle.example/file.mp4" },
+      ],
     },
   ],
 };

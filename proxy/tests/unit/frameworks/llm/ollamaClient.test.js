@@ -51,7 +51,7 @@ test("ollamaClient lists model names from /api/tags", async () => {
       JSON.stringify({
         models: [{ name: "llama3.2:3b" }, { name: "mistral" }, { digest: "ignored" }],
       }),
-      { status: 200 }
+      { status: 200 },
     );
   };
 

@@ -12,7 +12,10 @@ async function importControllerModule() {
   process.env.OLLAMA_URL = "http://ollama.example.test";
   process.env.OLLAMA_MODEL = "llama-default";
 
-  const moduleUrl = new URL("../../../../src/adapters/controllers/chatController.js", import.meta.url);
+  const moduleUrl = new URL(
+    "../../../../src/adapters/controllers/chatController.js",
+    import.meta.url,
+  );
   moduleUrl.searchParams.set("cacheBust", crypto.randomUUID());
   return import(moduleUrl.href);
 }
@@ -36,13 +39,19 @@ function createMockRequest(overrides = {}) {
     body: overrides.body ?? {},
     ip: overrides.ip ?? "127.0.0.1",
     log: {
-      warn(data) { warnings.push(data); },
-      error(data) { errors.push(data); },
+      warn(data) {
+        warnings.push(data);
+      },
+      error(data) {
+        errors.push(data);
+      },
       info() {},
     },
     raw: {
       _listeners: listeners,
-      on(event, handler) { listeners.push({ event, handler }); },
+      on(event, handler) {
+        listeners.push({ event, handler });
+      },
       off(event, handler) {
         const idx = listeners.findIndex((l) => l.event === event && l.handler === handler);
         if (idx !== -1) listeners.splice(idx, 1);
@@ -94,7 +103,9 @@ function createMockRepositories() {
   return {
     chatRepository: {
       history: [],
-      async getHistory() { return this.history; },
+      async getHistory() {
+        return this.history;
+      },
       async appendMessage(sessionId, userId, role, content) {
         this.history.push({ sessionId, userId, role, content });
       },
@@ -103,11 +114,17 @@ function createMockRepositories() {
       async getUserInfo(userId) {
         return { id: userId, firstname: "Test", lastname: "User", email: "test@example.com" };
       },
-      async getUserCourses() { return []; },
+      async getUserCourses() {
+        return [];
+      },
     },
     courseRepository: {
-      async getAllCourses() { return []; },
-      async getCourseContents() { return []; },
+      async getAllCourses() {
+        return [];
+      },
+      async getCourseContents() {
+        return [];
+      },
     },
     llmService: {
       async streamResponse() {
@@ -134,8 +151,14 @@ test("valid request sets SSE headers and streams response", async () => {
   assert.strictEqual(reply.raw._ended, true);
 
   const chunks = reply.raw._chunks;
-  assert.ok(chunks.some((c) => c.includes("Hello")), "expected chunk with 'Hello'");
-  assert.ok(chunks.some((c) => c.includes("[DONE]")), "expected [DONE] chunk");
+  assert.ok(
+    chunks.some((c) => c.includes("Hello")),
+    "expected chunk with 'Hello'",
+  );
+  assert.ok(
+    chunks.some((c) => c.includes("[DONE]")),
+    "expected [DONE] chunk",
+  );
 });
 
 test("returns 400 for non-string message", async () => {
@@ -250,7 +273,9 @@ test("parses valid userId and passes it to use case", async () => {
       capturedUserId = userId;
       return { id: userId, firstname: "Test", lastname: "User", email: "test@example.com" };
     },
-    async getUserCourses() { return []; },
+    async getUserCourses() {
+      return [];
+    },
   };
   const controller = createChatController(deps);
   const request = createMockRequest({ body: { message: "Hi", userId: 42 } });
@@ -259,7 +284,10 @@ test("parses valid userId and passes it to use case", async () => {
   await controller.handleStream(request, reply);
 
   assert.strictEqual(capturedUserId, 42);
-  assert.ok(reply.raw._chunks.some((c) => c.includes("session-42-")), "expected sessionId with userId");
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("session-42-")),
+    "expected sessionId with userId",
+  );
 });
 
 test("treats invalid userId as 0 in sessionId", async () => {
@@ -271,7 +299,10 @@ test("treats invalid userId as 0 in sessionId", async () => {
 
   await controller.handleStream(request, reply);
 
-  assert.ok(reply.raw._chunks.some((c) => c.includes("session-0-")), "expected sessionId with userId 0");
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("session-0-")),
+    "expected sessionId with userId 0",
+  );
 });
 
 test("uses provided chatId as sessionId", async () => {
@@ -283,7 +314,10 @@ test("uses provided chatId as sessionId", async () => {
 
   await controller.handleStream(request, reply);
 
-  assert.ok(reply.raw._chunks.some((c) => c.includes("my-session-123")), "expected provided chatId in SSE");
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("my-session-123")),
+    "expected provided chatId in SSE",
+  );
 });
 
 test("falls back to generated sessionId for unsafe chatId", async () => {
@@ -295,8 +329,14 @@ test("falls back to generated sessionId for unsafe chatId", async () => {
 
   await controller.handleStream(request, reply);
 
-  assert.ok(reply.raw._chunks.some((c) => c.includes("session-")), "expected generated sessionId");
-  assert.ok(!reply.raw._chunks.some((c) => c.includes("../../etc/passwd")), "unsafe chatId must not appear");
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("session-")),
+    "expected generated sessionId",
+  );
+  assert.ok(
+    !reply.raw._chunks.some((c) => c.includes("../../etc/passwd")),
+    "unsafe chatId must not appear",
+  );
 });
 
 test("handles streamChat error gracefully", async () => {
@@ -313,8 +353,14 @@ test("handles streamChat error gracefully", async () => {
 
   await controller.handleStream(request, reply);
 
-  assert.ok(reply.raw._chunks.some((c) => c.includes("Service unavailable")), "expected error SSE");
-  assert.ok(reply.raw._chunks.some((c) => c.includes("[DONE]")), "expected [DONE] even on error");
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("Service unavailable")),
+    "expected error SSE",
+  );
+  assert.ok(
+    reply.raw._chunks.some((c) => c.includes("[DONE]")),
+    "expected [DONE] even on error",
+  );
   assert.strictEqual(reply.raw._ended, true);
   assert.strictEqual(request._errors.length, 1);
 });

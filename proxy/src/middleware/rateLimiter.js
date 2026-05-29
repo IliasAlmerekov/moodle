@@ -24,7 +24,10 @@ function gcExpiredCounters(now) {
  * @param {number} [opts.windowMs] - Window size in milliseconds (default: 60000).
  * @returns {{ allowed: boolean, remaining: number, resetAt?: number }}
  */
-export function checkUserRateLimit(userId, { ip, log, max = DEFAULT_MAX, windowMs = DEFAULT_WINDOW_MS } = {}) {
+export function checkUserRateLimit(
+  userId,
+  { ip, log, max = DEFAULT_MAX, windowMs = DEFAULT_WINDOW_MS } = {},
+) {
   const key = String(userId ?? 0);
   const now = Date.now();
 

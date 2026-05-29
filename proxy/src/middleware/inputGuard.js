@@ -40,10 +40,9 @@ export function validateMessage(msg, { log, ip } = {}) {
 
   const trimmed = msg.trim();
   if (trimmed.length < 1 || trimmed.length > 500) {
-    throw Object.assign(
-      new Error("Message must be between 1 and 500 characters."),
-      { statusCode: 400 },
-    );
+    throw Object.assign(new Error("Message must be between 1 and 500 characters."), {
+      statusCode: 400,
+    });
   }
 
   if (INJECTION_PATTERNS.some((p) => p.test(trimmed))) {

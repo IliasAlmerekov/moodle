@@ -18,7 +18,7 @@ export function pickRelevantSections(course, tokens) {
     const moduleMatch = section.modules?.some((mod) => {
       const nameMatch = tokens.some((t) => normalize(mod.name).includes(t));
       const fileMatch = mod.files?.some((file) =>
-        tokens.some((t) => normalize(file.filename).includes(t))
+        tokens.some((t) => normalize(file.filename).includes(t)),
       );
       return nameMatch || fileMatch;
     });
@@ -110,7 +110,7 @@ export function rankCourses(courses, tokens, phrases) {
     (a, b) =>
       b.score - a.score ||
       b.tokenMatches - a.tokenMatches ||
-      (b.sectionIds?.size ?? 0) - (a.sectionIds?.size ?? 0)
+      (b.sectionIds?.size ?? 0) - (a.sectionIds?.size ?? 0),
   );
   return results;
 }
@@ -131,7 +131,7 @@ export async function searchCourses({ query, courseRepository, allowedIds }) {
     const tokens = tokenize(query);
     const phrases = extractQuotedPhrases(query);
     const normalizedQuery = normalize(query);
-    const fallbackTokens = tokens.length ? tokens : (normalizedQuery ? [normalizedQuery] : []);
+    const fallbackTokens = tokens.length ? tokens : normalizedQuery ? [normalizedQuery] : [];
 
     const ranked = rankCourses(courses, fallbackTokens, phrases);
     const best = ranked[0];

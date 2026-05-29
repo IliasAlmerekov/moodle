@@ -76,7 +76,7 @@ export function createOllamaClient({
             }),
           },
           timeoutMs,
-          signal
+          signal,
         );
 
         await assertOk(response);
@@ -91,7 +91,7 @@ export function createOllamaClient({
         {
           method: "GET",
         },
-        timeoutMs
+        timeoutMs,
       );
 
       await assertOk(response);

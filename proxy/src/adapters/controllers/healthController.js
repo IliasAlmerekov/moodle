@@ -28,10 +28,7 @@ export function createHealthController({
 
   return {
     async check(request, reply) {
-      const [moodleResult, ollamaResult] = await Promise.allSettled([
-        pingMoodle(),
-        pingOllama(),
-      ]);
+      const [moodleResult, ollamaResult] = await Promise.allSettled([pingMoodle(), pingOllama()]);
 
       const services = {
         moodle: moodleResult.status === "fulfilled" ? "ok" : "error",

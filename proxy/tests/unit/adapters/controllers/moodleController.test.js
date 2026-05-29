@@ -7,7 +7,9 @@ function createMockRequest(overrides = {}) {
   return {
     params: overrides.params ?? {},
     log: {
-      error(data) { errors.push(data); },
+      error(data) {
+        errors.push(data);
+      },
       info() {},
       warn() {},
     },
@@ -178,7 +180,9 @@ test("getUser returns fallback fullname when names are empty", async () => {
     async getUserInfo(userId) {
       return { id: userId, firstname: "", lastname: "", email: "anon@example.com" };
     },
-    async getUserCourses() { return []; },
+    async getUserCourses() {
+      return [];
+    },
   };
   const controller = createMoodleController(deps);
   const request = createMockRequest({ params: { id: "99" } });
@@ -219,7 +223,9 @@ test("getUser returns 404 when userRepository returns null", async () => {
     async getUserInfo() {
       return null;
     },
-    async getUserCourses() { return []; },
+    async getUserCourses() {
+      return [];
+    },
   };
   const controller = createMoodleController(deps);
   const request = createMockRequest({ params: { id: "1" } });
@@ -237,7 +243,9 @@ test("getUser proxies err.statusCode when repository throws with statusCode", as
     async getUserInfo() {
       throw Object.assign(new Error("Moodle unreachable"), { statusCode: 502 });
     },
-    async getUserCourses() { return []; },
+    async getUserCourses() {
+      return [];
+    },
   };
   const controller = createMoodleController(deps);
   const request = createMockRequest({ params: { id: "1" } });
@@ -257,7 +265,9 @@ test("getUser returns 500 and logs error when repository throws without statusCo
     async getUserInfo() {
       throw new Error("Moodle down");
     },
-    async getUserCourses() { return []; },
+    async getUserCourses() {
+      return [];
+    },
   };
   const controller = createMoodleController(deps);
   const request = createMockRequest({ params: { id: "1" } });

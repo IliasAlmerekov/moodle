@@ -66,7 +66,9 @@ export function createMockLLMService(overrides = {}) {
       }
       return new ReadableStream({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(JSON.stringify({ response: "Hi", done: true })));
+          controller.enqueue(
+            new TextEncoder().encode(JSON.stringify({ response: "Hi", done: true })),
+          );
           controller.close();
         },
       });

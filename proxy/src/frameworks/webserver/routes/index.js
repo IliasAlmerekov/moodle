@@ -56,7 +56,11 @@ export async function registerRoutes(app, controllers, options = {}) {
     },
   };
   app.get("/api/chat-history/:chatId", { schema: chatHistorySchema }, history.get.bind(history));
-  app.delete("/api/chat-history/:chatId", { schema: chatHistorySchema }, history.delete.bind(history));
+  app.delete(
+    "/api/chat-history/:chatId",
+    { schema: chatHistorySchema },
+    history.delete.bind(history),
+  );
 
   // Moodle endpoints
   app.get("/moodle/ping", moodle.ping.bind(moodle));
@@ -70,7 +74,11 @@ export async function registerRoutes(app, controllers, options = {}) {
       },
     },
   };
-  app.get("/moodle/users/:userId/courses", { schema: userIdParamSchema }, moodle.getUserCourses.bind(moodle));
+  app.get(
+    "/moodle/users/:userId/courses",
+    { schema: userIdParamSchema },
+    moodle.getUserCourses.bind(moodle),
+  );
 
   const idParamSchema = {
     params: {

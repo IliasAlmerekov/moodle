@@ -8,10 +8,7 @@ import { createUserProfile } from "../../entities/UserProfile.js";
  * @param {import("../../application/repositories/IUserRepository.js").IUserRepository} deps.userRepository
  * @param {Function} [deps.getCacheStats] — optional cache stats provider (e.g. () => moodleCache.stats)
  */
-export function createMoodleController({
-  userRepository,
-  getCacheStats,
-}) {
+export function createMoodleController({ userRepository, getCacheStats }) {
   return {
     async ping(_request, reply) {
       return reply.send({ status: "ok" });

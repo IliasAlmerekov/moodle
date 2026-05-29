@@ -49,10 +49,20 @@ test("registered plugins add expected headers", async () => {
   assert.equal(response.statusCode, 200);
   const csp = response.headers["content-security-policy"];
   assert.ok(csp, "helmet should add CSP header");
-  assert.ok(csp.includes("https://www.itech-bs14.de"), "CSP connect-src should include Moodle origin");
-  assert.equal(response.headers["x-frame-options"], "SAMEORIGIN", "helmet should allow same-origin iframe");
+  assert.ok(
+    csp.includes("https://www.itech-bs14.de"),
+    "CSP connect-src should include Moodle origin",
+  );
+  assert.equal(
+    response.headers["x-frame-options"],
+    "SAMEORIGIN",
+    "helmet should allow same-origin iframe",
+  );
   assert.ok(response.headers["access-control-allow-origin"], "cors should add ACAO header");
-  assert.ok(response.headers["x-ratelimit-limit"], "rate-limit should add x-ratelimit-limit header");
+  assert.ok(
+    response.headers["x-ratelimit-limit"],
+    "rate-limit should add x-ratelimit-limit header",
+  );
 });
 
 test("CSP connect-src excludes external domains when publicUrl is empty", async () => {
@@ -76,7 +86,10 @@ test("CSP connect-src excludes external domains when publicUrl is empty", async 
   const csp = response.headers["content-security-policy"];
   assert.ok(csp, "helmet should add CSP header");
   assert.ok(csp.includes("connect-src 'self'"), "CSP connect-src should only contain 'self'");
-  assert.ok(!csp.includes("https://"), "CSP connect-src should not contain any HTTPS origin when publicUrl is empty");
+  assert.ok(
+    !csp.includes("https://"),
+    "CSP connect-src should not contain any HTTPS origin when publicUrl is empty",
+  );
 });
 
 test("rate limit plugin returns German message on 429", async () => {
@@ -127,7 +140,11 @@ test("cors rejects disallowed origins", async () => {
   });
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.headers["access-control-allow-origin"], undefined, "disallowed origin should not receive ACAO");
+  assert.equal(
+    response.headers["access-control-allow-origin"],
+    undefined,
+    "disallowed origin should not receive ACAO",
+  );
 });
 
 test("cors allows configured origins", async () => {

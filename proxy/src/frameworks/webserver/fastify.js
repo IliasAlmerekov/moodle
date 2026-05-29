@@ -38,7 +38,10 @@ export async function createFastifyInstance(config) {
   if (config.moodle.publicUrl) {
     connectSrc.push(config.moodle.publicUrl);
   } else {
-    app.log.warn({ plugin: "helmet" }, "PUBLIC_MOODLE_URL is empty; CSP connect-src will not include Moodle origin");
+    app.log.warn(
+      { plugin: "helmet" },
+      "PUBLIC_MOODLE_URL is empty; CSP connect-src will not include Moodle origin",
+    );
   }
 
   await app.register(helmet, {

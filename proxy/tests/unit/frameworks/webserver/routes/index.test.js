@@ -144,9 +144,7 @@ test("registers all 4 Moodle routes with params schemas where needed", async () 
     assert.strictEqual(route.method, "GET");
   }
 
-  const userCoursesRoute = app._routes.find(
-    (r) => r.path === "/moodle/users/:userId/courses",
-  );
+  const userCoursesRoute = app._routes.find((r) => r.path === "/moodle/users/:userId/courses");
   assert.ok(userCoursesRoute.opts);
   assert.deepStrictEqual(userCoursesRoute.opts.schema.params, {
     type: "object",
