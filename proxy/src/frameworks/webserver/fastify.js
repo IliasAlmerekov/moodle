@@ -12,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Creates a Fastify instance with logger, request ID, and security plugins.
  *
  * @param {Object} config
+ * @param {string} config.nodeEnv
  * @param {string} config.logLevel
  * @param {Object} config.cors
  * @param {string[]|false} config.cors.origins
@@ -23,12 +24,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @returns {Promise<import("fastify").FastifyInstance>}
  */
 export async function createFastifyInstance(config) {
-  const { NODE_ENV } = process.env;
-
   const app = Fastify({
     logger: {
       level: config.logLevel,
-      transport: NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
+      transport: config.nodeEnv !== "production" ? { target: "pino-pretty" } : undefined,
     },
     requestIdHeader: "x-request-id",
     genReqId: () => crypto.randomUUID(),
@@ -46,11 +45,12 @@ export async function createFastifyInstance(config) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
         connectSrc,
       },
     },
+    xFrameOptions: { action: "sameorigin" },
   });
 
   await app.register(cors, {
