@@ -35,7 +35,6 @@ export async function callMoodleAPI(functionName, params = {}) {
 
     return data;
   } catch (error) {
-    console.error(`Failed to call Moodle API (${functionName});`, error);
     throw error;
   }
 }

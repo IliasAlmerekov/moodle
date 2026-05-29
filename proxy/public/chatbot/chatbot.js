@@ -263,7 +263,7 @@ const sendMessageStream = async () => {
           // Handle both "response" and "text" fields
           const text = data.response || data.text || "";
           if (text) {
-            // Создаем message-content только при первом чанке текста
+            // Create message-content only on the first text chunk
             if (!botMessageDiv) {
               botMessageDiv = createEmptyBotMessage();
               contentDiv = botMessageDiv.querySelector(".message-content");
