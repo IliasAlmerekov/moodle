@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 async function importServerModule() {
   process.env.MOODLE_URL = "https://moodle.example.test";

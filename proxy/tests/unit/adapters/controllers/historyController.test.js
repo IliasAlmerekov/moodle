@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { createHistoryController } from "../../../../src/adapters/controllers/historyController.js";
 
 function createMockRequest(overrides = {}) {

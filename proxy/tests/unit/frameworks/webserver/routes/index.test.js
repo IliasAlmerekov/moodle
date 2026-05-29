@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { registerRoutes } from "../../../../../src/frameworks/webserver/routes/index.js";
 
 function createMockApp() {

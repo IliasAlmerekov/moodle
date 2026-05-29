@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 async function importInMemoryChatStore() {
   const moduleUrl = new URL("../../../../src/frameworks/persistence/inMemoryChatStore.js", import.meta.url);

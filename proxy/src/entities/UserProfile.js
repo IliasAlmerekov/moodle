@@ -1,5 +1,5 @@
 export function createUserProfile({ id, firstname, lastname, email, courses }) {
-  if (id == null) {
+  if (id === null || id === undefined) {
     throw Object.assign(new Error("UserProfile id is required"), { statusCode: 400 });
   }
   const fullname = `${firstname ?? ""} ${lastname ?? ""}`.trim() || "Student";
