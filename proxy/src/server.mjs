@@ -4,6 +4,7 @@ import fastifyStatic from "@fastify/static";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import config from "./config/env.js";
 import healthRoutes from "./routes/health.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -30,9 +31,18 @@ fastify.addHook("onReady", async () => {
   }
 });
 
-// register cors plugin
 await fastify.register(cors, {
-  origin: "*",
+  origin: process.env.CORS_ORIGIN?.split(",") ?? false,
+});
+
+await fastify.register(rateLimit, {
+  max: 20,
+  timeWindow: "1 minute",
+  errorResponseBuilder: () => ({
+    statusCode: 429,
+    error: "Too Many Requests",
+    message: "Zu viele Anfragen. Bitte warte eine Minute.",
+  }),
 });
 
 const __filename = fileURLToPath(import.meta.url);
