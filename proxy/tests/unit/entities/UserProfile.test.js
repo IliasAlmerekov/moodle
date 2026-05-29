@@ -31,6 +31,12 @@ test("null id throws 400", () => {
   );
 });
 
+test("id zero is accepted (edge case)", () => {
+  const profile = createUserProfile({ id: 0 });
+  assert.strictEqual(profile.id, 0);
+  assert.strictEqual(profile.fullname, "Student");
+});
+
 test("returns frozen object", () => {
   const profile = createUserProfile({ id: 1, firstname: "John", lastname: "Doe" });
   assert.strictEqual(Object.isFrozen(profile), true);

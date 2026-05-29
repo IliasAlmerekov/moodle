@@ -36,6 +36,20 @@ test("whitespace-only content throws 400", () => {
   );
 });
 
+test("null content throws 400", () => {
+  assert.throws(
+    () => createChatMessage({ role: "user", content: null }),
+    (err) => err.statusCode === 400 && err.message === "Content cannot be empty",
+  );
+});
+
+test("undefined content throws 400", () => {
+  assert.throws(
+    () => createChatMessage({ role: "user", content: undefined }),
+    (err) => err.statusCode === 400 && err.message === "Content cannot be empty",
+  );
+});
+
 test("returns frozen object", () => {
   const result = createChatMessage({ role: "user", content: "Hello" });
   assert.strictEqual(Object.isFrozen(result), true);
@@ -50,4 +64,11 @@ test("uses provided timestamp", () => {
   const ts = 1234567890;
   const result = createChatMessage({ role: "user", content: "Hello", timestamp: ts });
   assert.strictEqual(result.timestamp, ts);
+});
+
+test("auto-generates timestamp when not provided", () => {
+  const before = Date.now();
+  const result = createChatMessage({ role: "user", content: "Hi" });
+  const after = Date.now();
+  assert.ok(result.timestamp >= before && result.timestamp <= after);
 });

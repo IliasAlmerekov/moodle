@@ -43,6 +43,13 @@ test("missing id throws 400", () => {
   );
 });
 
+test("null id throws 400", () => {
+  assert.throws(
+    () => createChatSession({ id: null, userId: "u1" }),
+    (err) => err.statusCode === 400 && err.message === "Session id is required",
+  );
+});
+
 test("missing userId throws 400", () => {
   assert.throws(
     () => createChatSession({ id: "s1", userId: undefined }),
@@ -69,6 +76,14 @@ test("history getter returns copy", () => {
   const h2 = session.history;
   assert.notStrictEqual(h1, h2);
   assert.deepStrictEqual(h1, h2);
+});
+
+test("mutating returned history does not affect session", () => {
+  const session = createChatSession({ id: "s1", userId: "u1" });
+  session.addMessage("user", "Hello");
+  const h = session.history;
+  h.push({ role: "assistant", content: "Injected" });
+  assert.strictEqual(session.history.length, 1);
 });
 
 test("preloaded messages are accepted", () => {
