@@ -124,6 +124,7 @@ export async function streamChat({
   model,
   moodleBaseUrl,
   onChunk,
+  signal,
 }) {
   const validUserId = Number.isInteger(userId) && userId > 0;
   const userProfile = validUserId
@@ -147,20 +148,22 @@ export async function streamChat({
   await chatRepository.appendMessage(sessionId, userId ?? 0, "user", message);
 
   let assistantReply = "";
-  const stream = await llmService.streamResponse(prompt, model);
+  const stream = await llmService.streamResponse(prompt, model, signal);
   const reader = stream.getReader();
   const decoder = new TextDecoder();
 
   // Ollama /api/generate returns NDJSON: one JSON object per line, not a JSON array
   outer: while (true) {
+    if (signal?.aborted) break;
     const { done, value } = await reader.read();
     if (done) break;
     for (const line of decoder.decode(value, { stream: true }).split("\n").filter(Boolean)) {
+      if (signal?.aborted) break outer;
       try {
         const json = JSON.parse(line);
         if (json?.response) {
           assistantReply += json.response;
-          onChunk(json.response);
+          await onChunk(json.response);
         }
         if (json?.done) break outer;
       } catch { /* skip malformed NDJSON line */ }

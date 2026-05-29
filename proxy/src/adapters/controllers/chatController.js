@@ -1,0 +1,100 @@
+import { streamChat } from "../../application/useCases/chat/streamChat.js";
+import { searchCourses } from "../../application/useCases/courses/searchCourses.js";
+import { validateMessage } from "../../middleware/inputGuard.js";
+import config from "../../config/env.js";
+
+const SAFE_CHAT_ID = /^[a-zA-Z0-9_-]+$/;
+
+function sanitizeChatId(chatId) {
+  if (typeof chatId !== "string") return null;
+  const trimmed = chatId.trim();
+  if (trimmed.length > 64) return null;
+  if (!SAFE_CHAT_ID.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Factory for the chat controller.
+ * Handles HTTP/SSE concerns only — no business logic.
+ *
+ * @param {Object} deps
+ * @param {import("../../application/repositories/IChatRepository.js").IChatRepository} deps.chatRepository
+ * @param {import("../../application/repositories/ICourseRepository.js").ICourseRepository} deps.courseRepository
+ * @param {import("../../application/repositories/IUserRepository.js").IUserRepository} deps.userRepository
+ * @param {import("../../application/repositories/ILLMService.js").ILLMService} deps.llmService
+ */
+export function createChatController({
+  chatRepository,
+  courseRepository,
+  userRepository,
+  llmService,
+}) {
+  return {
+    async handleStream(request, reply) {
+      const { message: rawMessage, userId, chatId } = request.body ?? {};
+
+      let message;
+      try {
+        message = validateMessage(rawMessage);
+      } catch (err) {
+        if (err.isInjectionAttempt) {
+          request.log.warn({ security: true, type: "injection_attempt", ip: request.ip });
+        }
+        return reply.status(err.statusCode ?? 400).send({ error: err.message });
+      }
+
+      const numericUserId =
+        Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : 0;
+      const safeChatId = sanitizeChatId(chatId);
+      const sessionId = safeChatId ?? `session-${numericUserId}-${Date.now()}`;
+
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+
+      const abortController = new AbortController();
+      function onClientClose() {
+        abortController.abort();
+      }
+      request.raw.on("close", onClientClose);
+
+      async function writeSse(chunk) {
+        const ok = reply.raw.write(chunk);
+        if (!ok) {
+          await new Promise((resolve) => reply.raw.once("drain", resolve));
+        }
+      }
+
+      try {
+        await streamChat({
+          message,
+          userId: numericUserId,
+          sessionId,
+          chatRepository,
+          courseRepository,
+          userRepository,
+          llmService,
+          searchCourses,
+          model: config.ollama.model,
+          moodleBaseUrl: config.moodle.publicUrl,
+          signal: abortController.signal,
+          async onChunk(text) {
+            await writeSse(`data: ${JSON.stringify({ text, sessionId }) }\n\n`);
+          },
+        });
+      } catch (err) {
+        if (!abortController.signal.aborted) {
+          request.log.error({ err }, "streamChat failed");
+          await writeSse(`data: ${JSON.stringify({ error: "Service unavailable" }) }\n\n`);
+        }
+      } finally {
+        request.raw.off("close", onClientClose);
+        await writeSse("data: [DONE]\n\n");
+        reply.raw.end();
+      }
+    },
+  };
+}

@@ -80,6 +80,17 @@ test("POST /api/chat-stream with message over 500 chars returns 400", async () =
   await app.close();
 });
 
+test("POST /api/chat-stream with invalid chatId pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/chat-stream",
+    payload: { message: "Hello", chatId: "../../etc/passwd" },
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
 test("GET /api/chat-history/:chatId with valid id returns 200", async () => {
   const app = await buildApp();
   const response = await app.inject({

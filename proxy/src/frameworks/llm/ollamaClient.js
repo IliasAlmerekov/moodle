@@ -8,11 +8,17 @@ function createOllamaError(message, details = {}) {
   });
 }
 
-async function fetchWithTimeout(fetchImpl, url, options, timeoutMs) {
+async function fetchWithTimeout(fetchImpl, url, options, timeoutMs, signal) {
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
+
+  let onAbort;
+  if (signal) {
+    onAbort = () => controller.abort();
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
 
   try {
     return await fetchImpl(url, {
@@ -27,6 +33,9 @@ async function fetchWithTimeout(fetchImpl, url, options, timeoutMs) {
     throw createOllamaError("Ollama request failed", { cause: error });
   } finally {
     clearTimeout(timeout);
+    if (signal && onAbort) {
+      signal.removeEventListener("abort", onAbort);
+    }
   }
 }
 
@@ -50,7 +59,7 @@ export function createOllamaClient({
   enqueueOllamaRequest = defaultEnqueueOllamaRequest,
 } = {}) {
   return {
-    async streamResponse(prompt, model) {
+    async streamResponse(prompt, model, signal) {
       return enqueueOllamaRequest(async () => {
         const response = await fetchWithTimeout(
           fetchImpl,
@@ -66,7 +75,8 @@ export function createOllamaClient({
               stream: true,
             }),
           },
-          timeoutMs
+          timeoutMs,
+          signal
         );
 
         await assertOk(response);

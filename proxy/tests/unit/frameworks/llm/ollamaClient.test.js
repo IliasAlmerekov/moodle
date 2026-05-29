@@ -106,3 +106,30 @@ test("ollamaClient aborts slow requests after configured timeout", async () => {
     statusCode: 502,
   });
 });
+
+test("ollamaClient streamResponse accepts external abort signal", async () => {
+  const fetchImpl = async (_url, options) =>
+    new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      });
+    });
+
+  const { createOllamaClient } = await importOllamaClient();
+  const client = createOllamaClient({
+    baseUrl: "http://ollama.example.test",
+    defaultModel: "llama-default",
+    timeoutMs: 1_000,
+    fetchImpl,
+  });
+
+  const abortController = new AbortController();
+  const streamPromise = client.streamResponse("Hallo", "llama-default", abortController.signal);
+
+  abortController.abort();
+
+  await assert.rejects(streamPromise, {
+    message: "Ollama request timed out",
+    statusCode: 502,
+  });
+});
