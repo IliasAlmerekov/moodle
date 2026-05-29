@@ -113,6 +113,26 @@ test("GET /api/chat-history/:chatId with too long id returns 400", async () => {
   await app.close();
 });
 
+test("GET /api/chat-history/:chatId with invalid pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/chat-history/bad<id>",
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
+test("DELETE /api/chat-history/:chatId with invalid pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "DELETE",
+    url: "/api/chat-history/bad<id>",
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
 test("GET /moodle/users/:userId/courses with valid integer returns 200", async () => {
   const app = await buildApp();
   const response = await app.inject({

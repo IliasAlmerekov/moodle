@@ -99,7 +99,7 @@ test("registers GET /api/chat-history/:chatId with params schema", async () => {
     type: "object",
     required: ["chatId"],
     properties: {
-      chatId: { type: "string", maxLength: 64 },
+      chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
     },
   });
 });
@@ -120,7 +120,7 @@ test("registers DELETE /api/chat-history/:chatId with params schema", async () =
     type: "object",
     required: ["chatId"],
     properties: {
-      chatId: { type: "string", maxLength: 64 },
+      chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
     },
   });
 });

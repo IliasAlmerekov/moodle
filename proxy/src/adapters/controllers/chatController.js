@@ -1,17 +1,8 @@
 import { streamChat } from "../../application/useCases/chat/streamChat.js";
 import { searchCourses } from "../../application/useCases/courses/searchCourses.js";
 import { validateMessage } from "../../middleware/inputGuard.js";
+import { sanitizeChatId } from "./chatId.js";
 import config from "../../config/env.js";
-
-const SAFE_CHAT_ID = /^[a-zA-Z0-9_-]+$/;
-
-function sanitizeChatId(chatId) {
-  if (typeof chatId !== "string") return null;
-  const trimmed = chatId.trim();
-  if (trimmed.length > 64) return null;
-  if (!SAFE_CHAT_ID.test(trimmed)) return null;
-  return trimmed;
-}
 
 /**
  * Factory for the chat controller.
