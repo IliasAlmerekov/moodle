@@ -26,11 +26,8 @@ export function createChatController({
 
       let message;
       try {
-        message = validateMessage(rawMessage);
+        message = validateMessage(rawMessage, { log: request.log, ip: request.ip });
       } catch (err) {
-        if (err.isInjectionAttempt) {
-          request.log.warn({ security: true, type: "injection_attempt", ip: request.ip });
-        }
         return reply.status(err.statusCode ?? 400).send({ error: err.message });
       }
 
