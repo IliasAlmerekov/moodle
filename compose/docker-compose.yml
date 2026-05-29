@@ -58,6 +58,9 @@ services:
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - CHAT_DB_PATH=/data/chat.db
+    volumes:
+      - ../data/chat.db:/data/chat.db
     network_mode: host
     depends_on: [moodle]
 
