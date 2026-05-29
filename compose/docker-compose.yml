@@ -1,7 +1,7 @@
 name: moodle-stack
 services:
   mariadb:
-    image: docker.io/bitnami/mariadb:11.8
+    image: bitnami/mariadb:latest
     restart: unless-stopped
     environment:
       - ALLOW_EMPTY_PASSWORD=no
@@ -16,30 +16,16 @@ services:
     networks: [moodle_net]
 
   moodle:
-    image: docker.io/bitnami/moodle:4.4
+    build:
+      context: .
+      dockerfile: Dockerfile.moodle
     restart: unless-stopped
     depends_on: [mariadb]
-    environment:
-      - PHP_UPLOAD_MAX_FILESIZE=200M
-      - PHP_POST_MAX_SIZE=200M
-      - PHP_MEMORY_LIMIT=1024M
-      - MOODLE_DATABASE_HOST=mariadb
-      - MOODLE_DATABASE_PORT_NUMBER=3306
-      - MOODLE_DATABASE_USER=${MARIADB_USER}
-      - MOODLE_DATABASE_PASSWORD=${MARIADB_PASSWORD}
-      - MOODLE_DATABASE_NAME=${MARIADB_DATABASE}
-      - MOODLE_USERNAME=${MOODLE_USERNAME}
-      - MOODLE_PASSWORD=${MOODLE_PASSWORD}
-      - BITNAMI_DEBUG=false
-      - LANG=de_DE.UTF-8
-      - LANGUAGE=de_DE.UTF-8
-      - LC_ALL=de_DE.UTF-8
     ports:
       - "${MOODLE_HTTP_PORT}:8080"
     volumes:
       - ../data/moodle:/bitnami/moodle
       - ../data/moodledata:/bitnami/moodledata
-      - ../data/moodle-init:/docker-entrypoint-init.d
     networks: [moodle_net]
 
   ollama:
@@ -65,14 +51,12 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - MOODLE_URL=http://moodle:8080
+      - MOODLE_URL=http://localhost:8080
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
-    ports:
-      - "${PROXY_PORT}:3000"
-    networks: [moodle_net]
-    depends_on: [moodle, ollama]
+    network_mode: host
+    depends_on: [moodle]
 
 networks:
   moodle_net:

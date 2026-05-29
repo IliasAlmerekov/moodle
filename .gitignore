@@ -26,6 +26,7 @@ pnpm-debug.log*
 # Data directories (persistent volumes)
 data/
 *.sql
+*.sql.gz
 *.db
 
 # OS metadata
