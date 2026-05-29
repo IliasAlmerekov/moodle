@@ -1,4 +1,7 @@
-FROM php:8.1-apache
+# Base image pinned 2026-05-29
+# Reason: PHP 8.1 LTS, avoid breaking changes from unpinned apache tag
+# See DECISIONS.md "Pin Docker images" for upgrade policy
+FROM php:8.1.31-apache
 
 RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev \

@@ -52,7 +52,10 @@ export function createVerifyMoodleUser({ userRepository, ttlMs = 300_000, now = 
         return;
       }
     } catch {
-      request.log.warn({ security: true, type: "auth_failure", userId }, "Moodle user verification failed");
+      request.log.warn(
+        { security: true, type: "auth_failure", userId },
+        "Moodle user verification failed",
+      );
     }
 
     cache.set(userId, { verified: false, expiresAt: nowMs + ttlMs });

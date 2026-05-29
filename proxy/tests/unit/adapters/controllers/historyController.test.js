@@ -7,7 +7,9 @@ function createMockRequest(overrides = {}) {
   return {
     params: overrides.params ?? {},
     log: {
-      error(data) { errors.push(data); },
+      error(data) {
+        errors.push(data);
+      },
       info() {},
       warn() {},
     },
@@ -152,9 +154,7 @@ test("get returns 500 and logs error when repository throws", async () => {
 });
 
 test("delete clears session and returns confirmation", async () => {
-  const messages = [
-    { sessionId: "abc", role: "user", content: "Hi", timestamp: 1 },
-  ];
+  const messages = [{ sessionId: "abc", role: "user", content: "Hi", timestamp: 1 }];
   const chatRepository = createMockChatRepository(messages);
   const controller = createHistoryController({ chatRepository });
   const request = createMockRequest({ params: { chatId: "abc" } });

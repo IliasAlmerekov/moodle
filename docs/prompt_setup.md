@@ -59,7 +59,7 @@ Dieser Prompt sollte in die Ollama-Konfiguration eingebunden werden. Er stellt s
 
 ## Integration
 
-Der Prompt sollte in der Ollama-Service-Konfiguration als System-Prompt verwendet werden. Dies kann in der `ollama.service.js` implementiert werden.
+Der Prompt wird als System-Prompt in `proxy/src/frameworks/llm/ollamaClient.js` übergeben und über die Use-Case-Schicht (`streamChat`) bereitgestellt.
 
 ## Anpassung
 

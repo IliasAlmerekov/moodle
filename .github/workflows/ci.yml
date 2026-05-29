@@ -30,6 +30,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Run tests with coverage
         run: npm run test:coverage
 
@@ -68,11 +71,17 @@ jobs:
           node -e "
             const audit = JSON.parse(require('fs').readFileSync('/tmp/audit.json', 'utf8'));
             const vulns = audit.vulnerabilities || {};
+            const critical = Object.values(vulns).filter(v => v.severity === 'critical');
             const highs = Object.values(vulns).filter(v => v.severity === 'high');
-            const nonFastify = highs.filter(v => v.name !== 'fastify');
-            if (nonFastify.length > 0) {
-              console.error('High severity vulnerabilities found (excluding known Fastify 4.x issues):');
-              nonFastify.forEach(v => console.error('  -', v.name, v.via.map(x => x.title || x).join(', ')));
+            const nonFastifyHighs = highs.filter(v => v.name !== 'fastify');
+            if (critical.length > 0 || nonFastifyHighs.length > 0) {
+              console.error('Vulnerabilities found (excluding known Fastify 4.x high-severity issues):');
+              const print = v => {
+                const via = Array.isArray(v.via) ? v.via.map(x => x.title || x).join(', ') : String(v.via);
+                console.error('  -', v.name, via);
+              };
+              critical.forEach(print);
+              nonFastifyHighs.forEach(print);
               process.exit(1);
             }
             if (highs.length > 0) {

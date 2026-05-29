@@ -21,7 +21,7 @@ test("ollamaQueue rejects requests when queued work reaches maxQueue", async () 
     () =>
       new Promise((resolve) => {
         releaseFirst = resolve;
-      })
+      }),
   );
   const second = queue.enqueueOllamaRequest(() => "queued");
 
@@ -54,7 +54,7 @@ test("ollamaQueue opens circuit after five consecutive failures", async () => {
       queue.enqueueOllamaRequest(async () => {
         calls += 1;
         throw new Error("ollama failed");
-      })
+      }),
     );
   }
 

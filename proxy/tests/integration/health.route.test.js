@@ -38,7 +38,12 @@ async function buildApp(overrides = {}) {
   const controllers = {
     chat: { async handleStream() {} },
     history: { async get() {}, async delete() {} },
-    moodle: { async ping() {}, async getUserCourses() {}, async getUser() {}, async debugCache() {} },
+    moodle: {
+      async ping() {},
+      async getUserCourses() {},
+      async getUser() {},
+      async debugCache() {},
+    },
     health,
   };
   await registerRoutes(appInstance, controllers);

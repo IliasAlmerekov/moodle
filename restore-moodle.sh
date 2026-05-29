@@ -107,6 +107,17 @@ if [ -f "$CUSTOM_BACKUP" ]; then
     echo -e "${GREEN}✓ Custom files restored${NC}"
 fi
 
+# Restore chat database (SQLite)
+CHAT_BACKUP="$BACKUP_DIR/chat_db_$TIMESTAMP.db"
+if [ -f "$CHAT_BACKUP" ]; then
+    echo ""
+    echo "Restoring chat database..."
+    cp "$CHAT_BACKUP" "$DATA_DIR/chat.db"
+    echo -e "${GREEN}✓ Chat database restored${NC}"
+else
+    echo -e "${YELLOW}⚠ Chat database backup not found for this timestamp — skipping${NC}"
+fi
+
 # Start all containers
 echo ""
 echo "Starting all containers..."

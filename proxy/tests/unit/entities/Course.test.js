@@ -29,7 +29,9 @@ test("course with all fields", () => {
             name: "Intro",
             type: "page",
             url: "https://moodle/mod/100",
-            files: [{ filename: "slides.pdf", mimetype: "application/pdf", url: "https://moodle/file/1" }],
+            files: [
+              { filename: "slides.pdf", mimetype: "application/pdf", url: "https://moodle/file/1" },
+            ],
           },
         ],
       },

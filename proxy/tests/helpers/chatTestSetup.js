@@ -31,17 +31,25 @@ export function createMockChatDeps() {
       async getUserInfo() {
         return { id: 1, firstname: "Test", lastname: "User", email: "test@example.com" };
       },
-      async getUserCourses() { return []; },
+      async getUserCourses() {
+        return [];
+      },
     },
     courseRepository: {
-      async getAllCourses() { return []; },
-      async getCourseContents() { return []; },
+      async getAllCourses() {
+        return [];
+      },
+      async getCourseContents() {
+        return [];
+      },
     },
     llmService: {
       async streamResponse() {
         return new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(JSON.stringify({ response: "Hi", done: true })));
+            controller.enqueue(
+              new TextEncoder().encode(JSON.stringify({ response: "Hi", done: true })),
+            );
             controller.close();
           },
         });
@@ -57,7 +65,12 @@ export async function buildChatApp() {
   const controllers = {
     chat,
     history: { async get() {}, async delete() {} },
-    moodle: { async ping() {}, async getUserCourses() {}, async getUser() {}, async debugCache() {} },
+    moodle: {
+      async ping() {},
+      async getUserCourses() {},
+      async getUser() {},
+      async debugCache() {},
+    },
     health: { async check() {} },
   };
   await registerRoutes(app, controllers);

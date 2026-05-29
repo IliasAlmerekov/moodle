@@ -16,7 +16,13 @@ export const mockCourses = [
             name: "Video Einführung",
             type: "video",
             url: "https://moodle.example/mod/page/view.php?id=100",
-            files: [{ filename: "intro.mp4", mimetype: "video/mp4", url: "https://moodle.example/file/1" }],
+            files: [
+              {
+                filename: "intro.mp4",
+                mimetype: "video/mp4",
+                url: "https://moodle.example/file/1",
+              },
+            ],
           },
         ],
       },
@@ -29,7 +35,13 @@ export const mockCourses = [
             name: "TCP/IP Protokoll",
             type: "page",
             url: "https://moodle.example/mod/page/view.php?id=101",
-            files: [{ filename: "tcp_ip.pdf", mimetype: "application/pdf", url: "https://moodle.example/file/2" }],
+            files: [
+              {
+                filename: "tcp_ip.pdf",
+                mimetype: "application/pdf",
+                url: "https://moodle.example/file/2",
+              },
+            ],
           },
         ],
       },
@@ -51,7 +63,13 @@ export const mockCourses = [
             name: "Linux Installation",
             type: "page",
             url: "https://moodle.example/mod/page/view.php?id=200",
-            files: [{ filename: "linux_setup.pdf", mimetype: "application/pdf", url: "https://moodle.example/file/3" }],
+            files: [
+              {
+                filename: "linux_setup.pdf",
+                mimetype: "application/pdf",
+                url: "https://moodle.example/file/3",
+              },
+            ],
           },
         ],
       },
@@ -73,7 +91,13 @@ export const mockCourses = [
             name: "HTML Tags",
             type: "page",
             url: "https://moodle.example/mod/page/view.php?id=300",
-            files: [{ filename: "html_cheatsheet.pdf", mimetype: "application/pdf", url: "https://moodle.example/file/4" }],
+            files: [
+              {
+                filename: "html_cheatsheet.pdf",
+                mimetype: "application/pdf",
+                url: "https://moodle.example/file/4",
+              },
+            ],
           },
         ],
       },
@@ -95,7 +119,13 @@ export const mockCourses = [
             name: "KI Tools",
             type: "page",
             url: "https://moodle.example/mod/page/view.php?id=400",
-            files: [{ filename: "ki_guide.pdf", mimetype: "application/pdf", url: "https://moodle.example/file/5" }],
+            files: [
+              {
+                filename: "ki_guide.pdf",
+                mimetype: "application/pdf",
+                url: "https://moodle.example/file/5",
+              },
+            ],
           },
         ],
       },

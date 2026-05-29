@@ -86,13 +86,13 @@ export function createChatController({
           moodleBaseUrl: config.moodle.publicUrl,
           signal: abortController.signal,
           async onChunk(text) {
-            await writeSse(`data: ${JSON.stringify({ text, sessionId }) }\n\n`);
+            await writeSse(`data: ${JSON.stringify({ text, sessionId })}\n\n`);
           },
         });
       } catch (err) {
         if (!abortController.signal.aborted) {
           request.log.error({ err }, "streamChat failed");
-          await writeSse(`data: ${JSON.stringify({ error: "Service unavailable" }) }\n\n`);
+          await writeSse(`data: ${JSON.stringify({ error: "Service unavailable" })}\n\n`);
         }
       } finally {
         request.raw.off("close", onClientClose);

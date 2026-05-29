@@ -1,7 +1,11 @@
+# Docker image versions pinned 2026-05-29
+# Reason: reproducible builds, avoid breaking changes from unpinned latest tags
+# See DECISIONS.md "Pin Docker images" for upgrade policy
+# SSL: run compose/setup-ssl.sh once before first `docker compose up`
 name: moodle-stack
 services:
   mariadb:
-    image: bitnami/mariadb:latest
+    image: bitnami/mariadb:11.8.1
     restart: unless-stopped
     environment:
       - ALLOW_EMPTY_PASSWORD=no
@@ -22,21 +26,21 @@ services:
     restart: unless-stopped
     depends_on: [mariadb]
     ports:
-      - "${MOODLE_HTTP_PORT}:8080"
+      - "127.0.0.1:${MOODLE_HTTP_PORT}:8080"
     volumes:
       - ../data/moodle:/bitnami/moodle
       - ../data/moodledata:/bitnami/moodledata
     networks: [moodle_net]
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.13
     restart: unless-stopped
     volumes:
       - ../data/ollama:/root/.ollama
     networks: [moodle_net]
 
   ollama-init:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.13
     depends_on: [ollama]
     entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL}"]
     environment:
@@ -51,12 +55,40 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - MOODLE_URL=http://localhost:8080
+      - MOODLE_URL=http://moodle:8080
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
-    network_mode: host
+      - CHAT_DB_PATH=/data/chat.db
+      - PUBLIC_MOODLE_URL=${PUBLIC_MOODLE_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+    volumes:
+      - ../data:/data
+    networks: [moodle_net]
     depends_on: [moodle]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # nginx 1.27.4 pinned 2026-05-29
+  nginx:
+    image: nginx:1.27.4
+    restart: unless-stopped
+    # envsubst replaces ${NGINX_DOMAIN} in the template; $host etc. are nginx vars, not shell vars
+    entrypoint: ["/bin/sh", "-c", "envsubst '$NGINX_DOMAIN' < /tmp/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/tmp/nginx.conf.template:ro
+      - ../data/certbot:/etc/letsencrypt:ro
+      - ../data/certbot-webroot:/var/www/certbot:ro
+    networks: [moodle_net]
+    depends_on: [proxy, moodle]
 
 networks:
   moodle_net:

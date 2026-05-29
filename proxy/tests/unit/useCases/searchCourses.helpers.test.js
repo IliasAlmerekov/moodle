@@ -124,9 +124,7 @@ test("scoreCourse scores file hits and all-tokens bonus", () => {
           {
             id: 10,
             name: "Mod",
-            files: [
-              { filename: "tcp_ip_guide.pdf" },
-            ],
+            files: [{ filename: "tcp_ip_guide.pdf" }],
           },
         ],
       },

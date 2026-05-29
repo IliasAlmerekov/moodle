@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM node:20-bookworm-slim AS base
+# Base image pinned 2026-05-29
+# Reason: reproducible builds, avoid breaking changes from unpinned tag
+# See DECISIONS.md "Pin Docker images" for upgrade policy
+FROM node:20.19.1-bookworm-slim AS base
 
 WORKDIR /app
 

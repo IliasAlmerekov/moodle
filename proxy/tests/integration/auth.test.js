@@ -29,12 +29,18 @@ async function buildApp(overrides = {}) {
   const controllers = {
     chat,
     history: { async get() {}, async delete() {} },
-    moodle: { async ping() {}, async getUserCourses() {}, async getUser() {}, async debugCache() {} },
+    moodle: {
+      async ping() {},
+      async getUserCourses() {},
+      async getUser() {},
+      async debugCache() {},
+    },
     health: { async check() {} },
   };
 
-  const verifyMoodleUser = overrides.verifyMoodleUser
-    ?? createVerifyMoodleUser({ userRepository: createMockUserRepository() });
+  const verifyMoodleUser =
+    overrides.verifyMoodleUser ??
+    createVerifyMoodleUser({ userRepository: createMockUserRepository() });
 
   await registerRoutes(app, controllers, { verifyMoodleUser });
   return app;

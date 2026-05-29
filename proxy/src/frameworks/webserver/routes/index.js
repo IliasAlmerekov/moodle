@@ -17,18 +17,20 @@
  * @param {Function} controllers.health.check
  * @param {Object} [options]
  * @param {Function} [options.verifyMoodleUser]
+ * @param {Function} [options.invalidateCourseCache]
  */
 export async function registerRoutes(app, controllers, options = {}) {
   const { chat, history, moodle, health } = controllers;
-  const { verifyMoodleUser } = options;
+  const { verifyMoodleUser, invalidateCourseCache } = options;
 
   // Health check
   app.get("/health", health.check.bind(health));
 
-  // Chat stream with JSON Schema validation
+  // Chat stream with JSON Schema validation — SSE: disable compression
   app.post(
     "/api/chat-stream",
     {
+      config: { compress: false },
       schema: {
         body: {
           type: "object",
@@ -56,7 +58,11 @@ export async function registerRoutes(app, controllers, options = {}) {
     },
   };
   app.get("/api/chat-history/:chatId", { schema: chatHistorySchema }, history.get.bind(history));
-  app.delete("/api/chat-history/:chatId", { schema: chatHistorySchema }, history.delete.bind(history));
+  app.delete(
+    "/api/chat-history/:chatId",
+    { schema: chatHistorySchema },
+    history.delete.bind(history),
+  );
 
   // Moodle endpoints
   app.get("/moodle/ping", moodle.ping.bind(moodle));
@@ -70,7 +76,11 @@ export async function registerRoutes(app, controllers, options = {}) {
       },
     },
   };
-  app.get("/moodle/users/:userId/courses", { schema: userIdParamSchema }, moodle.getUserCourses.bind(moodle));
+  app.get(
+    "/moodle/users/:userId/courses",
+    { schema: userIdParamSchema },
+    moodle.getUserCourses.bind(moodle),
+  );
 
   const idParamSchema = {
     params: {
@@ -83,4 +93,23 @@ export async function registerRoutes(app, controllers, options = {}) {
   };
   app.get("/moodle/user/:id", { schema: idParamSchema }, moodle.getUser.bind(moodle));
   app.get("/moodle/debug/cache", moodle.debugCache.bind(moodle));
+
+  // Cache invalidation — localhost only
+  if (invalidateCourseCache) {
+    app.post(
+      "/admin/cache/invalidate",
+      {
+        preHandler: async (request, reply) => {
+          const ip = request.ip;
+          if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
+            reply.code(403).send({ error: "Forbidden" });
+          }
+        },
+      },
+      async (_request, reply) => {
+        invalidateCourseCache();
+        return reply.code(200).send({ ok: true });
+      },
+    );
+  }
 }

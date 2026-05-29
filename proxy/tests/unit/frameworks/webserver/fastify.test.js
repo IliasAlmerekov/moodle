@@ -49,10 +49,20 @@ test("registered plugins add expected headers", async () => {
   assert.equal(response.statusCode, 200);
   const csp = response.headers["content-security-policy"];
   assert.ok(csp, "helmet should add CSP header");
-  assert.ok(csp.includes("https://www.itech-bs14.de"), "CSP connect-src should include Moodle origin");
-  assert.equal(response.headers["x-frame-options"], "SAMEORIGIN", "helmet should allow same-origin iframe");
+  assert.ok(
+    csp.includes("https://www.itech-bs14.de"),
+    "CSP connect-src should include Moodle origin",
+  );
+  assert.equal(
+    response.headers["x-frame-options"],
+    "SAMEORIGIN",
+    "helmet should allow same-origin iframe",
+  );
   assert.ok(response.headers["access-control-allow-origin"], "cors should add ACAO header");
-  assert.ok(response.headers["x-ratelimit-limit"], "rate-limit should add x-ratelimit-limit header");
+  assert.ok(
+    response.headers["x-ratelimit-limit"],
+    "rate-limit should add x-ratelimit-limit header",
+  );
 });
 
 test("CSP connect-src excludes external domains when publicUrl is empty", async () => {
@@ -76,7 +86,10 @@ test("CSP connect-src excludes external domains when publicUrl is empty", async 
   const csp = response.headers["content-security-policy"];
   assert.ok(csp, "helmet should add CSP header");
   assert.ok(csp.includes("connect-src 'self'"), "CSP connect-src should only contain 'self'");
-  assert.ok(!csp.includes("https://"), "CSP connect-src should not contain any HTTPS origin when publicUrl is empty");
+  assert.ok(
+    !csp.includes("https://"),
+    "CSP connect-src should not contain any HTTPS origin when publicUrl is empty",
+  );
 });
 
 test("rate limit plugin returns German message on 429", async () => {
@@ -127,7 +140,11 @@ test("cors rejects disallowed origins", async () => {
   });
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.headers["access-control-allow-origin"], undefined, "disallowed origin should not receive ACAO");
+  assert.equal(
+    response.headers["access-control-allow-origin"],
+    undefined,
+    "disallowed origin should not receive ACAO",
+  );
 });
 
 test("cors allows configured origins", async () => {
@@ -179,6 +196,110 @@ test("fastify instance uses request ID header", async () => {
 
   const body = JSON.parse(response.payload);
   assert.equal(body.id, customId, "request id should be taken from x-request-id header");
+});
+
+test("static assets get Cache-Control: public, max-age=86400", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+
+  assert.equal(response.statusCode, 200);
+  const cc = response.headers["cache-control"];
+  assert.ok(cc, "Cache-Control header should be set");
+  assert.ok(cc.includes("max-age=86400"), `Expected max-age=86400, got: ${cc}`);
+});
+
+test("index.html and moodle-embed.html get Cache-Control: no-cache", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  for (const file of ["/chatbot/index.html", "/chatbot/moodle-embed.html"]) {
+    const response = await app.inject({ method: "GET", url: file });
+    assert.equal(response.statusCode, 200, `${file} should return 200`);
+    const cc = response.headers["cache-control"];
+    assert.ok(cc, `Cache-Control should be set for ${file}`);
+    assert.ok(cc.includes("no-cache"), `Expected no-cache for ${file}, got: ${cc}`);
+  }
+});
+
+test("chatbot.js contains normalizeApiUrl for apiUrl validation", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("normalizeApiUrl"),
+    "chatbot.js must validate apiUrl via normalizeApiUrl",
+  );
+  await app.close();
+});
+
+test("chatbot.js uses Number.isInteger for userId validation", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("Number.isInteger"),
+    "chatbot.js must reject non-integer userId values",
+  );
+  await app.close();
+});
+
+test("chatbot.js contains DOM fallback via detectMoodleUser", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(
+    response.body.includes("detectMoodleUser"),
+    "chatbot.js must fall back to DOM detection when CHATBOT_CONFIG.userId is absent",
+  );
+  assert.ok(
+    response.body.includes("CHATBOT_CONFIG"),
+    "chatbot.js must read configuration from window.CHATBOT_CONFIG",
+  );
+  await app.close();
 });
 
 test("fastify instance generates request ID when header is missing", async () => {

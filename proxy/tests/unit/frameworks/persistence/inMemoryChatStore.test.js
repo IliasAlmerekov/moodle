@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 async function importInMemoryChatStore() {
-  const moduleUrl = new URL("../../../../src/frameworks/persistence/inMemoryChatStore.js", import.meta.url);
+  const moduleUrl = new URL(
+    "../../../../src/frameworks/persistence/inMemoryChatStore.js",
+    import.meta.url,
+  );
   moduleUrl.searchParams.set("cacheBust", crypto.randomUUID());
   return import(moduleUrl.href);
 }

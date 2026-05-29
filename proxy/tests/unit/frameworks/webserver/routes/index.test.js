@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { registerRoutes } from "../../../../../src/frameworks/webserver/routes/index.js";
+import { createFastifyInstance } from "../../../../../src/frameworks/webserver/fastify.js";
 
 function createMockApp() {
   const routes = [];
@@ -144,9 +145,7 @@ test("registers all 4 Moodle routes with params schemas where needed", async () 
     assert.strictEqual(route.method, "GET");
   }
 
-  const userCoursesRoute = app._routes.find(
-    (r) => r.path === "/moodle/users/:userId/courses",
-  );
+  const userCoursesRoute = app._routes.find((r) => r.path === "/moodle/users/:userId/courses");
   assert.ok(userCoursesRoute.opts);
   assert.deepStrictEqual(userCoursesRoute.opts.schema.params, {
     type: "object",
@@ -201,4 +200,93 @@ test("registers POST /api/chat-stream without preHandler when verifyMoodleUser i
   assert.ok(route);
   assert.ok(route.opts);
   assert.ok(!("preHandler" in route.opts));
+});
+
+test("POST /api/chat-stream route has compress: false to skip SSE compression", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await registerRoutes(app, controllers);
+
+  const route = app._routes.find((r) => r.path === "/api/chat-stream");
+  assert.ok(route);
+  assert.strictEqual(route.opts?.config?.compress, false);
+});
+
+test("registers POST /admin/cache/invalidate when invalidateCourseCache is provided", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await registerRoutes(app, controllers, { invalidateCourseCache: () => {} });
+
+  const route = app._routes.find((r) => r.path === "/admin/cache/invalidate");
+  assert.ok(route, "invalidate route should be registered");
+  assert.strictEqual(route.method, "POST");
+});
+
+test("does not register /admin/cache/invalidate when invalidateCourseCache is omitted", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await registerRoutes(app, controllers);
+
+  const route = app._routes.find((r) => r.path === "/admin/cache/invalidate");
+  assert.ok(!route, "invalidate route should not be registered without handler");
+});
+
+const BASE_CONFIG = {
+  logLevel: "silent",
+  nodeEnv: "test",
+  cors: { origins: false },
+  rateLimit: { max: 100, window: "1 minute" },
+  moodle: { publicUrl: "" },
+};
+
+test("POST /admin/cache/invalidate allows 127.0.0.1", async () => {
+  const app = await createFastifyInstance(BASE_CONFIG);
+  let called = false;
+  await registerRoutes(app, createMockControllers(), {
+    invalidateCourseCache: () => {
+      called = true;
+    },
+  });
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/admin/cache/invalidate",
+    remoteAddress: "127.0.0.1",
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(called, "invalidateCourseCache should have been called");
+});
+
+test("POST /admin/cache/invalidate allows ::ffff:127.0.0.1", async () => {
+  const app = await createFastifyInstance(BASE_CONFIG);
+  await registerRoutes(app, createMockControllers(), {
+    invalidateCourseCache: () => {},
+  });
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/admin/cache/invalidate",
+    remoteAddress: "::ffff:127.0.0.1",
+  });
+
+  assert.equal(res.statusCode, 200);
+});
+
+test("POST /admin/cache/invalidate denies non-localhost IPs", async () => {
+  const app = await createFastifyInstance(BASE_CONFIG);
+  await registerRoutes(app, createMockControllers(), {
+    invalidateCourseCache: () => {},
+  });
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/admin/cache/invalidate",
+    remoteAddress: "192.168.1.100",
+  });
+
+  assert.equal(res.statusCode, 403);
 });

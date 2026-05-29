@@ -1,5 +1,5 @@
 #!/bin/bash
-# Quick script to check logs and status on Raspberry Pi
+# Quick script to check logs and status
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

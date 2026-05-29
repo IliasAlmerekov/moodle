@@ -1,8 +1,20 @@
 import { addLoadingMessage } from "./loadingMessage.js";
 import { removeMessage } from "./removeMessage.js";
 
-const _script = document.querySelector('script[src*="chatbot.js"]');
-const API_BASE_URL = _script ? new URL(_script.src).origin : window.location.origin;
+const CHATBOT_CONFIG = window.CHATBOT_CONFIG ?? {};
+
+function normalizeApiUrl(raw) {
+  if (!raw) return window.location.origin;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return window.location.origin;
+    return url.origin;
+  } catch {
+    return window.location.origin;
+  }
+}
+
+const API_BASE_URL = normalizeApiUrl(CHATBOT_CONFIG.apiUrl);
 
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
@@ -113,7 +125,9 @@ let moodleUser = null;
 let chatId = null;
 
 async function initChat() {
-  moodleUser = await detectMoodleUser();
+  const rawId = CHATBOT_CONFIG.userId != null ? Number(CHATBOT_CONFIG.userId) : null;
+  const configUserId = Number.isInteger(rawId) && rawId > 0 ? rawId : null;
+  moodleUser = configUserId ? { id: configUserId } : await detectMoodleUser();
   if (!moodleUser) return;
 
   chatId =
