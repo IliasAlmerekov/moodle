@@ -74,6 +74,9 @@ else
     echo -e "${YELLOW}No proxy changes detected. Skipping rebuild.${NC}"
 fi
 
+echo -e "${YELLOW}Ensuring data directory exists...${NC}"
+mkdir -p data
+
 echo -e "${YELLOW}Starting containers...${NC}"
 docker compose --env-file "$ENV_FILE" up -d
 

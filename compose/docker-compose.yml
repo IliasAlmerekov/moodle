@@ -60,7 +60,7 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL}
       - CHAT_DB_PATH=/data/chat.db
     volumes:
-      - ../data/chat.db:/data/chat.db
+      - ../data:/data
     network_mode: host
     depends_on: [moodle]
 
