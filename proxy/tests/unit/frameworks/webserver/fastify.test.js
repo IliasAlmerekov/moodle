@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 async function importFastifyFactory() {
   const moduleUrl = new URL("../../../../src/frameworks/webserver/fastify.js", import.meta.url);

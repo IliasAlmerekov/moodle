@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import Fastify from "fastify";
 import { registerRoutes } from "../../src/frameworks/webserver/routes/index.js";
 
@@ -80,6 +80,17 @@ test("POST /api/chat-stream with message over 500 chars returns 400", async () =
   await app.close();
 });
 
+test("POST /api/chat-stream with invalid chatId pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/chat-stream",
+    payload: { message: "Hello", chatId: "../../etc/passwd" },
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
 test("GET /api/chat-history/:chatId with valid id returns 200", async () => {
   const app = await buildApp();
   const response = await app.inject({
@@ -97,6 +108,26 @@ test("GET /api/chat-history/:chatId with too long id returns 400", async () => {
   const response = await app.inject({
     method: "GET",
     url: `/api/chat-history/${"x".repeat(65)}`,
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
+test("GET /api/chat-history/:chatId with invalid pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/chat-history/bad<id>",
+  });
+  assert.strictEqual(response.statusCode, 400);
+  await app.close();
+});
+
+test("DELETE /api/chat-history/:chatId with invalid pattern returns 400", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "DELETE",
+    url: "/api/chat-history/bad<id>",
   });
   assert.strictEqual(response.statusCode, 400);
   await app.close();

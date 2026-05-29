@@ -1,4 +1,5 @@
 const {
+  NODE_ENV = "development",
   MOODLE_URL,
   MOODLE_TOKEN,
   OLLAMA_URL,
@@ -31,6 +32,7 @@ const moodleBaseUrl = MOODLE_URL.replace(/\/$/, "");
 const ollamaBaseUrl = OLLAMA_URL.replace(/\/$/, "");
 
 const config = {
+  nodeEnv: NODE_ENV,
   port: Number(PORT),
   logLevel: LOG_LEVEL,
 

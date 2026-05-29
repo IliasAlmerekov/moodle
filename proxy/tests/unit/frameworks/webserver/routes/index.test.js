@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { registerRoutes } from "../../../../../src/frameworks/webserver/routes/index.js";
 
 function createMockApp() {
@@ -78,7 +78,7 @@ test("registers POST /api/chat-stream with JSON Schema validation", async () => 
     properties: {
       message: { type: "string", minLength: 1, maxLength: 500 },
       userId: { type: "number" },
-      chatId: { type: "string" },
+      chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
     },
   });
 });
@@ -99,7 +99,7 @@ test("registers GET /api/chat-history/:chatId with params schema", async () => {
     type: "object",
     required: ["chatId"],
     properties: {
-      chatId: { type: "string", maxLength: 64 },
+      chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
     },
   });
 });
@@ -120,7 +120,7 @@ test("registers DELETE /api/chat-history/:chatId with params schema", async () =
     type: "object",
     required: ["chatId"],
     properties: {
-      chatId: { type: "string", maxLength: 64 },
+      chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
     },
   });
 });

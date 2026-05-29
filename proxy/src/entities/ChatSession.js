@@ -8,7 +8,7 @@ export function createChatSession({ id, userId, messages = [] }) {
   if (!id) {
     throw Object.assign(new Error("Session id is required"), { statusCode: 400 });
   }
-  if (userId == null) {
+  if (userId === null || userId === undefined) {
     throw Object.assign(new Error("userId is required"), { statusCode: 400 });
   }
 

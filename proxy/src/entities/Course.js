@@ -7,7 +7,7 @@ function createFile({ filename, mimetype, url }) {
 }
 
 function createModule({ id, name, type, url, files }) {
-  if (id == null) {
+  if (id === null || id === undefined) {
     throw Object.assign(new Error("Module id is required"), { statusCode: 400 });
   }
   return Object.freeze({
@@ -20,7 +20,7 @@ function createModule({ id, name, type, url, files }) {
 }
 
 function createSection({ id, name, modules }) {
-  if (id == null) {
+  if (id === null || id === undefined) {
     throw Object.assign(new Error("Section id is required"), { statusCode: 400 });
   }
   return Object.freeze({
@@ -31,7 +31,7 @@ function createSection({ id, name, modules }) {
 }
 
 export function createCourse({ id, name, shortname, summary, url, sections }) {
-  if (id == null) {
+  if (id === null || id === undefined) {
     throw Object.assign(new Error("Course id is required"), { statusCode: 400 });
   }
   if (!name?.trim()) {
