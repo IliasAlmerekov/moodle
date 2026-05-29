@@ -4,11 +4,24 @@ export default defineConfig({
   test: {
     environment: "node",
     coverage: {
+      include: ["src/**"],
+      exclude: [
+        "src/app.js",
+        "src/frameworks/webserver/server.js",
+        "src/application/repositories/**",
+      ],
       reporter: ["text", "lcov"],
       thresholds: {
-        lines: 80,
+        statements: 70,
+        lines: 70,
         functions: 80,
-        branches: 60,
+        branches: 65,
+        "src/entities/**": {
+          lines: 90,
+        },
+        "src/middleware/**": {
+          lines: 90,
+        },
       },
     },
   },

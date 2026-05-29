@@ -5,6 +5,12 @@ WORKDIR /app
 
 COPY package*.json ./
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN npm install --omit=dev
 
 COPY src ./src
@@ -14,4 +20,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["node", "src/server.mjs"]
+CMD ["node", "src/frameworks/webserver/server.js"]

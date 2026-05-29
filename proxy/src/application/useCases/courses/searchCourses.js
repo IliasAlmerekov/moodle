@@ -103,7 +103,7 @@ export function rankCourses(courses, tokens, phrases) {
   const results = [];
   for (const course of courses) {
     const { score, tokenMatches, sectionIds } = scoreCourse(course, tokens, phrases);
-    if (score === 0 && !tokens.length && !phrases.length) continue;
+    if (score === 0) continue;
     results.push({ course, score, tokenMatches, sectionIds });
   }
   results.sort(
@@ -130,7 +130,8 @@ export async function searchCourses({ query, courseRepository, allowedIds }) {
 
     const tokens = tokenize(query);
     const phrases = extractQuotedPhrases(query);
-    const fallbackTokens = tokens.length ? tokens : [normalize(query)];
+    const normalizedQuery = normalize(query);
+    const fallbackTokens = tokens.length ? tokens : (normalizedQuery ? [normalizedQuery] : []);
 
     const ranked = rankCourses(courses, fallbackTokens, phrases);
     const best = ranked[0];
