@@ -14,6 +14,7 @@ const {
   MAX_HISTORY_MESSAGES = "12",
   LOG_LEVEL = "info",
   OLLAMA_CONCURRENCY = "2",
+  OLLAMA_MAX_QUEUE = "20",
   OLLAMA_TIMEOUT_MS = "30000",
   CHAT_DB_PATH = "../data/chat.db",
 } = process.env;
@@ -58,6 +59,7 @@ const config = {
     url: ollamaBaseUrl,
     model: OLLAMA_MODEL,
     concurrency: Number(OLLAMA_CONCURRENCY),
+    maxQueue: Number(OLLAMA_MAX_QUEUE),
     timeoutMs: Number(OLLAMA_TIMEOUT_MS),
     isConfigured: true,
   },
