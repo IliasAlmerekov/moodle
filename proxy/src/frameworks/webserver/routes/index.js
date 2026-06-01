@@ -17,11 +17,29 @@
  * @param {Function} controllers.health.check
  * @param {Object} [options]
  * @param {Function} [options.verifyMoodleUser]
+ * @param {Function} [options.verifyChatOwnership]
  * @param {Function} [options.invalidateCourseCache]
+ * @param {boolean} [options.allowUnauthenticated=false] Test-only opt-out for the auth guard.
  */
 export async function registerRoutes(app, controllers, options = {}) {
   const { chat, history, moodle, health } = controllers;
-  const { verifyMoodleUser, invalidateCourseCache } = options;
+  const {
+    verifyMoodleUser,
+    verifyChatOwnership,
+    invalidateCourseCache,
+    allowUnauthenticated = false,
+  } = options;
+
+  // Fail closed: the protected routes (chat-stream, chat-history) must receive
+  // their auth preHandlers. A miswired Composition Root that forgets them must
+  // crash at startup, not silently serve unauthenticated. Tests that register
+  // routes without auth must opt out explicitly via `allowUnauthenticated`.
+  if (!allowUnauthenticated && !(verifyMoodleUser && verifyChatOwnership)) {
+    throw new Error(
+      "registerRoutes requires verifyMoodleUser and verifyChatOwnership. " +
+        "Pass { allowUnauthenticated: true } only in tests.",
+    );
+  }
 
   // Health check
   app.get("/health", health.check.bind(health));
@@ -49,7 +67,7 @@ export async function registerRoutes(app, controllers, options = {}) {
     chat.handleStream.bind(chat),
   );
 
-  // Chat history
+  // Chat history — identity (userId/ts/sig) arrives via query string
   const chatHistorySchema = {
     params: {
       type: "object",
@@ -58,11 +76,31 @@ export async function registerRoutes(app, controllers, options = {}) {
         chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
       },
     },
+    querystring: {
+      type: "object",
+      properties: {
+        userId: { type: "number" },
+        ts: { type: "number" },
+        sig: { type: "string", maxLength: 128, pattern: "^[a-f0-9]+$" },
+      },
+    },
   };
-  app.get("/api/chat-history/:chatId", { schema: chatHistorySchema }, history.get.bind(history));
+
+  // Authorize history access only when both auth preHandlers are wired:
+  // verifyMoodleUser proves identity, verifyChatOwnership enforces ownership.
+  const historyAuth =
+    verifyMoodleUser && verifyChatOwnership
+      ? { preHandler: [verifyMoodleUser, verifyChatOwnership] }
+      : {};
+
+  app.get(
+    "/api/chat-history/:chatId",
+    { schema: chatHistorySchema, ...historyAuth },
+    history.get.bind(history),
+  );
   app.delete(
     "/api/chat-history/:chatId",
-    { schema: chatHistorySchema },
+    { schema: chatHistorySchema, ...historyAuth },
     history.delete.bind(history),
   );
 

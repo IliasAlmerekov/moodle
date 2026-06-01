@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { test } from "vitest";
-import { createVerifyMoodleUser } from "../../../src/middleware/auth.js";
+import { createVerifyMoodleUser, createVerifyChatOwnership } from "../../../src/middleware/auth.js";
 
 const SECRET = "test-secret";
 
@@ -192,4 +192,84 @@ test("logs security warning on failure without leaking details", async () => {
   assert.strictEqual(warnings[0].meta.userId, 5);
   assert.deepStrictEqual(reply._calls[1].body, { statusCode: 401, error: "Unauthorized" });
   assert.ok(!reply._calls[1].body.message);
+});
+
+test("ownership: allows when chatId owner matches the verified user", async () => {
+  const verify = createVerifyChatOwnership();
+  const request = {
+    verifiedUserId: 42,
+    params: { chatId: "moodle-42-abc-def" },
+    log: { warn() {} },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+});
+
+test("ownership: allows the server-side session- prefix too", async () => {
+  const verify = createVerifyChatOwnership();
+  const request = {
+    verifiedUserId: 7,
+    params: { chatId: "session-7-1700000000000" },
+    log: { warn() {} },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+});
+
+test("ownership: returns 403 when chatId belongs to another user", async () => {
+  const verify = createVerifyChatOwnership();
+  const request = { verifiedUserId: 42, params: { chatId: "moodle-99-abc" }, log: { warn() {} } };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+  assert.deepStrictEqual(reply._calls[1].body, { statusCode: 403, error: "Forbidden" });
+});
+
+test("ownership: returns 403 when identity was not verified", async () => {
+  const verify = createVerifyChatOwnership();
+  const request = { params: { chatId: "moodle-42-abc" }, log: { warn() {} } };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+});
+
+test("ownership: returns 403 when chatId has no parseable owner", async () => {
+  const verify = createVerifyChatOwnership();
+  const request = { verifiedUserId: 42, params: { chatId: "abc123" }, log: { warn() {} } };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+});
+
+test("ownership: logs security warning without leaking details", async () => {
+  const warnings = [];
+  const verify = createVerifyChatOwnership();
+  const request = {
+    verifiedUserId: 42,
+    params: { chatId: "moodle-99-abc" },
+    log: {
+      warn(meta) {
+        warnings.push(meta);
+      },
+    },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(warnings.length, 1);
+  assert.strictEqual(warnings[0].security, true);
+  assert.strictEqual(warnings[0].type, "chat_ownership_denied");
 });

@@ -31,10 +31,12 @@ export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = D
   }
 
   return async function verifyMoodleUser(request, reply) {
-    const body = request.body ?? {};
-    const userId = parseUserId(body.userId);
-    const ts = Number(body.ts);
-    const sig = typeof body.sig === "string" ? body.sig : "";
+    // Identity may arrive in the JSON body (POST) or the query string
+    // (GET/DELETE chat-history). Body wins when both are present.
+    const src = { ...(request.query ?? {}), ...(request.body ?? {}) };
+    const userId = parseUserId(src.userId);
+    const ts = Number(src.ts);
+    const sig = typeof src.sig === "string" ? src.sig : "";
 
     if (!secret || userId === 0 || !Number.isFinite(ts) || sig === "") {
       return deny(request, reply, userId);
@@ -56,5 +58,39 @@ export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = D
     }
 
     request.verifiedUserId = userId;
+  };
+}
+
+/**
+ * Factory for a Fastify preHandler that authorizes access to a chat session.
+ *
+ * Must run AFTER `verifyMoodleUser` — it relies on `request.verifiedUserId`.
+ * A chatId embeds its owner as `moodle-{userId}-...` (client) or
+ * `session-{userId}-...` (server fallback); a caller may only read or delete a
+ * session whose embedded userId matches their verified identity. Closes the
+ * IDOR on `/api/chat-history/:chatId` (read and delete of another user's chat).
+ *
+ * @returns {function(import("fastify").FastifyRequest, import("fastify").FastifyReply): Promise<void>}
+ */
+export function createVerifyChatOwnership() {
+  function parseOwnerId(chatId) {
+    if (typeof chatId !== "string") {
+      return 0;
+    }
+    const num = Number(chatId.split("-")[1]);
+    return Number.isInteger(num) && num > 0 ? num : 0;
+  }
+
+  return async function verifyChatOwnership(request, reply) {
+    const verifiedUserId = request.verifiedUserId;
+    const ownerId = parseOwnerId(request.params?.chatId);
+
+    if (!verifiedUserId || ownerId === 0 || ownerId !== verifiedUserId) {
+      request.log.warn(
+        { security: true, type: "chat_ownership_denied", userId: verifiedUserId ?? 0 },
+        "Chat history ownership check failed",
+      );
+      return reply.status(403).send({ statusCode: 403, error: "Forbidden" });
+    }
   };
 }

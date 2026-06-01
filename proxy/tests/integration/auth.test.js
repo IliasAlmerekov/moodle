@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { test } from "vitest";
 import Fastify from "fastify";
 import { registerRoutes } from "../../src/frameworks/webserver/routes/index.js";
-import { createVerifyMoodleUser } from "../../src/middleware/auth.js";
+import { createVerifyMoodleUser, createVerifyChatOwnership } from "../../src/middleware/auth.js";
 
 const SECRET = "integration-secret";
 
@@ -35,7 +35,10 @@ async function buildApp(overrides = {}) {
 
   const verifyMoodleUser = overrides.verifyMoodleUser ?? createVerifyMoodleUser({ secret: SECRET });
 
-  await registerRoutes(app, controllers, { verifyMoodleUser });
+  await registerRoutes(app, controllers, {
+    verifyMoodleUser,
+    verifyChatOwnership: createVerifyChatOwnership(),
+  });
   return app;
 }
 
