@@ -1,4 +1,4 @@
-const { NODE_ENV } = process.env;
+import config from "../config/env.js";
 
 export function setupErrorHandler(server) {
   server.setErrorHandler((error, request, reply) => {
@@ -13,7 +13,7 @@ export function setupErrorHandler(server) {
     });
 
     const message =
-      NODE_ENV === "production" && statusCode >= 500
+      config.nodeEnv === "production" && statusCode >= 500
         ? "Ein Fehler ist aufgetreten."
         : error.message;
 

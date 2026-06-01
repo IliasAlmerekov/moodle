@@ -5,6 +5,20 @@ import { checkUserRateLimit } from "../../middleware/rateLimiter.js";
 import { sanitizeChatId } from "./chatId.js";
 import config from "../../config/env.js";
 
+function getCorsHeaders(request) {
+  const origin = request.headers?.origin;
+  const allowedOrigins = config.cors.origins;
+
+  if (!origin || !Array.isArray(allowedOrigins) || !allowedOrigins.includes(origin)) {
+    return {};
+  }
+
+  return {
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
+  };
+}
+
 /**
  * Factory for the chat controller.
  * Handles HTTP/SSE concerns only — no business logic.
@@ -57,6 +71,7 @@ export function createChatController({
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
+        ...getCorsHeaders(request),
       });
 
       const abortController = new AbortController();

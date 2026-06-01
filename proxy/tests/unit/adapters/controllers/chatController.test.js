@@ -37,6 +37,7 @@ function createMockRequest(overrides = {}) {
   const listeners = [];
   return {
     body: overrides.body ?? {},
+    headers: overrides.headers ?? {},
     ip: overrides.ip ?? "127.0.0.1",
     log: {
       warn(data) {
@@ -159,6 +160,25 @@ test("valid request sets SSE headers and streams response", async () => {
     chunks.some((c) => c.includes("[DONE]")),
     "expected [DONE] chunk",
   );
+});
+
+test("valid SSE request includes CORS headers for allowed local Moodle origin", async () => {
+  const { createChatController } = await importControllerModule();
+  const { default: config } = await import("../../../../src/config/env.js");
+  config.cors.origins = ["http://127.0.0.1:8080"];
+  const deps = createMockRepositories();
+  const controller = createChatController(deps);
+  const request = createMockRequest({
+    body: { message: "Hi", userId: 42, chatId: "abc" },
+    headers: { origin: "http://127.0.0.1:8080" },
+  });
+  const reply = createMockReply();
+
+  await controller.handleStream(request, reply);
+
+  assert.strictEqual(reply.raw._status, 200);
+  assert.strictEqual(reply.raw._headers["Access-Control-Allow-Origin"], "http://127.0.0.1:8080");
+  assert.strictEqual(reply.raw._headers.Vary, "Origin");
 });
 
 test("returns 400 for non-string message", async () => {

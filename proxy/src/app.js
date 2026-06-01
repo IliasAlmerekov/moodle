@@ -14,6 +14,7 @@ import { createHistoryController } from "./adapters/controllers/historyControlle
 import { createMoodleController } from "./adapters/controllers/moodleController.js";
 import { createHealthController } from "./adapters/controllers/healthController.js";
 import { createVerifyMoodleUser } from "./middleware/auth.js";
+import { setupErrorHandler } from "./middleware/errorHandler.js";
 import config from "./config/env.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,8 @@ const packagePath = path.join(__dirname, "..", "package.json");
 export async function createApp() {
   const { version } = JSON.parse(readFileSync(packagePath, "utf8"));
   const app = await createFastifyInstance(config);
+
+  setupErrorHandler(app);
 
   const chatRepository = config.nodeEnv === "test" ? inMemoryChatStore : sqliteChatStore;
 
