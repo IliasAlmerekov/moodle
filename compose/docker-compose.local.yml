@@ -1,0 +1,15 @@
+services:
+  nginx:
+    profiles: [production-only]
+
+  mariadb:
+    image: bitnamilegacy/mariadb:11.8.2-debian-12-r5
+
+  proxy:
+    ports:
+      - "3000:3000"
+    environment:
+      - PUBLIC_MOODLE_URL=http://localhost:8080
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - RATE_LIMIT_MAX=500
