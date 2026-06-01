@@ -145,6 +145,15 @@ curl http://localhost:3000/health
    ```
    Der Download kann je nach Modell 2–8 GB groß sein.
 
+   Cloud-Modelle wie `gpt-oss:120b-cloud` laufen über Ollama Cloud. Dafür muss der
+   Ollama-Container mindestens Version 0.12 verwenden und einmal angemeldet werden:
+   ```bash
+   docker exec -it ollama ollama signin
+   docker exec ollama ollama pull gpt-oss:120b-cloud
+   ```
+   Der `pull` lädt bei Cloud-Modellen nicht die 120B-Gewichte lokal, sondern macht
+   das Modell im lokalen Ollama-Server verfügbar.
+
 3. Modell in `.env` setzen:
    ```
    OLLAMA_MODEL=gemma3:4b

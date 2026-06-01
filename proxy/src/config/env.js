@@ -18,7 +18,7 @@ const {
   LOG_LEVEL = "info",
   OLLAMA_CONCURRENCY = "2",
   OLLAMA_MAX_QUEUE = "20",
-  OLLAMA_TIMEOUT_MS = "30000",
+  OLLAMA_TIMEOUT_MS = "120000",
   CHAT_DB_PATH = "../data/chat.db",
 } = process.env;
 
