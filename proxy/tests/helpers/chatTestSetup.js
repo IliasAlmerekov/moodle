@@ -73,6 +73,6 @@ export async function buildChatApp() {
     },
     health: { async check() {} },
   };
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
   return app;
 }

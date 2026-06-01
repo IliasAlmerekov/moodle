@@ -13,7 +13,7 @@ import { createChatController } from "./adapters/controllers/chatController.js";
 import { createHistoryController } from "./adapters/controllers/historyController.js";
 import { createMoodleController } from "./adapters/controllers/moodleController.js";
 import { createHealthController } from "./adapters/controllers/healthController.js";
-import { createVerifyMoodleUser } from "./middleware/auth.js";
+import { createVerifyMoodleUser, createVerifyChatOwnership } from "./middleware/auth.js";
 import { setupErrorHandler } from "./middleware/errorHandler.js";
 import config from "./config/env.js";
 
@@ -57,12 +57,18 @@ export async function createApp() {
     version,
   });
 
-  const verifyMoodleUser = createVerifyMoodleUser({ userRepository: moodleCache });
+  const verifyMoodleUser = createVerifyMoodleUser({
+    secret: config.auth.secret,
+    tokenTtlMs: config.auth.tokenTtlMs,
+  });
+
+  const verifyChatOwnership = createVerifyChatOwnership();
 
   const controllers = { chat, history, moodle, health };
 
   await registerRoutes(app, controllers, {
     verifyMoodleUser,
+    verifyChatOwnership,
     invalidateCourseCache: () => moodleCache.invalidateCourseCache(),
   });
 

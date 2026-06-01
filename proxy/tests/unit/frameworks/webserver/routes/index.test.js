@@ -46,7 +46,7 @@ test("registers exactly 8 routes", async () => {
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   assert.strictEqual(app._routes.length, 8);
 });
@@ -55,7 +55,7 @@ test("registers GET /health", async () => {
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find((r) => r.path === "/health");
   assert.ok(route);
@@ -66,7 +66,7 @@ test("registers POST /api/chat-stream with JSON Schema validation", async () => 
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find((r) => r.path === "/api/chat-stream");
   assert.ok(route);
@@ -80,6 +80,8 @@ test("registers POST /api/chat-stream with JSON Schema validation", async () => 
       message: { type: "string", minLength: 1, maxLength: 500 },
       userId: { type: "number" },
       chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
+      ts: { type: "number" },
+      sig: { type: "string", maxLength: 128, pattern: "^[a-f0-9]+$" },
     },
   });
 });
@@ -88,7 +90,7 @@ test("registers GET /api/chat-history/:chatId with params schema", async () => {
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find(
     (r) => r.path === "/api/chat-history/:chatId" && r.method === "GET",
@@ -109,7 +111,7 @@ test("registers DELETE /api/chat-history/:chatId with params schema", async () =
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find(
     (r) => r.path === "/api/chat-history/:chatId" && r.method === "DELETE",
@@ -130,7 +132,7 @@ test("registers all 4 Moodle routes with params schemas where needed", async () 
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const moodlePaths = [
     "/moodle/ping",
@@ -170,7 +172,7 @@ test("binds controller methods so they can use this", async () => {
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const healthRoute = app._routes.find((r) => r.path === "/health");
   assert.notStrictEqual(healthRoute.handler, controllers.health.check);
@@ -182,7 +184,10 @@ test("registers POST /api/chat-stream with preHandler when verifyMoodleUser is p
   const controllers = createMockControllers();
   const mockPreHandler = async () => {};
 
-  await registerRoutes(app, controllers, { verifyMoodleUser: mockPreHandler });
+  await registerRoutes(app, controllers, {
+    verifyMoodleUser: mockPreHandler,
+    allowUnauthenticated: true,
+  });
 
   const route = app._routes.find((r) => r.path === "/api/chat-stream");
   assert.ok(route);
@@ -194,7 +199,7 @@ test("registers POST /api/chat-stream without preHandler when verifyMoodleUser i
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find((r) => r.path === "/api/chat-stream");
   assert.ok(route);
@@ -206,7 +211,7 @@ test("POST /api/chat-stream route has compress: false to skip SSE compression", 
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find((r) => r.path === "/api/chat-stream");
   assert.ok(route);
@@ -217,7 +222,10 @@ test("registers POST /admin/cache/invalidate when invalidateCourseCache is provi
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers, { invalidateCourseCache: () => {} });
+  await registerRoutes(app, controllers, {
+    invalidateCourseCache: () => {},
+    allowUnauthenticated: true,
+  });
 
   const route = app._routes.find((r) => r.path === "/admin/cache/invalidate");
   assert.ok(route, "invalidate route should be registered");
@@ -228,7 +236,7 @@ test("does not register /admin/cache/invalidate when invalidateCourseCache is om
   const app = createMockApp();
   const controllers = createMockControllers();
 
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
 
   const route = app._routes.find((r) => r.path === "/admin/cache/invalidate");
   assert.ok(!route, "invalidate route should not be registered without handler");
@@ -249,6 +257,7 @@ test("POST /admin/cache/invalidate allows 127.0.0.1", async () => {
     invalidateCourseCache: () => {
       called = true;
     },
+    allowUnauthenticated: true,
   });
 
   const res = await app.inject({
@@ -265,6 +274,7 @@ test("POST /admin/cache/invalidate allows ::ffff:127.0.0.1", async () => {
   const app = await createFastifyInstance(BASE_CONFIG);
   await registerRoutes(app, createMockControllers(), {
     invalidateCourseCache: () => {},
+    allowUnauthenticated: true,
   });
 
   const res = await app.inject({
@@ -280,6 +290,7 @@ test("POST /admin/cache/invalidate denies non-localhost IPs", async () => {
   const app = await createFastifyInstance(BASE_CONFIG);
   await registerRoutes(app, createMockControllers(), {
     invalidateCourseCache: () => {},
+    allowUnauthenticated: true,
   });
 
   const res = await app.inject({
@@ -289,4 +300,41 @@ test("POST /admin/cache/invalidate denies non-localhost IPs", async () => {
   });
 
   assert.equal(res.statusCode, 403);
+});
+
+test("throws (fails closed) when auth handlers are missing and no opt-out is given", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await assert.rejects(
+    () => registerRoutes(app, controllers),
+    /requires verifyMoodleUser and verifyChatOwnership/,
+  );
+});
+
+test("throws when only verifyMoodleUser is provided without opt-out", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+
+  await assert.rejects(
+    () => registerRoutes(app, controllers, { verifyMoodleUser: async () => {} }),
+    /requires verifyMoodleUser and verifyChatOwnership/,
+  );
+});
+
+test("attaches both auth preHandlers to chat-history when fully wired", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+  const verifyMoodleUser = async () => {};
+  const verifyChatOwnership = async () => {};
+
+  await registerRoutes(app, controllers, { verifyMoodleUser, verifyChatOwnership });
+
+  for (const method of ["GET", "DELETE"]) {
+    const route = app._routes.find(
+      (r) => r.path === "/api/chat-history/:chatId" && r.method === method,
+    );
+    assert.ok(route, `${method} chat-history route should be registered`);
+    assert.deepStrictEqual(route.opts.preHandler, [verifyMoodleUser, verifyChatOwnership]);
+  }
 });

@@ -46,8 +46,13 @@ export function createChatController({
         return reply.status(err.statusCode ?? 400).send({ error: err.message });
       }
 
+      // Prefer the identity verified by the auth preHandler over the raw body
+      // value — the body userId must never be trusted on its own (IDOR).
+      const claimedUserId = request.verifiedUserId ?? userId;
       const numericUserId =
-        Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : 0;
+        Number.isInteger(Number(claimedUserId)) && Number(claimedUserId) > 0
+          ? Number(claimedUserId)
+          : 0;
 
       const rateLimitResult = checkUserRateLimit(numericUserId, {
         ip: request.ip,

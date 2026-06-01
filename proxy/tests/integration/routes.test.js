@@ -43,7 +43,7 @@ function createMockControllers() {
 async function buildApp() {
   const app = Fastify({ logger: false });
   const controllers = createMockControllers();
-  await registerRoutes(app, controllers);
+  await registerRoutes(app, controllers, { allowUnauthenticated: true });
   return app;
 }
 

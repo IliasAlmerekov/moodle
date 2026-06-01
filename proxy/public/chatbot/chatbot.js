@@ -16,6 +16,11 @@ function normalizeApiUrl(raw) {
 
 const API_BASE_URL = normalizeApiUrl(CHATBOT_CONFIG.apiUrl);
 
+// Signed identity token minted server-side by the Moodle embed snippet.
+// The proxy verifies the HMAC signature; an unsigned request is rejected (401).
+const AUTH_TS = CHATBOT_CONFIG.ts;
+const AUTH_SIG = CHATBOT_CONFIG.sig;
+
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
 const closeButton = document.getElementById("chatbot-close");
@@ -101,6 +106,16 @@ async function detectMoodleUser() {
 const storageKey = (userId) => `chat-session:${userId}`;
 const historyKey = (chatId) => `chat-history:${chatId}`;
 
+// Signed identity as a query string for chat-history GET/DELETE (no request body).
+function authQueryString() {
+  const params = new URLSearchParams();
+  if (moodleUser?.id != null) params.set("userId", String(moodleUser.id));
+  if (AUTH_TS != null) params.set("ts", String(AUTH_TS));
+  if (AUTH_SIG != null) params.set("sig", String(AUTH_SIG));
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
 function parsePositiveInteger(value) {
   const number = value != null ? Number(value) : null;
   return Number.isInteger(number) && number > 0 ? number : null;
@@ -159,7 +174,9 @@ async function restoreChatHistory() {
     }
 
     // if no local history, fetch from server
-    const response = await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`);
+    const response = await fetch(
+      `${API_BASE_URL}/api/chat-history/${chatId}${authQueryString()}`
+    );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
@@ -240,6 +257,8 @@ const sendMessageStream = async () => {
         chatId,
         message,
         userId: moodleUser.id,
+        ts: AUTH_TS,
+        sig: AUTH_SIG,
       }),
     });
 
@@ -328,7 +347,7 @@ const sendMessageStream = async () => {
 
 async function startNewChat() {
   try {
-    await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`, {
+    await fetch(`${API_BASE_URL}/api/chat-history/${chatId}${authQueryString()}`, {
       method: "DELETE",
     });
   } catch (error) {

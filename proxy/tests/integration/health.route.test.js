@@ -46,7 +46,7 @@ async function buildApp(overrides = {}) {
     },
     health,
   };
-  await registerRoutes(appInstance, controllers);
+  await registerRoutes(appInstance, controllers, { allowUnauthenticated: true });
   return appInstance;
 }
 

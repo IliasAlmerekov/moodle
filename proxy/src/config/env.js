@@ -20,6 +20,8 @@ const {
   OLLAMA_MAX_QUEUE = "20",
   OLLAMA_TIMEOUT_MS = "120000",
   CHAT_DB_PATH = "../data/chat.db",
+  CHATBOT_AUTH_SECRET = "",
+  AUTH_TOKEN_TTL_MS = "7200000",
 } = process.env;
 
 const missing = Object.entries({ MOODLE_URL, MOODLE_TOKEN, OLLAMA_URL, OLLAMA_MODEL })
@@ -28,6 +30,13 @@ const missing = Object.entries({ MOODLE_URL, MOODLE_TOKEN, OLLAMA_URL, OLLAMA_MO
 
 if (missing.length > 0) {
   throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+}
+
+// Identity verification depends on a shared HMAC secret that the Moodle embed
+// snippet uses to sign the userId. Without it, the server cannot prove who the
+// caller is, so it must be present in production.
+if (NODE_ENV === "production" && !CHATBOT_AUTH_SECRET) {
+  throw new Error("Missing required environment variable: CHATBOT_AUTH_SECRET");
 }
 
 const moodleBaseUrl = MOODLE_URL.replace(/\/$/, "");
@@ -57,6 +66,11 @@ const config = {
   userRateLimit: {
     max: Number(USER_RATE_LIMIT_MAX),
     windowMs: Number(USER_RATE_LIMIT_WINDOW_MS),
+  },
+
+  auth: {
+    secret: CHATBOT_AUTH_SECRET,
+    tokenTtlMs: Number(AUTH_TOKEN_TTL_MS),
   },
 
   cache: {
