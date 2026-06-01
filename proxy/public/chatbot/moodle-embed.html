@@ -15,6 +15,7 @@
 
 <!-- Chatbot HTML Structure -->
 <button
+  type="button"
   id="chatbot-toogle"
   class="chatbot-toogle"
   aria-label="AI Assistent öffnen"
@@ -31,6 +32,7 @@
     />
     <div class="button-section">
       <button
+        type="button"
         id="chatbot-new-chat"
         class="chatbot-new-chat"
         aria-label="New Chat"
@@ -41,7 +43,12 @@
           class="new-chat"
         />
       </button>
-      <button id="chatbot-close" class="chatbot-close" aria-label="Schließen">
+      <button
+        type="button"
+        id="chatbot-close"
+        class="chatbot-close"
+        aria-label="Schließen"
+      >
         ✖
       </button>
     </div>
@@ -63,12 +70,12 @@
       placeholder="Nachricht eingeben..."
       autocomplete="off"
     />
-    <button id="chatbot-send" class="chatbot-send">Senden</button>
+    <button type="button" id="chatbot-send" class="chatbot-send">Senden</button>
   </div>
 </div>
 
 <!-- Chatbot JavaScript -->
 <script
   type="module"
-  src="/chatbot/chatbot.js"
+  src="/chatbot/chatbot.js?v=20260601"
 ></script>

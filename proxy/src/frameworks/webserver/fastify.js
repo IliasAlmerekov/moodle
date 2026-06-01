@@ -55,6 +55,8 @@ export async function createFastifyInstance(config) {
       },
     },
     xFrameOptions: { action: "sameorigin" },
+    // Chatbot assets are intentionally loaded cross-origin from Moodle pages
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   });
 
   await app.register(cors, {
@@ -74,7 +76,7 @@ export async function createFastifyInstance(config) {
   // SSE routes opt out via config: { compress: false } on the route
   await app.register(compress, { global: true });
 
-  const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html"]);
+  const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html", "chatbot.js"]);
 
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "..", "..", "..", "public"),
