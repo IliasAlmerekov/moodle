@@ -16,6 +16,11 @@ function normalizeApiUrl(raw) {
 
 const API_BASE_URL = normalizeApiUrl(CHATBOT_CONFIG.apiUrl);
 
+// Signed identity token minted server-side by the Moodle embed snippet.
+// The proxy verifies the HMAC signature; an unsigned request is rejected (401).
+const AUTH_TS = CHATBOT_CONFIG.ts;
+const AUTH_SIG = CHATBOT_CONFIG.sig;
+
 const toogleButton = document.getElementById("chatbot-toogle");
 const chatWindow = document.getElementById("chatbot-window");
 const closeButton = document.getElementById("chatbot-close");
@@ -240,6 +245,8 @@ const sendMessageStream = async () => {
         chatId,
         message,
         userId: moodleUser.id,
+        ts: AUTH_TS,
+        sig: AUTH_SIG,
       }),
     });
 

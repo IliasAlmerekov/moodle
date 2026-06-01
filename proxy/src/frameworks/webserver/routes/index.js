@@ -39,6 +39,8 @@ export async function registerRoutes(app, controllers, options = {}) {
             message: { type: "string", minLength: 1, maxLength: 500 },
             userId: { type: "number" },
             chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
+            ts: { type: "number" },
+            sig: { type: "string", maxLength: 128, pattern: "^[a-f0-9]+$" },
           },
         },
       },

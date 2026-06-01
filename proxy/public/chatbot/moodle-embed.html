@@ -9,8 +9,32 @@
   Expected shape:
     window.CHATBOT_CONFIG = {
       userId: <number>,   // Moodle user id
+      ts:     <number>,   // unix epoch ms when the token was signed
+      sig:    <string>,   // HMAC-SHA256(secret, `${userId}.${ts}`) as lowercase hex
       apiUrl: <string>,   // optional — proxy origin (defaults to window.location.origin)
     };
+
+  SECURITY: the proxy never trusts a raw userId. It recomputes the signature
+  with the shared secret (CHATBOT_AUTH_SECRET) and rejects unsigned/tampered/
+  expired tokens with HTTP 401. The signature MUST be produced server-side in
+  Moodle (where $USER->id is authenticated) — never in client JavaScript.
+
+  Example Moodle-side PHP (e.g. in a custom block or additional HTML, using the
+  SAME secret as the proxy's CHATBOT_AUTH_SECRET):
+
+    <?php
+    $secret = get_config('local_aichatbot', 'authsecret'); // your stored secret
+    $userid = (int) $USER->id;
+    $ts     = round(microtime(true) * 1000);               // epoch ms
+    $sig    = hash_hmac('sha256', $userid . '.' . $ts, $secret);
+    ?>
+    <script>
+      window.CHATBOT_CONFIG = {
+        userId: <?php echo $userid; ?>,
+        ts:     <?php echo $ts; ?>,
+        sig:    "<?php echo $sig; ?>",
+      };
+    </script>
 -->
 
 <!-- Chatbot HTML Structure -->

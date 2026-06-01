@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { test } from "vitest";
 import { createVerifyMoodleUser } from "../../../src/middleware/auth.js";
+
+const SECRET = "test-secret";
+
+function sign(userId, ts, secret = SECRET) {
+  return createHmac("sha256", secret).update(`${userId}.${ts}`).digest("hex");
+}
 
 function createMockReply() {
   const calls = [];
@@ -25,32 +32,35 @@ function createMockRequest(overrides = {}) {
   };
 }
 
-function createMockUserRepository(overrides = {}) {
-  return {
-    async getUserInfo(userId) {
-      if (overrides.getUserInfo) {
-        return overrides.getUserInfo(userId);
-      }
-      return { id: userId, firstname: "Test", lastname: "User", email: "test@example.com" };
-    },
-  };
-}
+test("allows request with a valid, fresh signature and exposes verifiedUserId", async () => {
+  const now = () => 1000;
+  const verify = createVerifyMoodleUser({ secret: SECRET, now });
+  const ts = 1000;
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+  assert.strictEqual(request.verifiedUserId, 42);
+});
 
 test("returns 401 when userId is missing", async () => {
-  const verify = createVerifyMoodleUser({ userRepository: createMockUserRepository() });
+  const verify = createVerifyMoodleUser({ secret: SECRET });
   const request = createMockRequest({ body: { message: "Hello" } });
   const reply = createMockReply();
 
   await verify(request, reply);
 
-  assert.strictEqual(reply._calls.length, 2);
   assert.strictEqual(reply._calls[0].code, 401);
   assert.deepStrictEqual(reply._calls[1].body, { statusCode: 401, error: "Unauthorized" });
+  assert.strictEqual(request.verifiedUserId, undefined);
 });
 
 test("returns 401 when userId is 0", async () => {
-  const verify = createVerifyMoodleUser({ userRepository: createMockUserRepository() });
-  const request = createMockRequest({ body: { userId: 0 } });
+  const verify = createVerifyMoodleUser({ secret: SECRET });
+  const ts = Date.now();
+  const request = createMockRequest({ body: { userId: 0, ts, sig: sign(0, ts) } });
   const reply = createMockReply();
 
   await verify(request, reply);
@@ -59,8 +69,9 @@ test("returns 401 when userId is 0", async () => {
 });
 
 test("returns 401 when userId is negative", async () => {
-  const verify = createVerifyMoodleUser({ userRepository: createMockUserRepository() });
-  const request = createMockRequest({ body: { userId: -1 } });
+  const verify = createVerifyMoodleUser({ secret: SECRET });
+  const ts = Date.now();
+  const request = createMockRequest({ body: { userId: -1, ts, sig: sign(-1, ts) } });
   const reply = createMockReply();
 
   await verify(request, reply);
@@ -69,8 +80,9 @@ test("returns 401 when userId is negative", async () => {
 });
 
 test("returns 401 when userId is not an integer", async () => {
-  const verify = createVerifyMoodleUser({ userRepository: createMockUserRepository() });
-  const request = createMockRequest({ body: { userId: "abc" } });
+  const verify = createVerifyMoodleUser({ secret: SECRET });
+  const ts = Date.now();
+  const request = createMockRequest({ body: { userId: "abc", ts, sig: sign("abc", ts) } });
   const reply = createMockReply();
 
   await verify(request, reply);
@@ -78,134 +90,92 @@ test("returns 401 when userId is not an integer", async () => {
   assert.strictEqual(reply._calls[0].code, 401);
 });
 
-test("allows request when user exists", async () => {
-  const verify = createVerifyMoodleUser({ userRepository: createMockUserRepository() });
-  const request = createMockRequest({ body: { userId: 42 } });
+test("returns 401 when signature is missing", async () => {
+  const verify = createVerifyMoodleUser({ secret: SECRET });
+  const request = createMockRequest({ body: { userId: 42, ts: Date.now() } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+});
+
+test("returns 401 when timestamp is missing", async () => {
+  const verify = createVerifyMoodleUser({ secret: SECRET });
+  const request = createMockRequest({ body: { userId: 42, sig: "deadbeef" } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+});
+
+test("returns 401 when the signature is wrong", async () => {
+  const verify = createVerifyMoodleUser({ secret: SECRET, now: () => 1000 });
+  const ts = 1000;
+  const request = createMockRequest({
+    body: { userId: 42, ts, sig: sign(42, ts, "wrong-secret") },
+  });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+  assert.strictEqual(request.verifiedUserId, undefined);
+});
+
+test("returns 401 when userId is tampered (signature does not match)", async () => {
+  const verify = createVerifyMoodleUser({ secret: SECRET, now: () => 1000 });
+  const ts = 1000;
+  // Signature was minted for user 42, but the body claims user 99.
+  const request = createMockRequest({ body: { userId: 99, ts, sig: sign(42, ts) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+});
+
+test("returns 401 when the token is expired", async () => {
+  const ts = 1000;
+  const verify = createVerifyMoodleUser({ secret: SECRET, tokenTtlMs: 5000, now: () => 7000 });
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+});
+
+test("accepts a token at the edge of the freshness window", async () => {
+  const ts = 1000;
+  const verify = createVerifyMoodleUser({ secret: SECRET, tokenTtlMs: 5000, now: () => 6000 });
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
   const reply = createMockReply();
 
   await verify(request, reply);
 
   assert.strictEqual(reply._calls.length, 0);
+  assert.strictEqual(request.verifiedUserId, 42);
 });
 
-test("returns 401 when user is not found", async () => {
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: () => null,
-    }),
-  });
-  const request = createMockRequest({ body: { userId: 99 } });
+test("returns 401 when no secret is configured", async () => {
+  const verify = createVerifyMoodleUser({ secret: "", now: () => 1000 });
+  const ts = 1000;
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
   const reply = createMockReply();
 
   await verify(request, reply);
 
   assert.strictEqual(reply._calls[0].code, 401);
-  assert.deepStrictEqual(reply._calls[1].body, { statusCode: 401, error: "Unauthorized" });
 });
 
-test("returns 401 when userRepository throws", async () => {
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: () => {
-        throw new Error("Moodle down");
-      },
-    }),
-  });
-  const request = createMockRequest({ body: { userId: 7 } });
-  const reply = createMockReply();
-
-  await verify(request, reply);
-
-  assert.strictEqual(reply._calls[0].code, 401);
-  assert.deepStrictEqual(reply._calls[1].body, { statusCode: 401, error: "Unauthorized" });
-});
-
-test("caches successful verification and skips second call to userRepository", async () => {
-  let calls = 0;
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: (userId) => {
-        calls += 1;
-        return { id: userId, firstname: "Test", lastname: "User" };
-      },
-    }),
-  });
-
-  const request1 = createMockRequest({ body: { userId: 1 } });
-  const reply1 = createMockReply();
-  await verify(request1, reply1);
-  assert.strictEqual(calls, 1);
-
-  const request2 = createMockRequest({ body: { userId: 1 } });
-  const reply2 = createMockReply();
-  await verify(request2, reply2);
-  assert.strictEqual(calls, 1);
-  assert.strictEqual(reply2._calls.length, 0);
-});
-
-test("caches failed verification and skips second call to userRepository", async () => {
-  let calls = 0;
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: () => {
-        calls += 1;
-        return null;
-      },
-    }),
-  });
-
-  const request1 = createMockRequest({ body: { userId: 2 } });
-  const reply1 = createMockReply();
-  await verify(request1, reply1);
-  assert.strictEqual(calls, 1);
-
-  const request2 = createMockRequest({ body: { userId: 2 } });
-  const reply2 = createMockReply();
-  await verify(request2, reply2);
-  assert.strictEqual(calls, 1);
-  assert.strictEqual(reply2._calls[0].code, 401);
-});
-
-test("refetches after cache ttl expires", async () => {
-  let nowMs = 0;
-  let calls = 0;
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: (userId) => {
-        calls += 1;
-        return { id: userId, firstname: "Test", lastname: "User" };
-      },
-    }),
-    ttlMs: 300_000,
-    now: () => nowMs,
-  });
-
-  const request1 = createMockRequest({ body: { userId: 3 } });
-  const reply1 = createMockReply();
-  await verify(request1, reply1);
-  assert.strictEqual(calls, 1);
-
-  nowMs = 300_001;
-
-  const request2 = createMockRequest({ body: { userId: 3 } });
-  const reply2 = createMockReply();
-  await verify(request2, reply2);
-  assert.strictEqual(calls, 2);
-  assert.strictEqual(reply2._calls.length, 0);
-});
-
-test("logs security warning on auth failure without leaking details", async () => {
+test("logs security warning on failure without leaking details", async () => {
   const warnings = [];
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: () => {
-        throw new Error("Connection refused");
-      },
-    }),
-  });
-
+  const verify = createVerifyMoodleUser({ secret: SECRET, now: () => 1000 });
+  const ts = 1000;
   const request = createMockRequest({
-    body: { userId: 5 },
+    body: { userId: 5, ts, sig: "00" },
     log: {
       warn(meta, msg) {
         warnings.push({ meta, msg });
@@ -220,62 +190,6 @@ test("logs security warning on auth failure without leaking details", async () =
   assert.strictEqual(warnings[0].meta.security, true);
   assert.strictEqual(warnings[0].meta.type, "auth_failure");
   assert.strictEqual(warnings[0].meta.userId, 5);
-  assert.strictEqual(reply._calls[1].body.error, "Unauthorized");
+  assert.deepStrictEqual(reply._calls[1].body, { statusCode: 401, error: "Unauthorized" });
   assert.ok(!reply._calls[1].body.message);
-});
-
-test("different userIds are verified independently", async () => {
-  const calls = new Map();
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: (userId) => {
-        calls.set(userId, (calls.get(userId) || 0) + 1);
-        return { id: userId, firstname: "Test", lastname: "User" };
-      },
-    }),
-  });
-
-  const request1 = createMockRequest({ body: { userId: 10 } });
-  await verify(request1, createMockReply());
-
-  const request2 = createMockRequest({ body: { userId: 20 } });
-  await verify(request2, createMockReply());
-
-  assert.strictEqual(calls.get(10), 1);
-  assert.strictEqual(calls.get(20), 1);
-});
-
-test("gc removes expired entries when cache reaches 1000", async () => {
-  let nowMs = 0;
-  let calls = 0;
-  const verify = createVerifyMoodleUser({
-    userRepository: createMockUserRepository({
-      getUserInfo: (userId) => {
-        calls += 1;
-        return { id: userId, firstname: "Test", lastname: "User" };
-      },
-    }),
-    ttlMs: 100,
-    now: () => nowMs,
-  });
-
-  // fill cache with 1000 entries
-  for (let i = 1; i <= 1000; i += 1) {
-    const request = createMockRequest({ body: { userId: i } });
-    await verify(request, createMockReply());
-  }
-  assert.strictEqual(calls, 1000);
-
-  // advance time past ttl — all entries expired
-  nowMs = 101;
-
-  // request userId 1001 triggers gc + fresh fetch
-  const request = createMockRequest({ body: { userId: 1001 } });
-  await verify(request, createMockReply());
-  assert.strictEqual(calls, 1001);
-
-  // old entries were gc'd, so userId 1 should be re-fetched
-  const request2 = createMockRequest({ body: { userId: 1 } });
-  await verify(request2, createMockReply());
-  assert.strictEqual(calls, 1002);
 });

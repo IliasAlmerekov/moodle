@@ -57,7 +57,10 @@ export async function createApp() {
     version,
   });
 
-  const verifyMoodleUser = createVerifyMoodleUser({ userRepository: moodleCache });
+  const verifyMoodleUser = createVerifyMoodleUser({
+    secret: config.auth.secret,
+    tokenTtlMs: config.auth.tokenTtlMs,
+  });
 
   const controllers = { chat, history, moodle, health };
 

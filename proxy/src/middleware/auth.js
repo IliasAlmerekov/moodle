@@ -1,64 +1,60 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 /**
- * Factory for a Fastify preHandler that verifies the userId exists in Moodle.
+ * Factory for a Fastify preHandler that verifies the caller's Moodle identity.
+ *
+ * Trust model: the userId must NOT be taken on faith from the request body.
+ * The Moodle embed snippet signs `${userId}.${ts}` server-side with a shared
+ * secret (HMAC-SHA256) and ships userId/ts/sig to the browser. This preHandler
+ * recomputes the signature and rejects any request whose userId is unsigned,
+ * tampered with, or whose token has expired. Only after a valid signature is
+ * the userId trusted (exposed as `request.verifiedUserId`).
  *
  * @param {Object} deps
- * @param {import("../application/repositories/IUserRepository.js").IUserRepository} deps.userRepository
- * @param {number} [deps.ttlMs=300_000]
+ * @param {string} deps.secret  Shared HMAC secret, also configured in Moodle.
+ * @param {number} [deps.tokenTtlMs=7_200_000]  Max age of a signed token in ms.
  * @param {function(): number} [deps.now=Date.now]
  * @returns {function(import("fastify").FastifyRequest, import("fastify").FastifyReply): Promise<void>}
  */
-export function createVerifyMoodleUser({ userRepository, ttlMs = 300_000, now = Date.now }) {
-  const cache = new Map();
-
-  function parseUserId(body) {
-    const raw = body?.userId;
-    const num = Number(raw);
+export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = Date.now }) {
+  function parseUserId(value) {
+    const num = Number(value);
     return Number.isInteger(num) && num > 0 ? num : 0;
   }
 
-  function gcExpired() {
-    const nowMs = now();
-    for (const [key, entry] of cache) {
-      if (entry.expiresAt <= nowMs) {
-        cache.delete(key);
-      }
-    }
+  function deny(request, reply, userId) {
+    request.log.warn(
+      { security: true, type: "auth_failure", userId },
+      "Moodle identity verification failed",
+    );
+    return reply.status(401).send({ statusCode: 401, error: "Unauthorized" });
   }
 
   return async function verifyMoodleUser(request, reply) {
-    const userId = parseUserId(request.body);
+    const body = request.body ?? {};
+    const userId = parseUserId(body.userId);
+    const ts = Number(body.ts);
+    const sig = typeof body.sig === "string" ? body.sig : "";
 
-    if (userId === 0) {
-      return reply.status(401).send({ statusCode: 401, error: "Unauthorized" });
+    if (!secret || userId === 0 || !Number.isFinite(ts) || sig === "") {
+      return deny(request, reply, userId);
     }
 
-    const cached = cache.get(userId);
-    const nowMs = now();
-    if (cached && cached.expiresAt > nowMs) {
-      if (cached.verified) {
-        return;
-      }
-      return reply.status(401).send({ statusCode: 401, error: "Unauthorized" });
+    // Reject stale tokens; abs() also tolerates minor client/server clock skew.
+    if (Math.abs(now() - ts) > tokenTtlMs) {
+      return deny(request, reply, userId);
     }
 
-    if (cache.size >= 1000) {
-      gcExpired();
+    const expected = createHmac("sha256", secret).update(`${userId}.${ts}`).digest("hex");
+
+    // Constant-time comparison; length guard avoids timingSafeEqual throwing.
+    const valid =
+      expected.length === sig.length && timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+
+    if (!valid) {
+      return deny(request, reply, userId);
     }
 
-    try {
-      const user = await userRepository.getUserInfo(userId);
-      if (user) {
-        cache.set(userId, { verified: true, expiresAt: nowMs + ttlMs });
-        return;
-      }
-    } catch {
-      request.log.warn(
-        { security: true, type: "auth_failure", userId },
-        "Moodle user verification failed",
-      );
-    }
-
-    cache.set(userId, { verified: false, expiresAt: nowMs + ttlMs });
-    return reply.status(401).send({ statusCode: 401, error: "Unauthorized" });
+    request.verifiedUserId = userId;
   };
 }
