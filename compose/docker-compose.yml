@@ -1,11 +1,11 @@
-# Docker image versions pinned 2026-05-29
+# Docker image versions pinned 2026-06-01
 # Reason: reproducible builds, avoid breaking changes from unpinned latest tags
 # See DECISIONS.md "Pin Docker images" for upgrade policy
 # SSL: run compose/setup-ssl.sh once before first `docker compose up`
 name: moodle-stack
 services:
   mariadb:
-    image: bitnami/mariadb:11.8.1
+    image: bitnamilegacy/mariadb:11.8.2-debian-12-r5
     restart: unless-stopped
     environment:
       - ALLOW_EMPTY_PASSWORD=no
@@ -33,14 +33,14 @@ services:
     networks: [moodle_net]
 
   ollama:
-    image: ollama/ollama:0.5.13
+    image: ollama/ollama:0.12.0
     restart: unless-stopped
     volumes:
       - ../data/ollama:/root/.ollama
     networks: [moodle_net]
 
   ollama-init:
-    image: ollama/ollama:0.5.13
+    image: ollama/ollama:0.12.0
     depends_on: [ollama]
     entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL}"]
     environment:
@@ -59,6 +59,9 @@ services:
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OLLAMA_CONCURRENCY=${OLLAMA_CONCURRENCY:-2}
+      - OLLAMA_MAX_QUEUE=${OLLAMA_MAX_QUEUE:-20}
+      - OLLAMA_TIMEOUT_MS=${OLLAMA_TIMEOUT_MS:-120000}
       - CHAT_DB_PATH=/data/chat.db
       - PUBLIC_MOODLE_URL=${PUBLIC_MOODLE_URL}
       - CORS_ORIGIN=${CORS_ORIGIN}
@@ -76,8 +79,10 @@ services:
   nginx:
     image: nginx:1.27.4
     restart: unless-stopped
-    # envsubst replaces ${NGINX_DOMAIN} in the template; $host etc. are nginx vars, not shell vars
-    entrypoint: ["/bin/sh", "-c", "envsubst '$NGINX_DOMAIN' < /tmp/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+    # envsubst replaces ${NGINX_DOMAIN} in the template; $host etc. are nginx vars, not shell vars.
+    # $$NGINX_DOMAIN: $$ is a Compose escape for a literal $, so the container receives '$NGINX_DOMAIN'
+    # as the variable-names argument to envsubst (not the resolved value).
+    entrypoint: ["/bin/sh", "-c", "envsubst '$$NGINX_DOMAIN' < /tmp/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
     environment:
       - NGINX_DOMAIN=${NGINX_DOMAIN}
     ports:

@@ -48,9 +48,17 @@ cp .env.example .env
 cd compose && docker compose --env-file ../.env up -d
 ```
 
-**3. Pull the LLM model** (once, ~2 GB)
+**3. Pull the LLM model** (once, ~2 GB for the default local model)
 ```bash
 docker exec -it ollama ollama pull llama3.2:3b
+```
+
+For Ollama Cloud models such as `gpt-oss:120b-cloud`, sign in inside the Ollama
+container first, then pull the cloud model marker:
+
+```bash
+docker exec -it ollama ollama signin
+docker exec ollama ollama pull gpt-oss:120b-cloud
 ```
 
 **4. Get the Moodle webservice token**
