@@ -101,6 +101,11 @@ async function detectMoodleUser() {
 const storageKey = (userId) => `chat-session:${userId}`;
 const historyKey = (chatId) => `chat-history:${chatId}`;
 
+function parsePositiveInteger(value) {
+  const number = value != null ? Number(value) : null;
+  return Number.isInteger(number) && number > 0 ? number : null;
+}
+
 // Save message to localStorage
 const saveMessageToHistory = (chatId, role, content) => {
   if (!chatId) return;
@@ -125,9 +130,10 @@ let moodleUser = null;
 let chatId = null;
 
 async function initChat() {
-  const rawId = CHATBOT_CONFIG.userId != null ? Number(CHATBOT_CONFIG.userId) : null;
-  const configUserId = Number.isInteger(rawId) && rawId > 0 ? rawId : null;
-  moodleUser = configUserId ? { id: configUserId } : await detectMoodleUser();
+  const configUserId = parsePositiveInteger(CHATBOT_CONFIG.userId);
+  const moodleGlobalUserId = parsePositiveInteger(window.M?.cfg?.userid);
+  const detectedUserId = configUserId ?? moodleGlobalUserId;
+  moodleUser = detectedUserId ? { id: detectedUserId } : await detectMoodleUser();
   if (!moodleUser) return;
 
   chatId =
@@ -204,7 +210,15 @@ function generateChatId(userId) {
 const sendMessageStream = async () => {
   const message = inputField.value.trim();
 
-  if (!message || !moodleUser) return;
+  if (!message) return;
+
+  if (!moodleUser) {
+    addMessage(
+      "Moodle-Benutzer konnte nicht erkannt werden. Bitte lade die Seite neu oder melde dich erneut an.",
+      false
+    );
+    return;
+  }
 
   addMessage(message, true);
   saveMessageToHistory(chatId, "user", message); // save in localStorage

@@ -1,256 +1,300 @@
-# Team-Setup: Moodle + Ollama Stack
+# Betriebshandbuch: Moodle AI Chatbot
 
-## Überblick
+Dieses Dokument beschreibt die Erstinstallation sowie alle wiederkehrenden Betriebsprozeduren.
 
-Dieses Dokument beschreibt den vollständigen Aufbau des aktuellen Stacks:
+---
 
-- Docker, Docker Compose v2 und Portainer
-- Docker-Compose-Stack mit MariaDB, Moodle und Fastify-Proxy
-- Ollama-Server für das LLM
-- Grundkonfiguration von Moodle inklusive deutscher Lokalisierung und Webservice-Token
+## Inhaltsverzeichnis
+
+- [Voraussetzungen](#voraussetzungen)
+- [Erstinstallation](#erstinstallation)
+- [Betriebsprozeduren](#betriebsprozeduren)
+  - [1. Moodle Webservice-Token ausstellen](#1-moodle-webservice-token-ausstellen)
+  - [2. Ollama-Modell wechseln](#2-ollama-modell-wechseln)
+  - [3. Neuen Administrator anlegen](#3-neuen-administrator-anlegen)
+  - [4. Disaster Recovery](#4-disaster-recovery)
+  - [5. SSL-Zertifikat erneuern](#5-ssl-zertifikat-erneuern)
+- [Wartung](#wartung)
+
+---
 
 ## Voraussetzungen
 
-- Host-System mit Docker-Unterstützung
-- Zugriff per SSH oder direktes Terminal
-- Ollama-Server (lokal oder extern via `OLLAMA_URL`)
-- Stabile Netzwerkverbindung
+| Komponente | Version | Hinweis |
+|------------|---------|---------|
+| OS | Linux x86_64 | WSL2 funktioniert ebenfalls |
+| Docker | 24+ | Compose-Plugin erforderlich |
+| certbot | aktuell | Nur für SSL benötigt: `sudo apt install certbot` |
+| Ports 80, 443 | frei | Müssen aus dem Internet erreichbar sein (Router/Firewall) |
 
-## Host vorbereiten
+---
 
-1. System aktualisieren und neu starten:
-   ```bash
-   sudo apt update && sudo apt full-upgrade -y
-   sudo reboot
-   ```
-2. Nach dem Reboot wieder anmelden.
+## Erstinstallation
 
-## Docker & Docker Compose installieren
-
-1. Docker Engine installieren:
-   ```bash
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
-   sudo usermod -aG docker $USER
-   newgrp docker
-   ```
-2. Docker testen:
-   ```bash
-   docker version
-   docker run hello-world
-   ```
-3. Docker Compose v2 als CLI-Plugin installieren:
-   ```bash
-   DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
-   mkdir -p "$DOCKER_CONFIG/cli-plugins"
-   curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-aarch64 \
-     -o "$DOCKER_CONFIG/cli-plugins/docker-compose"
-   chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
-   docker compose version
-   ```
-
-## Portainer bereitstellen
+### 1. Docker installieren
 
 ```bash
-docker volume create portainer_data
-docker run -d \
-  -p 8000:8000 \
-  -p 9443:9443 \
-  --name portainer \
-  --restart=always \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v portainer_data:/data \
-  portainer/portainer-ce:latest
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+newgrp docker
+docker version
 ```
 
-Portainer ist anschließend unter `https://<HOST-IP>:9443` erreichbar.
-
-## Projektstruktur
-
-```
-~/moodle
-+-- .env
-+-- compose/
-   +-- docker-compose.yml
-+-- data/
-  +-- mariadb/
-  +-- moodle/
-  +-- moodledata/
-  +-- moodle-init/ (Init-Skripte, optional)
-+-- proxy/
-    +-- Dockerfile
-    +-- package.json
-    +-- src/server.mjs
-```
-
-## .env konfigurieren
-
-Wichtige Variablen (Beispielwerte):
-
-```
-# MariaDB
-MARIADB_USER=bn_moodle
-MARIADB_PASSWORD=<sicheres_passwort>
-MARIADB_DATABASE=bitnami_moodle
-MARIADB_ROOT_PASSWORD=<root_passwort>
-
-# Moodle Admin
-MOODLE_USERNAME=admin
-MOODLE_PASSWORD=<admin_passwort>
-
-# Netzwerk
-PI_LAN_IP=192.168.178.49 //anpassen
-MOODLE_HTTP_PORT=8080
-PROXY_PORT=3000
-
-# LLM/Ollama
-OLLAMA_URL=http://192.168.178.35:11434 //anpassen
-OLLAMA_MODEL=llama3
-
-# Moodle REST
-MOODLE_URL=http://192.168.178.49:8080 //anpassen
-MOODLE_TOKEN=<moodle_webservice_token>
-```
-
-## Docker-Compose-Stack
-
-`compose/docker-compose.yml` definiert drei Services:
-
-- `mariadb` (Bitnami-Legacy-Image, ARM64, persistente Daten unter `data/mariadb`)
-- `moodle` (Bitnami-Legacy-Image, Ports auf 8080 gemappt, Daten unter `data/moodle*`)
-- `proxy` (Fastify-Anwendung aus `proxy/`, lauscht auf Port 3000)
-
-Der Proxy erhält per Umgebung die URLs für Moodle und Ollama sowie den Moodle-Token. Alle Services liegen im selben Bridge-Netz `moodle_net`.
-
-## Datenverzeichnisse vorbereiten
-
-MariaDB erwartet Schreibrechte für UID/GID `1001`:
+### 2. Projekt klonen und konfigurieren
 
 ```bash
-mkdir -p ~/moodle/data/mariadb
-sudo chown -R 1001:1001 ~/moodle/data/mariadb
-sudo chmod -R 775 ~/moodle/data/mariadb
+git clone <repo-url> && cd raspi
+cp .env.example .env
+# .env öffnen und alle Variablen befüllen (Passwörter, Token, Domain)
 ```
 
-Die Verzeichnisse für Moodle werden beim ersten Start automatisch angelegt.
+Alle Variablen sind in [`.env.example`](../.env.example) kommentiert.
 
-## Stack starten
+### 3. SSL-Zertifikat erstellen (einmalig)
+
+Ports 80 und 443 müssen erreichbar sein, bevor nginx gestartet wird:
 
 ```bash
-cd ~/moodle/compose
+cd compose
+bash setup-ssl.sh
+```
+
+Das Skript liest `NGINX_DOMAIN` und `CERTBOT_EMAIL` aus `.env` und speichert das Zertifikat unter `data/certbot/`.
+
+### 4. Stack starten
+
+```bash
+cd compose
 docker compose --env-file ../.env up -d
 ```
 
 Status prüfen:
 
 ```bash
-docker compose --env-file ../.env ps
-docker compose --env-file ../.env logs -f mariadb
-docker compose --env-file ../.env logs -f moodle
+docker compose ps
+docker compose logs -f moodle    # Moodle benötigt beim ersten Start 3–4 Minuten
 ```
 
-Erst wenn MariaDB in `running` ist, schließt Moodle seine Installation ab.
+### 5. Moodle-Erstkonfiguration
 
-## Moodle: Erstkonfiguration
+1. `http://localhost:8080` öffnen und als `admin` einloggen (Passwort: `MOODLE_PASSWORD` aus `.env`).
+2. Grundeinstellungen setzen: Site-Name, Zeitzone, Support-E-Mail.
+3. Sprache: *Websiteverwaltung → Allgemein → Sprache → Sprachpakete → Deutsch (de)* installieren.
+4. Webservice-Token für den Proxy ausstellen (siehe [Prozedur 1](#1-moodle-webservice-token-ausstellen)).
 
-1. Nach 3-4 Minuten ist Moodle unter `http://<HOST-IP>:8080` erreichbar.
-2. Mit `admin` / `MOODLE_PASSWORD` einloggen.
-3. Grundeinstellungen (Site-Name, Zeitzone, Support-E-Mail) setzen.
-4. SMTP konfigurieren, falls Mails benötigt werden.
-5. Standardrollen/Benutzer anlegen (Site administration > Users > Accounts).
-
-## Deutsche Lokalisierung
-
-1. Sprachpakete installieren: Site administration > General > Language > Language packs > `Deutsch (de)`.
-2. Default-Sprache setzen: Language settings > `Default language = Deutsch (de)`.
-3. Autodetect optional deaktivieren, wenn Browser-Einstellungen ignoriert werden sollen.
-4. Cache leeren: Site administration > Development > Purge caches.
-5. Falls Moodle warnt, dass die Lokale fehlt, einmal im Container ausführen:
-   ```bash
-   sudo docker compose --env-file ../.env exec moodle bash
-   echo 'de_DE.UTF-8 UTF-8' >> /etc/locale.gen
-   echo 'de_DE@formal UTF-8' >> /etc/locale.gen
-   locale-gen de_DE.UTF-8 de_DE@formal
-   update-locale LANG=de_DE.UTF-8 LANGUAGE=de_DE.UTF-8 LC_ALL=de_DE.UTF-8
-   exit
-   sudo docker compose --env-file ../.env restart moodle
-   ```
-
-## Webservices & Token
-
-1. Site administration > General > Advanced features > `Enable web services` aktivieren.
-2. Site administration > Server > Web services > Manage protocols > `REST` aktivieren.
-3. Manage services: vorhandenen Dienst `Moodle mobile web service` verwenden oder eigenen anlegen.
-4. Manage tokens > `Create token` > Benutzer `admin`, Dienst wählen > Token kopieren.
-5. Token in `.env` (`MOODLE_TOKEN`) eintragen und Proxy neu starten:
-   ```bash
-   docker compose --env-file ../.env restart proxy
-   ```
-
-## Proxy-Service (Fastify)
-
-- Läuft als eigener Container, baut auf Node.js 20 auf.
-- Endpunkte:
-  - `GET /health` ? Gesamtstatus (prüft, ob Moodle/Ollama konfiguriert sind)
-  - `GET /moodle/ping` ? HEAD-Anfrage an Moodle
-  - `GET /ollama/models` ? Liste der verfügbaren Ollama-Modelle
-- Log-Level hängt von `NODE_ENV` ab (in Produktion `info`).
-
-## Ollama einrichten
-
-1. Installer von [https://ollama.com/download](https://ollama.com/download) ausführen.
-2. Modelle laden:
-   ```powershell
-   ollama pull llama3
-   ollama list
-   ```
-3. API nach außen öffnen:
-   ```powershell
-   setx OLLAMA_HOST http://0.0.0.0:11434
-   ```
-   PowerShell neu öffnen und Server starten (bleibt offen):
-   ```powershell
-   ollama serve
-   ```
-   Alternativ per Task Scheduler als Hintergrunddienst ausführen.
-4. Firewall-Regel für TCP 11434 erstellen (eingehend erlauben).
-5. Verbindung prüfen:
-   ```bash
-   curl http://192.168.178.35:11434/api/tags
-   ```
-   Output zeigt verfügbare Modelle (z.B. `llama3`).
-
-## Proxy testen
-
-Von einem beliebigen Host:
+### 6. Proxy verifizieren
 
 ```bash
-curl http://192.168.178.49:3000/health
-curl http://192.168.178.49:3000/moodle/ping
-curl http://192.168.178.49:3000/ollama/models
+curl http://localhost:3000/health
+# Erwartete Antwort: {"status":"ok","uptime":...}
 ```
 
-Beispiel für POST (PowerShell):
+---
 
-```powershell
-Invoke-RestMethod -Uri http://192.168.178.49:3000/api/chat `
-  -Method Post `
-  -Body '{"message":"Hallo, Moodle!"}' `
-  -ContentType 'application/json'
+## Betriebsprozeduren
+
+---
+
+### 1. Moodle Webservice-Token ausstellen
+
+**Wann:** Ersteinrichtung, Token abgelaufen, Token kompromittiert.
+
+**Schritte:**
+
+1. In Moodle als `admin` einloggen.
+2. *Websiteverwaltung → Server → Webservices → Übersicht* öffnen.
+3. Schritt-für-Schritt-Assistent (falls noch nicht aktiviert):
+   - Webservices aktivieren: ✓
+   - REST-Protokoll aktivieren: ✓
+   - Dienst auswählen: `Moodle mobile web service`
+   - Benutzer `admin` dem Dienst zuweisen
+4. *Websiteverwaltung → Server → Webservices → Token verwalten → Token erstellen*:
+   - Benutzer: `admin`
+   - Dienst: `Moodle mobile web service`
+   - Token kopieren
+5. Token in `.env` eintragen:
+   ```
+   MOODLE_TOKEN=<kopierter_token>
+   ```
+6. Proxy neu starten:
+   ```bash
+   cd compose && docker compose restart proxy
+   ```
+7. Verbindung prüfen:
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+---
+
+### 2. Ollama-Modell wechseln
+
+**Wann:** Neues Modell testen, Modell aktualisieren, Speicherplatz sparen.
+
+**Schritte:**
+
+1. Verfügbare Modelle anzeigen:
+   ```bash
+   docker exec ollama ollama list
+   ```
+
+2. Neues Modell laden (Beispiel: `llama3.2:3b` → `gemma3:4b`):
+   ```bash
+   docker exec ollama ollama pull gemma3:4b
+   ```
+   Der Download kann je nach Modell 2–8 GB groß sein.
+
+3. Modell in `.env` setzen:
+   ```
+   OLLAMA_MODEL=gemma3:4b
+   ```
+
+4. Proxy neu starten (liest `OLLAMA_MODEL` beim Start):
+   ```bash
+   cd compose && docker compose restart proxy
+   ```
+
+5. Funktion prüfen:
+   ```bash
+   curl http://localhost:3000/ollama/models
+   # Neues Modell muss in der Liste erscheinen
+   ```
+
+6. Altes Modell bei Bedarf entfernen (gibt Speicher frei):
+   ```bash
+   docker exec ollama ollama rm llama3.2:3b
+   ```
+
+---
+
+### 3. Neuen Administrator anlegen
+
+**Wann:** Teamwechsel, neuer technischer Ansprechpartner.
+
+**Moodle-Administrator (hat Zugriff auf alle Moodle-Einstellungen):**
+
+1. Als bestehender `admin` einloggen.
+2. *Websiteverwaltung → Nutzer/innen → Konten → Nutzer/in anlegen*:
+   - Vorname, Nachname, E-Mail, Benutzername, Passwort ausfüllen
+   - Speichern
+3. *Websiteverwaltung → Nutzer/innen → Berechtigungen → Systemrollen zuweisen*:
+   - Rolle `Manager` oder `Administrator` wählen
+   - Neuen Benutzer zuweisen
+4. Falls der neue Admin auch den Proxy-Token verwalten soll: Webservice-Token für diesen Benutzer erstellen (siehe [Prozedur 1](#1-moodle-webservice-token-ausstellen)).
+
+**Server-Zugang (SSH/Docker):**
+
+```bash
+# Benutzer anlegen
+sudo adduser <username>
+# Docker-Gruppe zuweisen (erlaubt docker-Befehle ohne sudo)
+sudo usermod -aG docker <username>
 ```
 
-Antwort zeigt aktuell noch den Echo-Platzhalter.
+---
 
-## Wartung & Troubleshooting
+### 4. Disaster Recovery
 
-- Stack neu starten: `docker compose --env-file ../.env down` dann wieder mit `up -d`
-- Nur Proxy neu starten: `docker compose --env-file ../.env restart proxy`
-- Logs ansehen: `docker compose --env-file ../.env logs -f <service>`
-- Daten sichern: Verzeichnisse `data/mariadb`, `data/moodle`, `data/moodledata` regelmäßig sichern.
-- Portainer nutzen, um Container zu überwachen oder Stacks neu zu deployen.
+**Wann:** Datenverlust, Servermigration, defekter Host.
 
-## Nächste Schritte
+#### Backup erstellen
 
-- In `proxy/src/server.mjs` die tatsächliche Logik für `/api/chat` implementieren (Moodle-REST-Aufrufe, Ollama-Interaktion, Antwortlogik).
-- Rollenkonzept in Moodle ausarbeiten (nicht mit Admin-Token in Produktion arbeiten).
-- Optional HTTPS/Reverse Proxy vor Moodle/Proxy setzen.
+Regelmäßige Backups laufen über `compose/backup-moodle.sh`:
+
+```bash
+cd compose
+bash backup-moodle.sh /pfad/zum/backup-verzeichnis
+# Erstellt: moodle-backup-YYYYMMDD_HHMMSS.tar.gz
+```
+
+Das Archiv enthält `data/mariadb/`, `data/moodle/`, `data/moodledata/` und `data/chat.db`. SSL-Zertifikate werden ausgelassen (können jederzeit neu ausgestellt werden).
+
+**Empfehlung:** Täglich per Cron auf externen Speicher sichern:
+```bash
+# /etc/cron.d/moodle-backup
+0 3 * * * root /home/admin/raspi/compose/backup-moodle.sh /mnt/backup
+```
+
+#### Wiederherstellung
+
+1. Stack stoppen:
+   ```bash
+   cd compose && docker compose down
+   ```
+
+2. Aus Backup wiederherstellen:
+   ```bash
+   bash restore-moodle.sh /pfad/zum/moodle-backup-YYYYMMDD_HHMMSS.tar.gz
+   ```
+
+3. Stack starten:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Nach ~60 Sekunden prüfen:
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+**Bei Migration auf neuen Server:** Vor dem Restore `.env` anpassen (neue IP/Domain), dann SSL-Zertifikat für neue Domain neu ausstellen (`bash setup-ssl.sh`).
+
+---
+
+### 5. SSL-Zertifikat erneuern
+
+**Wann:** Zertifikat läuft ab (certbot warnt 30 Tage vorher per E-Mail), Domain hat sich geändert.
+
+#### Automatische Erneuerung
+
+certbot installiert beim Erstausstellen automatisch einen systemd-Timer oder Cron-Job, der alle 60 Tage erneuert. nginx muss nach der Erneuerung neu geladen werden:
+
+```bash
+# In Crontab eintragen (falls certbot nginx nicht automatisch neu lädt):
+0 3 * * 1 docker compose -f /home/admin/raspi/compose/docker-compose.yml exec nginx nginx -s reload
+```
+
+#### Manuelle Erneuerung
+
+```bash
+# 1. Zertifikat erneuern (certbot läuft standalone, kurzer nginx-Ausfall)
+cd compose && docker compose stop nginx
+sudo certbot renew \
+  --config-dir ../data/certbot \
+  --work-dir   ../data/certbot/work \
+  --logs-dir   ../data/certbot/logs
+
+# 2. nginx neu starten
+docker compose start nginx
+
+# 3. Prüfen
+curl -I https://${NGINX_DOMAIN}/health
+```
+
+#### Neues Zertifikat für geänderte Domain
+
+```bash
+# 1. Neue Domain in .env setzen: NGINX_DOMAIN=neue-domain.de und PUBLIC_MOODLE_URL
+# 2. Stack stoppen
+cd compose && docker compose down
+# 3. Zertifikat für neue Domain ausstellen
+bash setup-ssl.sh
+# 4. Stack starten
+docker compose up -d
+```
+
+---
+
+## Wartung
+
+| Aufgabe | Befehl |
+|---------|--------|
+| Nur Proxy neu starten | `docker compose restart proxy` |
+| Alle Container neu starten | `docker compose down && docker compose up -d` |
+| Logs live verfolgen | `docker compose logs -f proxy` |
+| Container-Status | `docker compose ps` |
+| Moodle-Cache leeren | Moodle-Admin → *Entwicklung → Caches leeren* |
+| Proxy-Cache leeren | `curl -X POST http://localhost:3000/admin/cache/invalidate` |
+| Speicherverbrauch prüfen | `docker system df` |
+| Ungenutzte Images entfernen | `docker image prune -f` |
