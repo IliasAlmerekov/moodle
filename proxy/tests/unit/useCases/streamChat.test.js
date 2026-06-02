@@ -1,0 +1,208 @@
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { streamChat } from "../../../src/application/useCases/chat/streamChat.js";
+
+// LLM mock: yields a single NDJSON line with `done: true` so streamChat's outer
+// loop exits immediately without writing any assistant reply.
+function makeDoneStream() {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"done":true}\n'));
+      controller.close();
+    },
+  });
+}
+
+function makeNoopAppendMessage() {
+  return async () => {};
+}
+
+function makeNoopGetHistory() {
+  return async () => [];
+}
+
+function makeLlmService() {
+  return {
+    streamResponse: async () => makeDoneStream(),
+  };
+}
+
+function makeChatRepository() {
+  return {
+    getHistory: makeNoopGetHistory(),
+    appendMessage: makeNoopAppendMessage(),
+    clearSession: async () => {},
+  };
+}
+
+function makeUserRepository({ info, courses, fail } = {}) {
+  if (fail) {
+    return {
+      getUserInfo: async () => {
+        throw new Error("moodle down");
+      },
+      getUserCourses: async () => {
+        throw new Error("moodle down");
+      },
+    };
+  }
+  return {
+    getUserInfo: async (id) => info ?? { id, firstname: "Max", lastname: "Mustermann" },
+    getUserCourses: async () => courses ?? [],
+  };
+}
+
+function makeCourseRepository() {
+  // streamChat never invokes this directly; searchCourses is mocked as a plain
+  // function so the LLM flow does not touch the real repository.
+  return {
+    getAllCourses: async () => [],
+    getCourseContents: async () => [],
+  };
+}
+
+test("streamChat passes userProfile course ids to searchCourses as allowedIds", async () => {
+  const userRepository = makeUserRepository({
+    courses: [
+      { id: 5, name: "LF07", shortname: "LF07" },
+      { id: 12, name: "LF08", shortname: "LF08" },
+    ],
+  });
+  const observed = [];
+  const searchCourses = async (args) => {
+    observed.push(args);
+    return { found: false };
+  };
+
+  await streamChat({
+    message: "Was ist LF07?",
+    userId: 42,
+    sessionId: "session-42-ts",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService: makeLlmService(),
+    searchCourses,
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.strictEqual(observed.length, 1);
+  assert.deepStrictEqual(observed[0].allowedIds, [5, 12]);
+});
+
+test("streamChat passes empty allowedIds when userProfile has no courses (searchCourses is fail-closed)", async () => {
+  const userRepository = makeUserRepository({ courses: [] });
+  const observed = [];
+  const searchCourses = async (args) => {
+    observed.push(args);
+    return { found: false };
+  };
+
+  await streamChat({
+    message: "anything",
+    userId: 7,
+    sessionId: "session-7-ts",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService: makeLlmService(),
+    searchCourses,
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.deepStrictEqual(observed[0].allowedIds, []);
+});
+
+test("streamChat filters out non-positive-integer course ids before passing allowedIds", async () => {
+  const userRepository = makeUserRepository({
+    courses: [
+      { id: 5, name: "LF07", shortname: "LF07" },
+      { id: "abc", name: "Broken", shortname: "X" },
+      { id: 0, name: "Zero", shortname: "Z" },
+      { id: -3, name: "Negative", shortname: "N" },
+      { id: 1.5, name: "Float", shortname: "F" },
+      { id: null, name: "NullId", shortname: "K" },
+      { id: 9, name: "LF09", shortname: "LF09" },
+    ],
+  });
+  const observed = [];
+  const searchCourses = async (args) => {
+    observed.push(args);
+    return { found: false };
+  };
+
+  await streamChat({
+    message: "Was ist LF07?",
+    userId: 1,
+    sessionId: "session-1-ts",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService: makeLlmService(),
+    searchCourses,
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.deepStrictEqual(observed[0].allowedIds, [5, 9]);
+});
+
+test("streamChat passes empty allowedIds when every course id is invalid", async () => {
+  const userRepository = makeUserRepository({
+    courses: [
+      { id: "x", name: "Bad", shortname: "B" },
+      { id: 0, name: "Zero", shortname: "Z" },
+    ],
+  });
+  const observed = [];
+  const searchCourses = async (args) => {
+    observed.push(args);
+    return { found: false };
+  };
+
+  await streamChat({
+    message: "x",
+    userId: 1,
+    sessionId: "session-1-ts",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService: makeLlmService(),
+    searchCourses,
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.deepStrictEqual(observed[0].allowedIds, []);
+});
+
+test("streamChat passes empty allowedIds when userRepository throws (fallback profile has no courses)", async () => {
+  const userRepository = makeUserRepository({ fail: true });
+  const observed = [];
+  const searchCourses = async (args) => {
+    observed.push(args);
+    return { found: false };
+  };
+
+  await streamChat({
+    message: "anything",
+    userId: 99,
+    sessionId: "session-99-ts",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService: makeLlmService(),
+    searchCourses,
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.deepStrictEqual(observed[0].allowedIds, []);
+});

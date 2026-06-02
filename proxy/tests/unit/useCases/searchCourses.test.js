@@ -4,44 +4,76 @@ import { searchCourses } from "../../../src/application/useCases/courses/searchC
 import { mockCourses } from "../../fixtures/mockCourseData.js";
 import { buildMockCourseRepository } from "../../fixtures/mockRepositories.js";
 
+// All ids in the mock fixture — used to simulate a user enrolled in every course.
+// searchCourses is now fail-closed: any call without an explicit `allowedIds`
+// returns { found: false, message: "Course not found" } without touching the
+// repository. Tests that exercise ranking/contents pass `allowedIds: allIds`
+// to bypass the authorization gate while keeping the rest of the behavior
+// under test.
+const allIds = mockCourses.map((c) => c.id);
+
 test("exact match by course name returns LF07", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "lf07", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.course.name, "LF07 Netzwerktechnik");
 });
 
 test("match by shortname returns WP212", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "wp212", courseRepository: repo });
+  const result = await searchCourses({
+    query: "wp212",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.course.name, "WP212 Webprogrammierung");
 });
 
 test("nonexistent query returns found false", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "xyznonexistent", courseRepository: repo });
+  const result = await searchCourses({
+    query: "xyznonexistent",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, false);
   assert.strictEqual(result.message, "Course not found");
 });
 
 test("quoted query performs phrase match", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: '"Netzwerktechnik"', courseRepository: repo });
+  const result = await searchCourses({
+    query: '"Netzwerktechnik"',
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.course.name, "LF07 Netzwerktechnik");
 });
 
 test("number in query boosts shortname match", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "07", courseRepository: repo });
+  const result = await searchCourses({
+    query: "07",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.course.name, "LF07 Netzwerktechnik");
 });
 
 test("empty query returns found false without crashing", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "", courseRepository: repo });
+  const result = await searchCourses({
+    query: "",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, false);
   assert.strictEqual(result.message, "Course not found");
 });
@@ -70,7 +102,11 @@ test("allowedIds includes matching course", async () => {
 
 test("returns course sections when course is found", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "lf07", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.ok(Array.isArray(result.sections));
   assert.strictEqual(result.sections.length, 2);
@@ -84,7 +120,11 @@ test("course search unavailable when getCourseContents throws", async () => {
       throw new Error("Timeout");
     },
   };
-  const result = await searchCourses({ query: "lf07", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, false);
   assert.strictEqual(result.message, "Course search unavailable");
 });
@@ -95,7 +135,11 @@ test("course search unavailable when repository throws", async () => {
       throw new Error("DB error");
     },
   };
-  const result = await searchCourses({ query: "lf07", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, false);
   assert.strictEqual(result.message, "Course search unavailable");
 });
@@ -117,14 +161,22 @@ test("MAX_SECTIONS_IN_RESPONSE limits returned sections", async () => {
     },
   ];
   const repo = buildMockCourseRepository(courses);
-  const result = await searchCourses({ query: "lf99", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf99",
+    courseRepository: repo,
+    allowedIds: [99],
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.sections.length, 3); // MAX_SECTIONS_IN_RESPONSE
 });
 
 test("stop words are ignored in query", async () => {
   const repo = buildMockCourseRepository(mockCourses);
-  const result = await searchCourses({ query: "lf07 und netzwerk", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf07 und netzwerk",
+    courseRepository: repo,
+    allowedIds: allIds,
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.course.name, "LF07 Netzwerktechnik");
 });
@@ -144,9 +196,51 @@ test("fallback returns all sections when no token-matching sections", async () =
     },
   ];
   const repo = buildMockCourseRepository(courses);
-  const result = await searchCourses({ query: "lf10", courseRepository: repo });
+  const result = await searchCourses({
+    query: "lf10",
+    courseRepository: repo,
+    allowedIds: [10],
+  });
   assert.strictEqual(result.found, true);
   assert.strictEqual(result.sections.length, 2);
   assert.strictEqual(result.sections[0].name, "Alpha");
   assert.strictEqual(result.sections[1].name, "Beta");
+});
+
+// --- Fail-closed authorization (searchCourses enforces allowedIds) ---
+
+test("searchCourses returns found false when allowedIds is omitted", async () => {
+  // No repository mock is needed: the fail-closed short-circuit must return
+  // before any repository call, proving authorization is enforced at the
+  // function boundary, not by the caller.
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: {
+      getAllCourses: async () => {
+        throw new Error("repository must not be called when allowedIds is missing");
+      },
+      getCourseContents: async () => {
+        throw new Error("repository must not be called when allowedIds is missing");
+      },
+    },
+  });
+  assert.strictEqual(result.found, false);
+  assert.strictEqual(result.message, "Course not found");
+});
+
+test("searchCourses returns found false when allowedIds is empty", async () => {
+  const result = await searchCourses({
+    query: "lf07",
+    courseRepository: {
+      getAllCourses: async () => {
+        throw new Error("repository must not be called when allowedIds is empty");
+      },
+      getCourseContents: async () => {
+        throw new Error("repository must not be called when allowedIds is empty");
+      },
+    },
+    allowedIds: [],
+  });
+  assert.strictEqual(result.found, false);
+  assert.strictEqual(result.message, "Course not found");
 });

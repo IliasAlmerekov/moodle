@@ -133,9 +133,17 @@ export async function streamChat({
     ? await resolveUserProfile(userId, userRepository)
     : createUserProfile({ id: userId ?? 0, courses: [] });
 
+  // Restrict course search to courses the user is actually enrolled in. searchCourses
+  // is fail-closed: an empty or omitted `allowedIds` is treated as "no authorized
+  // courses" and short-circuits to found:false, so the filter below is the only
+  // place where authorization intent lives.
+  const allowedIds = (userProfile.courses ?? [])
+    .filter((c) => Number.isInteger(c.id) && c.id > 0)
+    .map((c) => c.id);
+
   const [historySettled, searchSettled] = await Promise.allSettled([
     chatRepository.getHistory(sessionId, 12),
-    searchCourses({ query: message, courseRepository }),
+    searchCourses({ query: message, courseRepository, allowedIds }),
   ]);
 
   const historyArray = historySettled.status === "fulfilled" ? historySettled.value : [];
