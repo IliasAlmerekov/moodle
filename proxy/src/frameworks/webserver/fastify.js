@@ -81,7 +81,7 @@ export async function createFastifyInstance(config) {
   // SSE routes opt out via config: { compress: false } on the route
   await app.register(compress, { global: true });
 
-  const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html", "chatbot.js"]);
+  const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html", "chatbot.js", "sanitize.js"]);
 
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "..", "..", "..", "public"),
