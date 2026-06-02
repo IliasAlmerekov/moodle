@@ -65,6 +65,7 @@ services:
       - CHAT_DB_PATH=/data/chat.db
       - PUBLIC_MOODLE_URL=${PUBLIC_MOODLE_URL}
       - CORS_ORIGIN=${CORS_ORIGIN}
+      - TRUST_PROXY=${TRUST_PROXY:-1}
     volumes:
       - ../data:/data
     networks: [moodle_net]

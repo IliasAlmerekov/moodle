@@ -414,3 +414,55 @@ test("fastify instance generates request ID when header is missing", async () =>
   assert.equal(typeof body.id, "string");
   assert.ok(body.id.length > 0, "request id should be auto-generated");
 });
+
+test("trust proxy disabled ignores X-Forwarded-For header", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+    trustProxy: false,
+  };
+
+  const app = await createFastifyInstance(config);
+
+  app.get("/client-ip", async (request) => ({ ip: request.ip }));
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/client-ip",
+    headers: { "x-forwarded-for": "1.2.3.4" },
+  });
+
+  const body = JSON.parse(response.payload);
+  assert.notEqual(body.ip, "1.2.3.4", "spoofed X-Forwarded-For must be ignored");
+});
+
+test("trust proxy with one hop resolves real client IP from X-Forwarded-For", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+    trustProxy: 1,
+  };
+
+  const app = await createFastifyInstance(config);
+
+  app.get("/client-ip", async (request) => ({ ip: request.ip }));
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/client-ip",
+    headers: { "x-forwarded-for": "203.0.113.99, 1.2.3.4" },
+  });
+
+  const body = JSON.parse(response.payload);
+  assert.equal(body.ip, "1.2.3.4", "the IP added by the trusted proxy must be used");
+});

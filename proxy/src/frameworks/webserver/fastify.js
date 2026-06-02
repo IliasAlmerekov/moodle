@@ -14,6 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  *
  * @param {Object} config
  * @param {string} config.nodeEnv
+ * @param {boolean|number|string} [config.trustProxy] Fastify trustProxy setting
  * @param {string} config.logLevel
  * @param {Object} config.cors
  * @param {string[]|false} config.cors.origins
@@ -26,6 +27,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 export async function createFastifyInstance(config) {
   const app = Fastify({
+    // Behind nginx, request.ip must reflect the real client, not the proxy.
+    // A hop count (e.g. 1) is safer than `true`: it ignores client-spoofed
+    // X-Forwarded-For entries and trusts only the IP appended by our proxy.
+    trustProxy: config.trustProxy,
     logger: {
       level: config.logLevel,
       transport: config.nodeEnv !== "production" ? { target: "pino-pretty" } : undefined,

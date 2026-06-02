@@ -22,7 +22,20 @@ const {
   CHAT_DB_PATH = "../data/chat.db",
   CHATBOT_AUTH_SECRET = "",
   AUTH_TOKEN_TTL_MS = "7200000",
+  TRUST_PROXY = "1",
 } = process.env;
+
+// Behind a single reverse proxy (nginx), a hop count (the default "1") is the
+// secure choice: it trusts only the IP appended by our proxy and ignores
+// client-spoofed X-Forwarded-For entries. Accepts "true"/"false", an integer
+// hop count, or a comma-separated list of trusted subnets/IPs.
+function parseTrustProxy(value) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  const hops = Number(value);
+  if (Number.isInteger(hops) && hops >= 0) return hops;
+  return value;
+}
 
 const missing = Object.entries({ MOODLE_URL, MOODLE_TOKEN, OLLAMA_URL, OLLAMA_MODEL })
   .filter(([, v]) => !v)
@@ -46,6 +59,7 @@ const config = {
   nodeEnv: NODE_ENV,
   port: Number(PORT),
   logLevel: LOG_LEVEL,
+  trustProxy: parseTrustProxy(TRUST_PROXY),
 
   moodle: {
     url: moodleBaseUrl,
