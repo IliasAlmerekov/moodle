@@ -121,12 +121,17 @@ function extractQuotedPhrases(text) {
 }
 
 export async function searchCourses({ query, courseRepository, allowedIds }) {
+  // Fail-closed authorization: callers must explicitly enumerate the courses
+  // the user is allowed to see. Omitting or emptying `allowedIds` means the
+  // user has no authorized courses, so we never touch the repository and never
+  // leak any course contents.
+  if (!Array.isArray(allowedIds) || allowedIds.length === 0) {
+    return { found: false, message: "Course not found" };
+  }
+
   try {
     const allCourses = await courseRepository.getAllCourses();
-    const courses =
-      Array.isArray(allowedIds) && allowedIds.length
-        ? allCourses.filter((c) => allowedIds.includes(c.id))
-        : allCourses;
+    const courses = allCourses.filter((c) => allowedIds.includes(c.id));
 
     const tokens = tokenize(query);
     const phrases = extractQuotedPhrases(query);
