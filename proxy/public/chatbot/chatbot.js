@@ -1,5 +1,6 @@
 import { addLoadingMessage } from "./loadingMessage.js";
 import { removeMessage } from "./removeMessage.js";
+import { sanitizeBotHtml } from "./sanitize.js";
 
 const CHATBOT_CONFIG = window.CHATBOT_CONFIG ?? {};
 
@@ -74,9 +75,9 @@ const addMessage = (content, isUser = false) => {
     // User messages as plain text (for security)
     contentDiv.textContent = content;
   } else {
-    // Bot messages: Render HTML directly (for links like <a href="...">)
-    // NO escaping - HTML tags should work!
-    contentDiv.innerHTML = content;
+    // Bot messages may contain formatting (links, lists) — render through the
+    // sanitizer so persisted/restored LLM output cannot inject scripts.
+    contentDiv.innerHTML = sanitizeBotHtml(content);
   }
 
   messageDiv.appendChild(contentDiv);
@@ -279,9 +280,9 @@ const sendMessageStream = async () => {
 
       if (done) {
         if (contentDiv) {
-          const fixedText = fixBrokenLinks(fullText);
-          contentDiv.innerHTML = fixedText;
-          saveMessageToHistory(chatId, "assistant", fixedText); // save bot response
+          const safeHtml = sanitizeBotHtml(fixBrokenLinks(fullText));
+          contentDiv.innerHTML = safeHtml;
+          saveMessageToHistory(chatId, "assistant", safeHtml); // save bot response
         }
         break;
       }
@@ -317,7 +318,7 @@ const sendMessageStream = async () => {
             }
 
             fullText += text;
-            contentDiv.innerHTML = fullText;
+            contentDiv.innerHTML = sanitizeBotHtml(fullText);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
         } catch (e) {
@@ -337,7 +338,8 @@ const sendMessageStream = async () => {
       contentDiv = botMessageDiv.querySelector(".message-content");
     }
 
-    contentDiv.innerHTML =
+    // Static, trusted string — use textContent so no innerHTML sink exists here.
+    contentDiv.textContent =
       "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
   } finally {
     sendButton.disabled = false;
