@@ -1,13 +1,24 @@
+// Best-effort, defense-in-depth ONLY. This blocklist is a cheap first filter,
+// not the security boundary. The real guarantees are architectural: the system
+// prompt is not a secret, no secrets are reachable by the model, and course
+// search is fail-closed to the user's own enrolments (see streamChat.js). A
+// determined attacker can bypass any keyword list via paraphrase, obfuscation,
+// or another language — do not rely on it. Patterns are deliberately scoped to
+// limit false positives on legitimate course questions (e.g. "Was ist ein
+// System Prompt?" or "wie aktiviere ich den Developer Mode?" must pass).
 const INJECTION_PATTERNS = [
   /ignore.*instructions/i,
   /ignore.*previous/i,
   /ignore your/i,
-  /disregard/i,
+  // Scoped: only flag "disregard" aimed at instructions, not casual usage.
+  /disregard.*(?:instruction|previous|above|prior|rule|prompt)/i,
   /<script/i,
   /jailbreak/i,
   /DAN mode/i,
   /forget everything/i,
-  /system prompt/i,
+  // Scoped: a leading verb/possessive must precede "system prompt" so that
+  // merely mentioning the term in a genuine question does not trip the filter.
+  /(?:reveal|show|print|repeat|output|leak|your|the)\s+(?:the\s+)?system[- ]?prompt/i,
   /leak.*(?:prompt|instructions)/i,
   /reveal.*(?:prompt|instructions)/i,
   /output.*initialization/i,
@@ -21,6 +32,11 @@ const INJECTION_PATTERNS = [
   /<\?=/i,
   /javascript:/i,
   /on(?:error|load|click)=/i,
+  // German-language variants — the primary audience is German-speaking
+  // students, so English-only patterns would miss the obvious attempts.
+  /ignoriere.*(?:anweisung|vorherige|alle|regel)/i,
+  /vergiss.*(?:alles|anweisung)/i,
+  /(?:zeig|verrat|gib).*system[- ]?prompt/i,
 ];
 
 /**

@@ -10,7 +10,9 @@ function createOllamaError(message, details = {}) {
 
 async function fetchWithTimeout(fetchImpl, url, options, timeoutMs, signal) {
   const controller = new AbortController();
+  let timedOut = false;
   const timeout = setTimeout(() => {
+    timedOut = true;
     controller.abort();
   }, timeoutMs);
 
@@ -27,7 +29,15 @@ async function fetchWithTimeout(fetchImpl, url, options, timeoutMs, signal) {
     });
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw createOllamaError("Ollama request timed out", { cause: error });
+      if (timedOut) {
+        throw createOllamaError("Ollama request timed out", { cause: error });
+      }
+      // The external signal aborted, i.e. the client disconnected. This is not
+      // an Ollama failure — flag it so the queue's circuit breaker ignores it.
+      throw createOllamaError("Ollama request aborted by client", {
+        cause: error,
+        clientAborted: true,
+      });
     }
 
     throw createOllamaError("Ollama request failed", { cause: error });

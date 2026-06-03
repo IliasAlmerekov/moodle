@@ -86,7 +86,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Smoke test: the proxy image must build (multi-stage, native better-sqlite3
-      # compile, non-root runtime). Catches Dockerfile regressions in CI.
+      # The proxy image must build (multi-stage, native better-sqlite3 compile,
+      # non-root runtime). Catches Dockerfile regressions in CI.
       - name: Build proxy image
         run: docker build -f proxy/Dockerfile -t moodle-proxy:ci proxy
+
+      # Smoke test: the container must START and serve /health. Moodle/Ollama are
+      # unreachable in CI, so a degraded 503 counts as success — what we catch
+      # here is crash-on-start (e.g. a missing required env var like
+      # CHATBOT_AUTH_SECRET), which a build-only step would miss.
+      - name: Smoke test the proxy container
+        run: |
+          docker run -d --name proxy-ci -p 3000:3000 \
+            -e NODE_ENV=production \
+            -e MOODLE_URL=http://moodle.invalid \
+            -e MOODLE_TOKEN=ci-dummy-token \
+            -e OLLAMA_URL=http://ollama.invalid \
+            -e OLLAMA_MODEL=llama3.2:3b \
+            -e CHATBOT_AUTH_SECRET=ci-dummy-secret \
+            -e PUBLIC_MOODLE_URL=https://example.test \
+            -e CORS_ORIGIN=https://example.test \
+            -e CHAT_DB_PATH=/tmp/chat.db \
+            moodle-proxy:ci
+          ok=""
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/health || true)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then
+              echo "✓ proxy responded with HTTP $code (started successfully)"
+              ok=1
+              break
+            fi
+            echo "attempt $i/15: got '$code', retrying in 2s..."
+            sleep 2
+          done
+          if [ -z "$ok" ]; then
+            echo "✗ proxy did not serve /health — likely crashed on start"
+            docker logs proxy-ci || true
+            docker rm -f proxy-ci
+            exit 1
+          fi
+          docker rm -f proxy-ci

@@ -48,8 +48,25 @@ export async function registerRoutes(app, controllers, options = {}) {
     );
   }
 
-  // Health check
+  // Public liveness probe (used by the container HEALTHCHECK and load balancers).
   app.get("/health", health.check.bind(health));
+
+  // Detailed health (cache stats, queue/circuit metrics) — localhost only, since
+  // it exposes operational internals useful for probing.
+  if (typeof health.checkDetails === "function") {
+    app.get(
+      "/health/details",
+      {
+        preHandler: async (request, reply) => {
+          const ip = request.ip;
+          if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
+            return reply.code(403).send({ error: "Forbidden" });
+          }
+        },
+      },
+      health.checkDetails.bind(health),
+    );
+  }
 
   // Chat stream with JSON Schema validation — SSE: disable compression
   app.post(

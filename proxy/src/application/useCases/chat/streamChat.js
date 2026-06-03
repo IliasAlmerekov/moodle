@@ -125,6 +125,7 @@ export async function streamChat({
   searchCourses,
   model,
   moodleBaseUrl,
+  maxHistoryMessages = 12,
   onChunk,
   signal,
 }) {
@@ -142,7 +143,7 @@ export async function streamChat({
     .map((c) => c.id);
 
   const [historySettled, searchSettled] = await Promise.allSettled([
-    chatRepository.getHistory(sessionId, 12),
+    chatRepository.getHistory(sessionId, maxHistoryMessages),
     searchCourses({ query: message, courseRepository, allowedIds }),
   ]);
 

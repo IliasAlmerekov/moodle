@@ -62,7 +62,11 @@ export function createOllamaQueue({
         recordSuccess();
         return result;
       } catch (error) {
-        recordFailure();
+        // A client disconnect is not an upstream failure; counting it would let
+        // normal "user closed the tab" behaviour trip the breaker.
+        if (!error?.clientAborted) {
+          recordFailure();
+        }
         throw error;
       }
     });

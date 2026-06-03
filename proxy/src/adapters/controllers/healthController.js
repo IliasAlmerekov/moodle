@@ -26,25 +26,41 @@ export function createHealthController({
     return llmService.listModels();
   }
 
-  return {
-    async check(request, reply) {
-      const [moodleResult, ollamaResult] = await Promise.allSettled([pingMoodle(), pingOllama()]);
+  async function probeServices() {
+    const [moodleResult, ollamaResult] = await Promise.allSettled([pingMoodle(), pingOllama()]);
 
-      const services = {
-        moodle: moodleResult.status === "fulfilled" ? "ok" : "error",
-        ollama: ollamaResult.status === "fulfilled" ? "ok" : "error",
-      };
+    const services = {
+      moodle: moodleResult.status === "fulfilled" ? "ok" : "error",
+      ollama: ollamaResult.status === "fulfilled" ? "ok" : "error",
+    };
+    const allOk = services.moodle === "ok" && services.ollama === "ok";
 
-      const allOk = services.moodle === "ok" && services.ollama === "ok";
-      const status = allOk ? "ok" : "degraded";
-
-      const payload = {
-        status,
+    return {
+      services,
+      allOk,
+      payload: {
+        status: allOk ? "ok" : "degraded",
         timestamp: new Date().toISOString(),
         uptime: getUptime(),
         version,
         services,
-      };
+      },
+    };
+  }
+
+  return {
+    // Public liveness probe. Intentionally omits cache/queue internals — those
+    // leak operational signal (circuit state, failure counts) useful for
+    // probing, so they live on the localhost-only /health/details endpoint.
+    async check(_request, reply) {
+      const { allOk, payload } = await probeServices();
+      return reply.status(allOk ? 200 : 503).send(payload);
+    },
+
+    // Detailed health, including cache stats and queue/circuit-breaker metrics.
+    // Wired to a localhost-only route in the composition root.
+    async checkDetails(request, reply) {
+      const { allOk, payload } = await probeServices();
 
       if (typeof getCacheStats === "function") {
         try {
@@ -64,8 +80,7 @@ export function createHealthController({
         }
       }
 
-      const statusCode = allOk ? 200 : 503;
-      return reply.status(statusCode).send(payload);
+      return reply.status(allOk ? 200 : 503).send(payload);
     },
   };
 }

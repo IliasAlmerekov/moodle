@@ -70,6 +70,24 @@ test("ollamaQueue opens circuit after five consecutive failures", async () => {
   assert.equal(queue.queueMetrics.circuitState, "CLOSED");
 });
 
+test("ollamaQueue does not count client-aborted requests as failures", async () => {
+  const { createOllamaQueue } = await importOllamaQueue();
+  const queue = createOllamaQueue({ concurrency: 1, maxQueue: 10, circuitThreshold: 5 });
+
+  // Ten client disconnects (e.g. closed tabs) must never trip the breaker —
+  // only genuine upstream failures should.
+  for (let i = 0; i < 10; i += 1) {
+    await assert.rejects(() =>
+      queue.enqueueOllamaRequest(() =>
+        Promise.reject(Object.assign(new Error("aborted by client"), { clientAborted: true })),
+      ),
+    );
+  }
+
+  assert.equal(queue.queueMetrics.circuitState, "CLOSED");
+  assert.equal(queue.queueMetrics.consecutiveFailures, 0);
+});
+
 test("ollamaQueue resets consecutive failure count after a success", async () => {
   const { createOllamaQueue } = await importOllamaQueue();
   const queue = createOllamaQueue({ concurrency: 1, maxQueue: 10, circuitThreshold: 5 });
