@@ -1,0 +1,48 @@
+/*
+ * Self-hosted webfonts. We deliberately do NOT load these from Google's CDN:
+ * the product promise is "no data leaves the school server", and hotlinking
+ * Google Fonts would leak every student's IP to a third party (and trip the
+ * 'self'-only CSP / EU data-protection expectations). The Latin subset below
+ * covers German umlauts (ä ö ü ß). Variable fonts — one file per family/style.
+ */
+
+/* Fraunces — display serif with optical sizing; carries the brand voice. */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("fonts/fraunces-roman.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("fonts/fraunces-italic.woff2") format("woff2");
+}
+
+/* Fredoka — rounded, warm, highly legible; the UI + reading voice. */
+@font-face {
+  font-family: "Fredoka";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("fonts/fredoka-roman.woff2") format("woff2");
+}
+
+/* Victor Mono — for code / fixed-width snippets in answers. */
+@font-face {
+  font-family: "Victor Mono";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("fonts/victor-mono-roman.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Victor Mono";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/victor-mono-italic.woff2") format("woff2");
+}
