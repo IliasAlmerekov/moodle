@@ -11,8 +11,22 @@
 
 ---
 
+## Highlights
+
+- 🔐 **Private by design** — runs entirely on the school server; the local LLM does inference offline and no student data leaves the host.
+- 🛡️ **Identity you can trust** — Moodle signs each user with HMAC-SHA256; the proxy verifies it and enforces per-session ownership. The browser never sends a trusted `userId`.
+- 🎯 **Grounded answers** — course search is *fail-closed* to the student's own enrolments, so the assistant only ever discusses courses they are in.
+- 🧱 **Clean Architecture** — four layers, dependencies point inward, use cases are unit-testable without Fastify, Docker, Moodle, or Ollama.
+- ⚙️ **Hardened by default** — sanitized output (DOMPurify + CSP), per-IP & per-user rate limits, an Ollama circuit breaker, and graceful shutdown.
+- 🐳 **One command to run** — `docker compose up` brings up Moodle, MariaDB, Ollama, the proxy, and nginx together.
+
+**Stack:** Node.js 20 · Fastify 5 · Ollama · Moodle 4.4 (MariaDB) · SQLite (WAL) · Docker Compose · Vitest · Clean Architecture
+
+---
+
 ## Table of Contents
 
+- [Highlights](#highlights)
 - [Demo](#demo)
 - [Project Story — Before → After](#project-story--before--after)
 - [Requirements](#requirements)
@@ -298,6 +312,8 @@ Coverage targets: `entities/` ≥ 90% · `application/` ≥ 80% · overall ≥ 7
   fail-closed to the user's own enrolments.
 - Diagnostic `/moodle/*` data endpoints are disabled in production.
 
+---
+
 ## Limitations
 
 - **SQLite, single instance.** Chat history is a single SQLite file (WAL mode).
@@ -410,6 +426,8 @@ Restart proxy after changing `.env`.
 ## License
 
 Released under the [MIT License](LICENSE) © 2026 Ilias Almerekov.
+
+---
 
 ## Credits
 
