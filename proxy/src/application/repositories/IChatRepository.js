@@ -30,4 +30,14 @@ export const IChatRepository = {
   clearSession: async (sessionId) => {
     throw new Error("Not implemented");
   },
+
+  /**
+   * Deletes sessions (and their messages) whose last activity is older than
+   * `maxAgeMs`, bounding unbounded history growth.
+   * @param {number} maxAgeMs
+   * @returns {Promise<number>} number of sessions deleted
+   */
+  pruneSessionsOlderThan: async (maxAgeMs) => {
+    throw new Error("Not implemented");
+  },
 };

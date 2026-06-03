@@ -219,6 +219,16 @@ bash backup-moodle.sh /pfad/zum/backup-verzeichnis
 
 Das Archiv enthält `data/mariadb/`, `data/moodle/`, `data/moodledata/` und `data/chat.db`. SSL-Zertifikate werden ausgelassen (können jederzeit neu ausgestellt werden).
 
+> **chat.db (WAL-Modus):** Das Skript erzeugt mit dem `sqlite3`-CLI einen
+> konsistenten Online-Snapshot der Chat-Datenbank (statt die laufende Datei
+> samt `-wal`/`-shm` direkt zu kopieren). Der Proxy darf dabei weiterlaufen.
+> `sqlite3` muss auf dem Host installiert sein (`apt-get install sqlite3`).
+>
+> **Hinweis MariaDB:** Das MariaDB-Datenverzeichnis wird weiterhin als Datei
+> kopiert. Das ist nur bei ruhendem MySQL konsistent — für ein voll
+> konsistentes Backup unter Last den Stack vorher stoppen (`docker compose
+> down`) oder MariaDB per `mysqldump` sichern.
+
 **Empfehlung:** Täglich per Cron auf externen Speicher sichern:
 ```bash
 # /etc/cron.d/moodle-backup

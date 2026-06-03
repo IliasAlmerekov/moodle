@@ -12,7 +12,7 @@ export function createInMemoryChatStore({
 
   function getOrCreateSession(sessionId, userId) {
     if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, { userId, messages: [] });
+      sessions.set(sessionId, { userId, messages: [], updatedAt: now() });
     }
 
     return sessions.get(sessionId);
@@ -40,6 +40,7 @@ export function createInMemoryChatStore({
     async appendMessage(sessionId, userId, role, content) {
       const session = getOrCreateSession(sessionId, userId);
       session.userId = userId;
+      session.updatedAt = now();
       session.messages.push({
         role,
         content,
@@ -50,6 +51,18 @@ export function createInMemoryChatStore({
 
     async clearSession(sessionId) {
       sessions.delete(sessionId);
+    },
+
+    async pruneSessionsOlderThan(maxAgeMs) {
+      const cutoff = now() - maxAgeMs;
+      let deleted = 0;
+      for (const [sessionId, session] of sessions) {
+        if (session.updatedAt < cutoff) {
+          sessions.delete(sessionId);
+          deleted += 1;
+        }
+      }
+      return deleted;
     },
   };
 }

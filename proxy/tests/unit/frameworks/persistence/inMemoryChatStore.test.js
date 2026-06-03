@@ -58,6 +58,23 @@ test("inMemoryChatStore trims old messages after append and keeps latest 48", as
   assert.equal(history[47].content, "message-54");
 });
 
+test("pruneSessionsOlderThan deletes stale sessions and keeps fresh ones", async () => {
+  let now = 1_000;
+  const { createInMemoryChatStore } = await importInMemoryChatStore();
+  const store = createInMemoryChatStore({ now: () => now });
+
+  await store.appendMessage("session-old", 1, "user", "stale");
+  now = 5_000;
+  await store.appendMessage("session-new", 2, "user", "fresh");
+
+  now = 10_000;
+  const deleted = await store.pruneSessionsOlderThan(6_000);
+
+  assert.equal(deleted, 1);
+  assert.deepEqual(await store.getHistory("session-old", 10), []);
+  assert.equal((await store.getHistory("session-new", 10))[0].content, "fresh");
+});
+
 test("createInMemoryChatStore returns isolated repositories", async () => {
   const { createInMemoryChatStore } = await importInMemoryChatStore();
   const firstStore = createInMemoryChatStore();

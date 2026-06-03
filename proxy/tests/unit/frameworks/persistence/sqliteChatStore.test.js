@@ -47,6 +47,43 @@ test("sqliteChatStore initializes sessions/messages tables and message index", (
   assert.equal(indexes.includes("idx_msg_session"), true);
 });
 
+test("sqliteChatStore enables foreign keys and a busy timeout for robustness", () => {
+  createSqliteChatStore({ db });
+
+  assert.equal(db.pragma("foreign_keys", { simple: true }), 1);
+  assert.equal(db.pragma("busy_timeout", { simple: true }), 5000);
+});
+
+test("pruneSessionsOlderThan deletes stale sessions and their messages, keeps fresh ones", async () => {
+  let now = 1_000;
+  const store = createSqliteChatStore({ db, now: () => now });
+
+  await store.appendMessage("session-old", 1, "user", "stale");
+  now = 5_000;
+  await store.appendMessage("session-new", 2, "user", "fresh");
+
+  now = 10_000;
+  // cutoff = 10_000 - 6_000 = 4_000; session-old (updated_at 1_000) is stale, session-new (5_000) is fresh.
+  const deleted = await store.pruneSessionsOlderThan(6_000);
+
+  assert.equal(deleted, 1);
+  assert.deepEqual(await store.getHistory("session-old", 10), []);
+  assert.equal((await store.getHistory("session-new", 10))[0].content, "fresh");
+});
+
+test("pruneSessionsOlderThan is a no-op when nothing is stale", async () => {
+  let now = 1_000;
+  const store = createSqliteChatStore({ db, now: () => now });
+
+  await store.appendMessage("session-1", 1, "user", "recent");
+  now = 2_000;
+
+  const deleted = await store.pruneSessionsOlderThan(10_000);
+
+  assert.equal(deleted, 0);
+  assert.equal((await store.getHistory("session-1", 10))[0].content, "recent");
+});
+
 test("sqliteChatStore appends messages and returns chronological limited history", async () => {
   let now = 1_000;
   const store = createSqliteChatStore({ db, now: () => now });
