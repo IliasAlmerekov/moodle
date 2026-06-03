@@ -6,6 +6,10 @@ on:
     types: [completed]
     branches: [main]
 
+# Least privilege: deploy only needs to read the repository to check out code.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}

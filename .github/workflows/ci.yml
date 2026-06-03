@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: the default GITHUB_TOKEN is read-only. Checkout, npm audit,
+# Gitleaks, and Codecov only need to read the repository.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -72,3 +77,16 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Smoke test: the proxy image must build (multi-stage, native better-sqlite3
+      # compile, non-root runtime). Catches Dockerfile regressions in CI.
+      - name: Build proxy image
+        run: docker build -f proxy/Dockerfile -t moodle-proxy:ci proxy
