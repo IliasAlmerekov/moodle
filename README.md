@@ -4,7 +4,8 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=nodedotjs&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Fastify](https://img.shields.io/badge/Fastify-4-000000?logo=fastify&logoColor=white)
+![Fastify](https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama-black)
 ![Moodle](https://img.shields.io/badge/Moodle-4.4-F98012?logo=moodle&logoColor=white)
 
@@ -18,8 +19,12 @@
 - [API Endpoints](#api-endpoints)
 - [Architecture](#architecture)
 - [Development](#development)
+- [Security Notes](#security-notes)
+- [Limitations](#limitations)
 - [Troubleshooting](#troubleshooting)
 - [Related Docs](#related-docs)
+- [License](#license)
+- [Credits](#credits)
 
 ---
 
@@ -48,6 +53,14 @@ cp .env.example .env
 cd compose && docker compose --env-file ../.env up -d
 ```
 
+> In the production stack the proxy is **not** published to the host — it is
+> reached only through nginx (`/chatbot/`, `/api/`, `/health`) on your domain.
+> For local testing without nginx/SSL, add the local override, which publishes
+> the proxy on `localhost:3000` and disables nginx:
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file ../.env up -d
+> ```
+
 **3. Pull the LLM model** (once, ~2 GB for the default local model)
 ```bash
 docker exec -it ollama ollama pull llama3.2:3b
@@ -71,12 +84,19 @@ docker exec ollama ollama pull gpt-oss:120b-cloud
   ```
 
 **5. Verify**
+
+With the local override from step 2 (proxy published on port 3000):
 ```bash
 curl http://localhost:3000/health
-# {"status":"ok","uptime":...}
+# {"status":"ok",...,"services":{"moodle":"ok","ollama":"ok"}}
 ```
 
-The chatbot iframe is served at `http://localhost:3000/chatbot`.
+In the production stack, verify through nginx instead: `curl https://<your-domain>/health`.
+
+The chatbot widget is served at `/chatbot/` — `http://localhost:3000/chatbot/`
+with the local override, or `https://<your-domain>/chatbot/` in production. It is
+meant to be embedded into Moodle pages via the snippet in
+[`proxy/public/chatbot/moodle-embed.html`](proxy/public/chatbot/moodle-embed.html).
 
 ---
 
@@ -92,17 +112,30 @@ All variables with descriptions are in [`.env.example`](.env.example). Copy it t
 | `OLLAMA_MODEL` | `llama3.2:3b` | LLM model name | Must be pulled first |
 | `CORS_ORIGIN` | `http://localhost:8080` | Comma-separated allowed origins | Your Moodle URL |
 | `CHAT_DB_PATH` | `/data/chat.db` | SQLite path for chat history | Docker volume `/data` |
+| `CHATBOT_AUTH_SECRET` | `<32-byte hex>` | HMAC secret for Moodle identity (required in prod) | Same value configured in Moodle |
+| `CHAT_RETENTION_DAYS` | `90` | Idle sessions pruned on startup (`0` disables) | Operational preference |
 
 ---
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/chat-stream` | Streaming chat response (SSE) |
-| `POST` | `/api/chat` | Single-turn chat response |
-| `GET` | `/health` | Liveness check with dependency status |
-| `GET` | `/ollama/models` | List available Ollama models |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/chat-stream` | Signed Moodle identity (HMAC) + chatId ownership | Streaming chat response (SSE) |
+| `GET` | `/api/chat-history/:chatId` | Signed identity + ownership | Fetch a session's history |
+| `DELETE` | `/api/chat-history/:chatId` | Signed identity + ownership | Clear a session |
+| `GET` | `/health` | none | Liveness/readiness check with dependency status |
+| `GET` | `/moodle/ping` | none | Connectivity probe (no data) |
+| `POST` | `/admin/cache/invalidate` | localhost only | Invalidate the Moodle course cache |
+
+> Diagnostic endpoints `GET /moodle/user/:id`, `GET /moodle/users/:userId/courses`
+> and `GET /moodle/debug/cache` return user data only in non-production and
+> respond `404` when `NODE_ENV=production`.
+
+Authentication: the browser never sends a trusted `userId`. Moodle signs
+`${userId}.${ts}` server-side with `CHATBOT_AUTH_SECRET` (HMAC-SHA256); the proxy
+recomputes the signature and rejects unsigned, tampered, or expired requests
+with `401`. See [`proxy/public/chatbot/moodle-embed.html`](proxy/public/chatbot/moodle-embed.html).
 
 ---
 
@@ -161,6 +194,44 @@ npm run lint
 ```
 
 Coverage targets: `entities/` ≥ 90% · `application/` ≥ 80% · overall ≥ 70%
+
+---
+
+## Security Notes
+
+- **Identity is never trusted from the client.** Moodle signs the user id
+  server-side (HMAC-SHA256 over `${userId}.${ts}` with `CHATBOT_AUTH_SECRET`);
+  the proxy rejects unsigned, tampered, or expired tokens with `401`, and
+  enforces per-session ownership on chat-stream and chat-history (`403` on
+  mismatch).
+- **LLM output is sanitized** with DOMPurify (vendored) against a narrow tag/attr
+  allowlist before it touches `innerHTML`; anchors are restricted to the Moodle
+  origin. CSP (`script-src 'self'`, no `unsafe-inline`) is a backstop.
+- **Input is validated** at the boundary (type, length, prompt-injection
+  patterns) and rate-limited per IP and per user.
+- **The Moodle webservice token never reaches the browser or the LLM prompt.**
+- **Prompt-injection defense is best-effort.** The regex blocklist is a cheap
+  first filter, not a guarantee — the real boundary is that the system prompt is
+  not a secret and no secrets are reachable by the model. Course search is
+  fail-closed to the user's own enrolments.
+- Diagnostic `/moodle/*` data endpoints are disabled in production.
+
+## Limitations
+
+- **SQLite, single instance.** Chat history is a single SQLite file (WAL mode).
+  Fine for a school deployment / production-lite; horizontal scaling would need
+  Postgres and a shared rate-limit/queue store. The Clean Architecture
+  boundaries (`IChatRepository`) make that swap localized.
+- **Rate limiting and the Ollama queue are in-memory** — per process, reset on
+  restart, not shared across replicas.
+- **Session retention runs on startup**, not on a timer (see
+  `CHAT_RETENTION_DAYS`); a long-lived process prunes again only on the next
+  restart/deploy.
+- **Local LLM quality** depends on the pulled model (default `llama3.2:3b`);
+  answers are scoped to Moodle course content by design.
+- **Backups:** `chat.db` is captured via a consistent SQLite snapshot, but the
+  MariaDB data dir is copied at the file level — stop the stack or use
+  `mysqldump` for a fully consistent backup under load (see `docs/setup.md`).
 
 ---
 
@@ -241,4 +312,17 @@ Restart proxy after changing `.env`.
 | [`ARCHITECTURE_SUMMARY.md`](ARCHITECTURE_SUMMARY.md) | Quick layer reference for agents |
 | [`docs/setup.md`](docs/setup.md) | Setup procedures: SSL, token, model swap, backup |
 | [`.env.example`](.env.example) | All environment variables with inline comments |
-| [`TODO.md`](TODO.md) | Task list toward v1.0.0 |
+| [`docs/`](docs/) | Problem definition, requirements, setup, and prompt notes |
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE) © 2026 Ilias Almerekov.
+
+## Credits
+
+- Built on [Fastify](https://fastify.dev), [Ollama](https://ollama.com),
+  [Moodle](https://moodle.org), [better-sqlite3](https://github.com/WiseLibs/better-sqlite3),
+  and [DOMPurify](https://github.com/cure53/DOMPurify).
+- Architecture follows Robert C. Martin's *Clean Architecture*.

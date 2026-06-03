@@ -34,12 +34,15 @@ const newChatButton = document.getElementById("chatbot-new-chat");
 const openChat = () => {
   chatWindow.classList.remove("hidden");
   toogleButton.classList.add("hidden");
+  toogleButton.setAttribute("aria-expanded", "true");
   inputField.focus();
 };
 
 const closeChat = () => {
   chatWindow.classList.add("hidden");
   toogleButton.classList.remove("hidden");
+  toogleButton.setAttribute("aria-expanded", "false");
+  toogleButton.focus(); // return focus to the trigger for keyboard/SR users
 };
 
 // Fix broken HTML links (when <a is missing from stream)
@@ -224,25 +227,40 @@ function generateChatId(userId) {
   return `moodle-${userId}-${fallback}`;
 }
 
-// function to send message
-const sendMessageStream = async () => {
-  const message = inputField.value.trim();
+// Renders a dismissible error bubble with a retry affordance. Built with DOM
+// APIs (no innerHTML) so it stays clear of the sanitizer guard; role="alert"
+// makes screen readers announce it. `onRetry` re-runs the failed request.
+const addErrorMessage = (onRetry) => {
+  const messageDiv = document.createElement("div");
+  messageDiv.className = "message bot-message error-message";
+  messageDiv.setAttribute("role", "alert");
 
-  if (!message) return;
+  const contentDiv = document.createElement("div");
+  contentDiv.className = "message-content";
+  contentDiv.textContent =
+    "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
 
-  if (!moodleUser) {
-    addMessage(
-      "Moodle-Benutzer konnte nicht erkannt werden. Bitte lade die Seite neu oder melde dich erneut an.",
-      false
-    );
-    return;
-  }
+  const retryButton = document.createElement("button");
+  retryButton.type = "button";
+  retryButton.className = "chatbot-retry";
+  retryButton.textContent = "Erneut versuchen";
+  retryButton.addEventListener("click", () => {
+    messageDiv.remove();
+    onRetry();
+  });
 
-  addMessage(message, true);
-  saveMessageToHistory(chatId, "user", message); // save in localStorage
-  inputField.value = "";
+  contentDiv.appendChild(document.createElement("br"));
+  contentDiv.appendChild(retryButton);
+  messageDiv.appendChild(contentDiv);
+  messagesContainer.appendChild(messageDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+};
+
+// Performs the streaming request for an already-displayed user message. Split
+// from sendMessageStream so a retry re-runs only the request, without
+// duplicating the user bubble or its history entry.
+const streamAndRender = async (message) => {
   sendButton.disabled = true;
-
   const loadingId = addLoadingMessage(messagesContainer);
 
   let botMessageDiv = null;
@@ -331,20 +349,33 @@ const sendMessageStream = async () => {
   } catch (error) {
     removeMessage(loadingId);
     console.error("Error:", error);
-
-    // create error message only if it doesn't exist yet
-    if (!botMessageDiv) {
-      botMessageDiv = createEmptyBotMessage();
-      contentDiv = botMessageDiv.querySelector(".message-content");
-    }
-
-    // Static, trusted string — use textContent so no innerHTML sink exists here.
-    contentDiv.textContent =
-      "Entschuldigung, es gab ein Problem bei der Verarbeitung Ihrer Anfrage.";
+    // Visible, dismissible error with a retry button (connection drop / 5xx / 429).
+    addErrorMessage(() => streamAndRender(message));
   } finally {
     sendButton.disabled = false;
     inputField.focus();
   }
+};
+
+// function to send message
+const sendMessageStream = async () => {
+  const message = inputField.value.trim();
+
+  if (!message) return;
+
+  if (!moodleUser) {
+    addMessage(
+      "Moodle-Benutzer konnte nicht erkannt werden. Bitte lade die Seite neu oder melde dich erneut an.",
+      false
+    );
+    return;
+  }
+
+  addMessage(message, true);
+  saveMessageToHistory(chatId, "user", message); // save in localStorage
+  inputField.value = "";
+
+  await streamAndRender(message);
 };
 
 async function startNewChat() {
