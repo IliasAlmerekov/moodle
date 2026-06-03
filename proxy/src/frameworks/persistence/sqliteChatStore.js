@@ -12,6 +12,17 @@ function openDatabase(dbPath) {
   return new Database(dbPath);
 }
 
+function configureConnection(db) {
+  // WAL lets readers proceed while a write is in flight (better-sqlite3 is
+  // synchronous, but the proxy may interleave history reads and appends).
+  db.pragma("journal_mode = WAL");
+  // Wait instead of throwing SQLITE_BUSY when the file is briefly locked.
+  db.pragma("busy_timeout = 5000");
+  // The schema declares ON DELETE CASCADE, which SQLite ignores unless foreign
+  // key enforcement is explicitly enabled per connection.
+  db.pragma("foreign_keys = ON");
+}
+
 function initializeSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -42,6 +53,7 @@ export function createSqliteChatStore({
   now = Date.now,
   maxMessages = MAX_SQLITE_MESSAGES,
 } = {}) {
+  configureConnection(db);
   initializeSchema(db);
 
   const upsertSession = db.prepare(`
@@ -94,6 +106,16 @@ export function createSqliteChatStore({
     deleteSession.run(sessionId);
   });
 
+  const deleteStaleMessages = db.prepare(`
+    DELETE FROM chat_messages
+    WHERE session_id IN (SELECT id FROM chat_sessions WHERE updated_at < @cutoff)
+  `);
+  const deleteStaleSessions = db.prepare("DELETE FROM chat_sessions WHERE updated_at < @cutoff");
+  const pruneTransaction = db.transaction((cutoff) => {
+    deleteStaleMessages.run({ cutoff });
+    return deleteStaleSessions.run({ cutoff }).changes;
+  });
+
   return {
     async getHistory(sessionId, limit = maxMessages) {
       return selectHistory.all({ sessionId, limit });
@@ -111,6 +133,10 @@ export function createSqliteChatStore({
 
     async clearSession(sessionId) {
       clearTransaction(sessionId);
+    },
+
+    async pruneSessionsOlderThan(maxAgeMs) {
+      return pruneTransaction(now() - maxAgeMs);
     },
   };
 }

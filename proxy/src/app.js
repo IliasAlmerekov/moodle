@@ -86,6 +86,15 @@ export async function createApp() {
     } catch (err) {
       app.log.warn({ err }, "Course cache warmup failed — will retry on first request");
     }
+
+    if (config.chat.retentionMs > 0) {
+      try {
+        const pruned = await chatRepository.pruneSessionsOlderThan(config.chat.retentionMs);
+        app.log.info({ pruned }, "Pruned stale chat sessions on startup");
+      } catch (err) {
+        app.log.warn({ err }, "Chat session pruning failed");
+      }
+    }
   });
 
   return app;

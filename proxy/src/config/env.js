@@ -15,6 +15,7 @@ const {
   CACHE_TTL_USERS = "60000",
   MAX_MESSAGE_LENGTH = "500",
   MAX_HISTORY_MESSAGES = "12",
+  CHAT_RETENTION_DAYS = "90",
   LOG_LEVEL = "info",
   OLLAMA_CONCURRENCY = "2",
   OLLAMA_MAX_QUEUE = "20",
@@ -54,6 +55,10 @@ if (NODE_ENV === "production" && !CHATBOT_AUTH_SECRET) {
 
 const moodleBaseUrl = MOODLE_URL.replace(/\/$/, "");
 const ollamaBaseUrl = OLLAMA_URL.replace(/\/$/, "");
+
+const retentionDays = Number(CHAT_RETENTION_DAYS);
+const chatRetentionMs =
+  Number.isFinite(retentionDays) && retentionDays > 0 ? retentionDays * 24 * 60 * 60 * 1000 : 0;
 
 const config = {
   nodeEnv: NODE_ENV,
@@ -105,6 +110,8 @@ const config = {
     dbPath: CHAT_DB_PATH,
     maxMessageLength: Number(MAX_MESSAGE_LENGTH),
     maxHistoryMessages: Number(MAX_HISTORY_MESSAGES),
+    // Sessions idle longer than this are pruned on startup. 0 disables retention.
+    retentionMs: chatRetentionMs,
   },
 };
 
