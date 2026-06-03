@@ -38,6 +38,9 @@ export async function createFastifyInstance(config) {
     requestIdHeader: "x-request-id",
     genReqId: () => crypto.randomUUID(),
     pluginTimeout: 60_000,
+    // The only request bodies are small chat JSON payloads (message + identity);
+    // 64 KB is generous while shrinking the parser's exposure to oversized input.
+    bodyLimit: 65_536,
   });
 
   const connectSrc = ["'self'"];

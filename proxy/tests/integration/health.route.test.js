@@ -65,8 +65,35 @@ test("GET /health returns 200 with correct structure", async () => {
   assert.strictEqual(body.services.moodle, "ok");
   assert.strictEqual(body.services.ollama, "ok");
   assert.ok(body.timestamp);
+  // The public liveness probe must NOT leak cache/queue internals.
+  assert.strictEqual("cache" in body, false);
+  assert.strictEqual("queue" in body, false);
+});
+
+test("GET /health/details exposes cache and queue from localhost", async () => {
+  app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/health/details",
+    remoteAddress: "127.0.0.1",
+  });
+
+  assert.strictEqual(response.statusCode, 200);
+  const body = JSON.parse(response.body);
+  assert.strictEqual(body.status, "ok");
   assert.deepStrictEqual(body.cache, { hits: 10, misses: 2 });
   assert.deepStrictEqual(body.queue, { size: 0, pending: 0 });
+});
+
+test("GET /health/details is forbidden from a non-localhost address", async () => {
+  app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/health/details",
+    remoteAddress: "203.0.113.7",
+  });
+
+  assert.strictEqual(response.statusCode, 403);
 });
 
 test("GET /health returns 503 when Moodle is unavailable", async () => {

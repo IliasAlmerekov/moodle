@@ -113,34 +113,10 @@ test("check returns 503 when both services are down", async () => {
   assert.strictEqual(reply._sent.services.ollama, "error");
 });
 
-test("check includes cache stats when getCacheStats is provided", async () => {
+test("check omits cache and queue from the public liveness payload", async () => {
   const deps = createMockRepositories();
   deps.getCacheStats = () => ({ courses: { hits: 5, misses: 1 } });
-  const controller = createHealthController(deps);
-  const request = createMockRequest();
-  const reply = createMockReply();
-
-  await controller.check(request, reply);
-
-  assert.strictEqual(reply._status, 200);
-  assert.deepStrictEqual(reply._sent.cache, { courses: { hits: 5, misses: 1 } });
-});
-
-test("check includes queue metrics when getQueueMetrics is provided", async () => {
-  const deps = createMockRepositories();
   deps.getQueueMetrics = () => ({ size: 0, pending: 0, circuitState: "CLOSED" });
-  const controller = createHealthController(deps);
-  const request = createMockRequest();
-  const reply = createMockReply();
-
-  await controller.check(request, reply);
-
-  assert.strictEqual(reply._status, 200);
-  assert.deepStrictEqual(reply._sent.queue, { size: 0, pending: 0, circuitState: "CLOSED" });
-});
-
-test("check omits cache and queue when optional deps are missing", async () => {
-  const deps = createMockRepositories();
   const controller = createHealthController(deps);
   const request = createMockRequest();
   const reply = createMockReply();
@@ -152,7 +128,46 @@ test("check omits cache and queue when optional deps are missing", async () => {
   assert.strictEqual("queue" in reply._sent, false);
 });
 
-test("check logs error and includes error object when getCacheStats throws", async () => {
+test("checkDetails includes cache stats when getCacheStats is provided", async () => {
+  const deps = createMockRepositories();
+  deps.getCacheStats = () => ({ courses: { hits: 5, misses: 1 } });
+  const controller = createHealthController(deps);
+  const request = createMockRequest();
+  const reply = createMockReply();
+
+  await controller.checkDetails(request, reply);
+
+  assert.strictEqual(reply._status, 200);
+  assert.deepStrictEqual(reply._sent.cache, { courses: { hits: 5, misses: 1 } });
+});
+
+test("checkDetails includes queue metrics when getQueueMetrics is provided", async () => {
+  const deps = createMockRepositories();
+  deps.getQueueMetrics = () => ({ size: 0, pending: 0, circuitState: "CLOSED" });
+  const controller = createHealthController(deps);
+  const request = createMockRequest();
+  const reply = createMockReply();
+
+  await controller.checkDetails(request, reply);
+
+  assert.strictEqual(reply._status, 200);
+  assert.deepStrictEqual(reply._sent.queue, { size: 0, pending: 0, circuitState: "CLOSED" });
+});
+
+test("checkDetails omits cache and queue when optional deps are missing", async () => {
+  const deps = createMockRepositories();
+  const controller = createHealthController(deps);
+  const request = createMockRequest();
+  const reply = createMockReply();
+
+  await controller.checkDetails(request, reply);
+
+  assert.strictEqual(reply._status, 200);
+  assert.strictEqual("cache" in reply._sent, false);
+  assert.strictEqual("queue" in reply._sent, false);
+});
+
+test("checkDetails logs error and includes error object when getCacheStats throws", async () => {
   const deps = createMockRepositories();
   deps.getCacheStats = () => {
     throw new Error("stats crash");
@@ -161,7 +176,7 @@ test("check logs error and includes error object when getCacheStats throws", asy
   const request = createMockRequest();
   const reply = createMockReply();
 
-  await controller.check(request, reply);
+  await controller.checkDetails(request, reply);
 
   assert.strictEqual(reply._status, 200);
   assert.deepStrictEqual(reply._sent.cache, { error: "Failed to retrieve cache stats" });
@@ -169,7 +184,7 @@ test("check logs error and includes error object when getCacheStats throws", asy
   assert.strictEqual(request._errors[0].err.message, "stats crash");
 });
 
-test("check logs error and includes error object when getQueueMetrics throws", async () => {
+test("checkDetails logs error and includes error object when getQueueMetrics throws", async () => {
   const deps = createMockRepositories();
   deps.getQueueMetrics = () => {
     throw new Error("metrics crash");
@@ -178,7 +193,7 @@ test("check logs error and includes error object when getQueueMetrics throws", a
   const request = createMockRequest();
   const reply = createMockReply();
 
-  await controller.check(request, reply);
+  await controller.checkDetails(request, reply);
 
   assert.strictEqual(reply._status, 200);
   assert.deepStrictEqual(reply._sent.queue, { error: "Failed to retrieve queue metrics" });
@@ -186,7 +201,7 @@ test("check logs error and includes error object when getQueueMetrics throws", a
   assert.strictEqual(request._errors[0].err.message, "metrics crash");
 });
 
-test("check still returns 503 when services fail even if stats providers throw", async () => {
+test("checkDetails still returns 503 when services fail even if stats providers throw", async () => {
   const deps = createMockRepositories({ moodleOk: false, ollamaOk: false });
   deps.getCacheStats = () => {
     throw new Error("stats crash");
@@ -198,7 +213,7 @@ test("check still returns 503 when services fail even if stats providers throw",
   const request = createMockRequest();
   const reply = createMockReply();
 
-  await controller.check(request, reply);
+  await controller.checkDetails(request, reply);
 
   assert.strictEqual(reply._status, 503);
   assert.strictEqual(reply._sent.status, "degraded");

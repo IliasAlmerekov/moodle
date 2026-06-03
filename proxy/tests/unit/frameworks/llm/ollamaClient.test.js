@@ -128,8 +128,12 @@ test("ollamaClient streamResponse accepts external abort signal", async () => {
 
   abortController.abort();
 
-  await assert.rejects(streamPromise, {
-    message: "Ollama request timed out",
-    statusCode: 502,
+  // An external (client) abort is distinct from a timeout: it is flagged
+  // clientAborted so the queue's circuit breaker ignores it.
+  await assert.rejects(streamPromise, (err) => {
+    assert.strictEqual(err.message, "Ollama request aborted by client");
+    assert.strictEqual(err.statusCode, 502);
+    assert.strictEqual(err.clientAborted, true);
+    return true;
   });
 });

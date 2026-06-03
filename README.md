@@ -13,6 +13,8 @@
 
 ## Table of Contents
 
+- [Demo](#demo)
+- [Project Story — Before → After](#project-story--before--after)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
@@ -25,6 +27,66 @@
 - [Related Docs](#related-docs)
 - [License](#license)
 - [Credits](#credits)
+
+---
+
+## Demo
+
+![Moodle AI Chatbot embedded in a course page](proxy/public/chatbot/assets/moodle.png)
+
+The widget is embedded directly into a Moodle course page. A student types a
+question; the proxy resolves their enrolments, searches only those courses,
+builds a grounded prompt, and streams the answer token-by-token over SSE.
+
+```
+Student question
+      │
+      ▼
+[ Moodle page ]──signed userId(ts,sig)──▶[ Fastify proxy ]
+                                              │  verify HMAC identity (401 on fail)
+                                              │  validate + rate-limit input
+                                              │  search ONLY enrolled courses (fail-closed)
+                                              ▼
+                                        [ Ollama LLM ]──NDJSON──▶ SSE stream ──▶ sanitized HTML
+```
+
+---
+
+## Project Story — Before → After
+
+This started as a working prototype and was finished into a credible
+production-lite service for the DEV Finish-Up-A-Thon.
+
+| Area | Before (prototype) | After (this repo) |
+|------|--------------------|-------------------|
+| **Identity** | `userId` trusted from the request body (IDOR) | HMAC-SHA256 signed identity, constant-time verify, per-session ownership checks (`401`/`403`) |
+| **Architecture** | Logic mixed into routes | Clean Architecture, 4 layers, dependency rule enforced, use cases unit-testable without Fastify/Docker |
+| **AI grounding** | Model saw all courses | Course search **fail-closed** to the student's own enrolments; no secrets reachable by the model |
+| **Frontend XSS** | Raw `innerHTML` of model output | DOMPurify (vendored) + tag/attr allowlist + Moodle-origin-locked anchors; CSP backstop |
+| **Reliability** | Direct fetch, no limits | Timeout + retry (Moodle), circuit breaker + bounded queue (Ollama), graceful shutdown, SSE abort on disconnect |
+| **Persistence** | In-memory only | SQLite (WAL, prepared statements, indexed, retention pruning) behind `IChatRepository` |
+| **Deploy** | Manual | Multi-stage non-root Docker image, healthchecks, ordered startup, one-command Compose |
+| **Quality gate** | None | 384 tests, ESLint, Prettier, `npm audit`, Gitleaks, container smoke test in CI |
+
+**How AI assisted:** GitHub Copilot / Claude Code were used to accelerate the
+finishing work — hardening the auth layer, writing the adversarial input-guard
+and sanitizer tests, and reviewing Clean Architecture boundaries. Every change
+was test-gated; see the commit history for the completion arc.
+
+### Production Readiness Checklist
+
+- [x] Starts with a single `docker compose up` (env validated, fails fast)
+- [x] No secrets committed (`.env` ignored, Gitleaks in CI)
+- [x] HMAC identity verification + per-session authorization
+- [x] Input validation, prompt-injection filter (best-effort), per-IP & per-user rate limits
+- [x] LLM output sanitized (DOMPurify) + CSP without `unsafe-inline`
+- [x] Ollama failure handled (timeout, retry-free circuit breaker, `503` backpressure)
+- [x] Moodle failure handled (retry with backoff, graceful degradation)
+- [x] SQLite persistence with WAL, retention pruning, mounted volume
+- [x] Container healthcheck + graceful shutdown (SIGTERM/SIGINT)
+- [x] CI: lint, format, tests + coverage, dependency audit, secret scan, image build & smoke test
+- [x] Demo screenshot in README (animated recording optional — see [Demo](#demo))
+- [x] Limitations documented honestly (see [Limitations](#limitations))
 
 ---
 
@@ -147,6 +209,26 @@ The proxy follows **Clean Architecture** with four layers. Dependencies flow inw
 frameworks → adapters → application → entities
 ```
 
+```mermaid
+flowchart TD
+    Browser["Moodle page + chatbot widget"] -->|"POST /api/chat-stream (SSE)"| FW
+    subgraph Proxy["Fastify proxy — Clean Architecture"]
+        direction TB
+        FW["frameworks/ — Fastify, Moodle client, Ollama queue, SQLite"]
+        AD["adapters/ — HTTP controllers"]
+        APP["application/ — use cases + repository interfaces"]
+        EN["entities/ — pure domain factories"]
+        FW --> AD --> APP --> EN
+    end
+    FW -->|"REST + token"| Moodle[("Moodle 4.4 + MariaDB")]
+    FW -->|"NDJSON stream"| Ollama[("Ollama local LLM")]
+    APP -->|"IChatRepository"| DB[("SQLite — WAL")]
+```
+
+Dependencies point inward only: `frameworks → adapters → application → entities`.
+Swapping SQLite for Postgres or Ollama for another LLM is localized to
+`frameworks/` because `application/` depends only on the interfaces.
+
 ```
 proxy/src/
 ├── entities/          # Pure domain factories (ChatMessage, Course, UserProfile)
@@ -243,8 +325,17 @@ Coverage targets: `entities/` ≥ 90% · `application/` ≥ 80% · overall ≥ 7
 ```
 Error: Missing required env var: MOODLE_TOKEN
 ```
-**Cause:** `.env` file is missing or a required variable is not set.  
-**Fix:** Copy `.env.example` to `.env` and fill in all required values. The proxy fails fast on missing config by design.
+**Cause:** `.env` file is missing or a required variable is not set. In
+production (`NODE_ENV=production`) `CHATBOT_AUTH_SECRET` is **also required** and
+the proxy refuses to start without it.  
+**Fix:** Copy `.env.example` to `.env`, fill in all required values, and generate
+the auth secret:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# put the output in .env as CHATBOT_AUTH_SECRET=...
+```
+Then start with `docker compose --env-file ../.env up -d`. The proxy fails fast
+on missing config by design.
 
 ---
 

@@ -38,11 +38,25 @@ services:
     volumes:
       - ../data/ollama:/root/.ollama
     networks: [moodle_net]
+    healthcheck:
+      # `ollama list` talks to the local server; a 0 exit means it is ready.
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   ollama-init:
     image: ollama/ollama:0.12.0
-    depends_on: [ollama]
-    entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # Wait for the server to answer before pulling, instead of a fixed sleep — a
+    # cold start can take well over 5s and would otherwise race the pull.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'until ollama list >/dev/null 2>&1; do echo "waiting for ollama..."; sleep 2; done && ollama pull ${OLLAMA_MODEL}'
     environment:
       - OLLAMA_HOST=ollama:11434
     networks: [moodle_net]
@@ -66,10 +80,30 @@ services:
       - PUBLIC_MOODLE_URL=${PUBLIC_MOODLE_URL}
       - CORS_ORIGIN=${CORS_ORIGIN}
       - TRUST_PROXY=${TRUST_PROXY:-1}
+      # Identity verification — REQUIRED in production. env.js fails fast on
+      # startup if this is empty, so it must be forwarded into the container.
+      - CHATBOT_AUTH_SECRET=${CHATBOT_AUTH_SECRET}
+      - AUTH_TOKEN_TTL_MS=${AUTH_TOKEN_TTL_MS:-7200000}
+      # Operational tuning — forwarded so .env edits actually reach the runtime
+      # instead of silently falling back to the defaults baked into env.js.
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-20}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-1 minute}
+      - USER_RATE_LIMIT_MAX=${USER_RATE_LIMIT_MAX:-10}
+      - USER_RATE_LIMIT_WINDOW_MS=${USER_RATE_LIMIT_WINDOW_MS:-60000}
+      - CHAT_RETENTION_DAYS=${CHAT_RETENTION_DAYS:-90}
+      - MAX_MESSAGE_LENGTH=${MAX_MESSAGE_LENGTH:-500}
+      - MAX_HISTORY_MESSAGES=${MAX_HISTORY_MESSAGES:-12}
+      - CACHE_TTL_COURSES=${CACHE_TTL_COURSES:-300000}
+      - CACHE_TTL_USERS=${CACHE_TTL_USERS:-60000}
     volumes:
       - ../data:/data
     networks: [moodle_net]
-    depends_on: [moodle]
+    depends_on:
+      moodle:
+        condition: service_started
+      ollama:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s

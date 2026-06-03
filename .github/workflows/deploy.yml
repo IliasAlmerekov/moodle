@@ -14,6 +14,9 @@ jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
+    # Bind to a GitHub Environment so production deploys can require manual
+    # approval / protection rules (configure under Settings → Environments).
+    environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,11 +24,15 @@ jobs:
       - name: Deploy to production
         run: ./deploy.sh
 
+      # Proxy port 3000 is internal-only in production (reached through nginx),
+      # so it is NOT published to the host. Probe it from inside the container,
+      # matching deploy.sh and the "Show proxy logs" step below.
       - name: Health check
+        working-directory: compose
         run: |
           echo "Running health check (10 attempts, 5s interval)..."
           for i in $(seq 1 10); do
-            if curl -sf --max-time 3 http://localhost:3000/health > /dev/null; then
+            if docker compose exec -T proxy curl -sf --max-time 3 http://localhost:3000/health > /dev/null; then
               echo "✓ Proxy is healthy (attempt $i/10)"
               exit 0
             fi

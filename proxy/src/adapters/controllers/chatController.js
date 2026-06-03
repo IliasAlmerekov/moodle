@@ -108,6 +108,7 @@ export function createChatController({
           searchCourses,
           model: config.ollama.model,
           moodleBaseUrl: config.moodle.publicUrl,
+          maxHistoryMessages: config.chat.maxHistoryMessages,
           signal: abortController.signal,
           async onChunk(text) {
             await writeSse(`data: ${JSON.stringify({ text, sessionId })}\n\n`);
