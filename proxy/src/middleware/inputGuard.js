@@ -30,17 +30,18 @@ const INJECTION_PATTERNS = [
  * @param {Object} [opts] - Optional options.
  * @param {Object} [opts.log] - Logger (e.g. request.log). If provided, injection attempts are logged.
  * @param {string} [opts.ip] - Client IP for security audit logging.
+ * @param {number} [opts.maxLength=500] - Max allowed length; callers pass config.chat.maxMessageLength.
  * @returns {string} trimmed message
  * @throws {Error} with statusCode 400 (and isInjectionAttempt true for security hits)
  */
-export function validateMessage(msg, { log, ip } = {}) {
+export function validateMessage(msg, { log, ip, maxLength = 500 } = {}) {
   if (typeof msg !== "string") {
     throw Object.assign(new Error("Message must be a string."), { statusCode: 400 });
   }
 
   const trimmed = msg.trim();
-  if (trimmed.length < 1 || trimmed.length > 500) {
-    throw Object.assign(new Error("Message must be between 1 and 500 characters."), {
+  if (trimmed.length < 1 || trimmed.length > maxLength) {
+    throw Object.assign(new Error(`Message must be between 1 and ${maxLength} characters.`), {
       statusCode: 400,
     });
   }

@@ -21,6 +21,7 @@
  * @param {Function} [options.verifyChatStreamOwnership]
  * @param {Function} [options.invalidateCourseCache]
  * @param {boolean} [options.allowUnauthenticated=false] Test-only opt-out for the auth guard.
+ * @param {number} [options.maxMessageLength=500] Max chat message length for the request schema.
  */
 export async function registerRoutes(app, controllers, options = {}) {
   const { chat, history, moodle, health } = controllers;
@@ -30,6 +31,7 @@ export async function registerRoutes(app, controllers, options = {}) {
     verifyChatStreamOwnership,
     invalidateCourseCache,
     allowUnauthenticated = false,
+    maxMessageLength = 500,
   } = options;
 
   // Fail closed: the protected routes (chat-stream, chat-history) must receive
@@ -59,7 +61,7 @@ export async function registerRoutes(app, controllers, options = {}) {
           type: "object",
           required: ["message"],
           properties: {
-            message: { type: "string", minLength: 1, maxLength: 500 },
+            message: { type: "string", minLength: 1, maxLength: maxMessageLength },
             userId: { type: "number" },
             chatId: { type: "string", maxLength: 64, pattern: "^[a-zA-Z0-9_-]+$" },
             ts: { type: "number" },
