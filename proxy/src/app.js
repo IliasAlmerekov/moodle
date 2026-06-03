@@ -76,6 +76,7 @@ export async function createApp() {
     verifyChatOwnership,
     verifyChatStreamOwnership,
     invalidateCourseCache: () => moodleCache.invalidateCourseCache(),
+    maxMessageLength: config.chat.maxMessageLength,
   });
 
   app.addHook("onReady", async () => {

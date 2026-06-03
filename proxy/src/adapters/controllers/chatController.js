@@ -41,7 +41,11 @@ export function createChatController({
 
       let message;
       try {
-        message = validateMessage(rawMessage, { log: request.log, ip: request.ip });
+        message = validateMessage(rawMessage, {
+          log: request.log,
+          ip: request.ip,
+          maxLength: config.chat.maxMessageLength,
+        });
       } catch (err) {
         return reply.status(err.statusCode ?? 400).send({ error: err.message });
       }
