@@ -1,5 +1,16 @@
 import { createUserProfile } from "../../entities/UserProfile.js";
 
+// Diagnostic Moodle endpoints expose user PII (name, email, enrolments) and
+// cache internals. They have no consumer in the chat flow and exist only for
+// local debugging, so they must never serve data in production.
+function blockedInProduction(reply) {
+  if (process.env.NODE_ENV === "production") {
+    reply.status(404).send({ error: "Not found" });
+    return true;
+  }
+  return false;
+}
+
 /**
  * Factory for the Moodle controller.
  * Handles HTTP concerns only — no business logic.
@@ -15,6 +26,8 @@ export function createMoodleController({ userRepository, getCacheStats }) {
     },
 
     async getUserCourses(request, reply) {
+      if (blockedInProduction(reply)) return;
+
       const userId = Number(request.params?.userId);
 
       if (!Number.isInteger(userId) || userId <= 0) {
@@ -32,6 +45,8 @@ export function createMoodleController({ userRepository, getCacheStats }) {
     },
 
     async getUser(request, reply) {
+      if (blockedInProduction(reply)) return;
+
       const userId = Number(request.params?.id);
 
       if (!Number.isInteger(userId) || userId <= 0) {
@@ -60,9 +75,7 @@ export function createMoodleController({ userRepository, getCacheStats }) {
     },
 
     async debugCache(request, reply) {
-      if (process.env.NODE_ENV === "production") {
-        return reply.status(404).send({ error: "Not found" });
-      }
+      if (blockedInProduction(reply)) return;
 
       if (typeof getCacheStats !== "function") {
         return reply.status(404).send({ error: "Cache stats not available" });

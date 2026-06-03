@@ -281,6 +281,44 @@ test("getUser returns 500 and logs error when repository throws without statusCo
   assert.strictEqual(request._errors[0].err.message, "Moodle down");
 });
 
+test("getUserCourses returns 404 in production", async () => {
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+
+  try {
+    const deps = createMockRepositories();
+    const controller = createMoodleController(deps);
+    const request = createMockRequest({ params: { userId: "42" } });
+    const reply = createMockReply();
+
+    await controller.getUserCourses(request, reply);
+
+    assert.strictEqual(reply._status, 404);
+    assert.strictEqual(reply._sent.error, "Not found");
+  } finally {
+    process.env.NODE_ENV = originalEnv;
+  }
+});
+
+test("getUser returns 404 in production", async () => {
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+
+  try {
+    const deps = createMockRepositories();
+    const controller = createMoodleController(deps);
+    const request = createMockRequest({ params: { id: "7" } });
+    const reply = createMockReply();
+
+    await controller.getUser(request, reply);
+
+    assert.strictEqual(reply._status, 404);
+    assert.strictEqual(reply._sent.error, "Not found");
+  } finally {
+    process.env.NODE_ENV = originalEnv;
+  }
+});
+
 test("debugCache returns stats in non-production when getCacheStats provided", async () => {
   const originalEnv = process.env.NODE_ENV;
   process.env.NODE_ENV = "development";

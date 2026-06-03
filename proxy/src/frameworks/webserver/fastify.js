@@ -83,15 +83,19 @@ export async function createFastifyInstance(config) {
 
   const NO_CACHE_FILES = new Set(["index.html", "moodle-embed.html", "chatbot.js", "sanitize.js"]);
 
+  // @fastify/static v9 applies its own Cache-Control after setHeaders when
+  // `cacheControl` is enabled, which would clobber the per-file override. Manage
+  // the header entirely in setHeaders so entrypoints stay uncached while the
+  // rest keep a one-day TTL.
+  const ONE_DAY = "public, max-age=86400";
+
   await app.register(fastifyStatic, {
     root: path.join(__dirname, "..", "..", "..", "public"),
     prefix: "/",
-    cacheControl: true,
-    maxAge: 86400000,
+    cacheControl: false,
     setHeaders(res, filePath) {
-      if (NO_CACHE_FILES.has(path.basename(filePath))) {
-        res.setHeader("Cache-Control", "no-cache");
-      }
+      const value = NO_CACHE_FILES.has(path.basename(filePath)) ? "no-cache" : ONE_DAY;
+      res.setHeader("Cache-Control", value);
     },
   });
 
