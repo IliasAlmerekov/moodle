@@ -12,11 +12,18 @@
       id="chatbot-toogle"
       class="chatbot-toogle"
       aria-label="AI Assistent öffnen"
+      aria-haspopup="dialog"
+      aria-expanded="false"
     >
       💬
     </button>
 
-    <div id="chatbot-window" class="chatbot-window hidden">
+    <div
+      id="chatbot-window"
+      class="chatbot-window hidden"
+      role="dialog"
+      aria-label="AI Assistent"
+    >
       <div class="chatbot-header">
         <img src="assets/moodle_logo.svg" alt="AI Logo" class="chatbot-logo" />
         <h2 class="chatbot-title">AI Assistent</h2>
@@ -41,7 +48,13 @@
         </div>
       </div>
 
-      <div id="chatbot-messages" class="chatbot-messages">
+      <div
+        id="chatbot-messages"
+        class="chatbot-messages"
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         <div class="message bot-message">
           <div class="message-content">
             Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?
@@ -55,6 +68,7 @@
           id="chatbot-input"
           class="chatbot-input"
           placeholder="Nachricht eingeben..."
+          aria-label="Nachricht eingeben"
           autocomplete="off"
         />
         <button type="button" id="chatbot-send" class="chatbot-send">Senden</button>

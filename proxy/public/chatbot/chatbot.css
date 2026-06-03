@@ -277,3 +277,35 @@ body {
     right: 10px;
   }
 }
+
+.error-message .message-content {
+  color: #8a1f11;
+}
+
+.chatbot-retry {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid #0f6cbf;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f6cbf;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chatbot-retry:hover {
+  background: #0f6cbf;
+  color: #fff;
+}
+
+/* Visible keyboard focus for accessibility (mouse clicks stay unaffected). */
+.chatbot-toogle:focus-visible,
+.chatbot-close:focus-visible,
+.chatbot-new-chat:focus-visible,
+.chatbot-send:focus-visible,
+.chatbot-retry:focus-visible,
+.chatbot-input:focus-visible {
+  outline: 2px solid #f27f22;
+  outline-offset: 2px;
+}
