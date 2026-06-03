@@ -20,6 +20,13 @@ function openingTagWithId(html, id) {
   return match ? match[0] : "";
 }
 
+function elementWithId(html, id) {
+  const match = html.match(
+    new RegExp(`<([a-z0-9-]+)[^>]*\\bid="${id}"[^>]*>[\\s\\S]*?</\\1>`, "i"),
+  );
+  return match ? match[0] : "";
+}
+
 describe.each(HTML_FILES)("chatbot accessibility (%s)", (file) => {
   const html = readHtml(file);
 
@@ -47,5 +54,13 @@ describe.each(HTML_FILES)("chatbot accessibility (%s)", (file) => {
     const tag = openingTagWithId(html, "chatbot-toogle");
     expect(tag).not.toBe("");
     expect(tag).toMatch(/aria-expanded="(true|false)"/);
+  });
+
+  it("toggle button uses the Moodle icon as a decorative image", () => {
+    const button = elementWithId(html, "chatbot-toogle");
+    expect(button).not.toBe("");
+    expect(button).toMatch(/chat_icon\.png/);
+    expect(button).toMatch(/class="chatbot-toggle-icon"/);
+    expect(button).toMatch(/aria-hidden="true"/);
   });
 });
