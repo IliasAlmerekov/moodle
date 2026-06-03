@@ -308,7 +308,7 @@ test("throws (fails closed) when auth handlers are missing and no opt-out is giv
 
   await assert.rejects(
     () => registerRoutes(app, controllers),
-    /requires verifyMoodleUser and verifyChatOwnership/,
+    /requires verifyMoodleUser, verifyChatOwnership, and verifyChatStreamOwnership/,
   );
 });
 
@@ -318,7 +318,7 @@ test("throws when only verifyMoodleUser is provided without opt-out", async () =
 
   await assert.rejects(
     () => registerRoutes(app, controllers, { verifyMoodleUser: async () => {} }),
-    /requires verifyMoodleUser and verifyChatOwnership/,
+    /requires verifyMoodleUser, verifyChatOwnership, and verifyChatStreamOwnership/,
   );
 });
 
@@ -327,8 +327,13 @@ test("attaches both auth preHandlers to chat-history when fully wired", async ()
   const controllers = createMockControllers();
   const verifyMoodleUser = async () => {};
   const verifyChatOwnership = async () => {};
+  const verifyChatStreamOwnership = async () => {};
 
-  await registerRoutes(app, controllers, { verifyMoodleUser, verifyChatOwnership });
+  await registerRoutes(app, controllers, {
+    verifyMoodleUser,
+    verifyChatOwnership,
+    verifyChatStreamOwnership,
+  });
 
   for (const method of ["GET", "DELETE"]) {
     const route = app._routes.find(
@@ -337,4 +342,22 @@ test("attaches both auth preHandlers to chat-history when fully wired", async ()
     assert.ok(route, `${method} chat-history route should be registered`);
     assert.deepStrictEqual(route.opts.preHandler, [verifyMoodleUser, verifyChatOwnership]);
   }
+});
+
+test("attaches verifyChatStreamOwnership after verifyMoodleUser on chat-stream", async () => {
+  const app = createMockApp();
+  const controllers = createMockControllers();
+  const verifyMoodleUser = async () => {};
+  const verifyChatOwnership = async () => {};
+  const verifyChatStreamOwnership = async () => {};
+
+  await registerRoutes(app, controllers, {
+    verifyMoodleUser,
+    verifyChatOwnership,
+    verifyChatStreamOwnership,
+  });
+
+  const route = app._routes.find((r) => r.path === "/api/chat-stream");
+  assert.ok(route, "chat-stream route should be registered");
+  assert.deepStrictEqual(route.opts.preHandler, [verifyMoodleUser, verifyChatStreamOwnership]);
 });

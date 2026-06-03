@@ -18,6 +18,7 @@
  * @param {Object} [options]
  * @param {Function} [options.verifyMoodleUser]
  * @param {Function} [options.verifyChatOwnership]
+ * @param {Function} [options.verifyChatStreamOwnership]
  * @param {Function} [options.invalidateCourseCache]
  * @param {boolean} [options.allowUnauthenticated=false] Test-only opt-out for the auth guard.
  */
@@ -26,6 +27,7 @@ export async function registerRoutes(app, controllers, options = {}) {
   const {
     verifyMoodleUser,
     verifyChatOwnership,
+    verifyChatStreamOwnership,
     invalidateCourseCache,
     allowUnauthenticated = false,
   } = options;
@@ -34,9 +36,12 @@ export async function registerRoutes(app, controllers, options = {}) {
   // their auth preHandlers. A miswired Composition Root that forgets them must
   // crash at startup, not silently serve unauthenticated. Tests that register
   // routes without auth must opt out explicitly via `allowUnauthenticated`.
-  if (!allowUnauthenticated && !(verifyMoodleUser && verifyChatOwnership)) {
+  if (
+    !allowUnauthenticated &&
+    !(verifyMoodleUser && verifyChatOwnership && verifyChatStreamOwnership)
+  ) {
     throw new Error(
-      "registerRoutes requires verifyMoodleUser and verifyChatOwnership. " +
+      "registerRoutes requires verifyMoodleUser, verifyChatOwnership, and verifyChatStreamOwnership. " +
         "Pass { allowUnauthenticated: true } only in tests.",
     );
   }
@@ -62,7 +67,14 @@ export async function registerRoutes(app, controllers, options = {}) {
           },
         },
       },
-      ...(verifyMoodleUser ? { preHandler: [verifyMoodleUser] } : {}),
+      ...(verifyMoodleUser
+        ? {
+            preHandler: [
+              verifyMoodleUser,
+              ...(verifyChatStreamOwnership ? [verifyChatStreamOwnership] : []),
+            ],
+          }
+        : {}),
     },
     chat.handleStream.bind(chat),
   );

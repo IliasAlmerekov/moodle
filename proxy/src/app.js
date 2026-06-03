@@ -13,7 +13,11 @@ import { createChatController } from "./adapters/controllers/chatController.js";
 import { createHistoryController } from "./adapters/controllers/historyController.js";
 import { createMoodleController } from "./adapters/controllers/moodleController.js";
 import { createHealthController } from "./adapters/controllers/healthController.js";
-import { createVerifyMoodleUser, createVerifyChatOwnership } from "./middleware/auth.js";
+import {
+  createVerifyMoodleUser,
+  createVerifyChatOwnership,
+  createVerifyChatStreamOwnership,
+} from "./middleware/auth.js";
 import { setupErrorHandler } from "./middleware/errorHandler.js";
 import config from "./config/env.js";
 
@@ -63,12 +67,14 @@ export async function createApp() {
   });
 
   const verifyChatOwnership = createVerifyChatOwnership();
+  const verifyChatStreamOwnership = createVerifyChatStreamOwnership();
 
   const controllers = { chat, history, moodle, health };
 
   await registerRoutes(app, controllers, {
     verifyMoodleUser,
     verifyChatOwnership,
+    verifyChatStreamOwnership,
     invalidateCourseCache: () => moodleCache.invalidateCourseCache(),
   });
 

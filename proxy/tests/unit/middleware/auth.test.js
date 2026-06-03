@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { test } from "vitest";
-import { createVerifyMoodleUser, createVerifyChatOwnership } from "../../../src/middleware/auth.js";
+import {
+  createVerifyMoodleUser,
+  createVerifyChatOwnership,
+  createVerifyChatStreamOwnership,
+} from "../../../src/middleware/auth.js";
 
 const SECRET = "test-secret";
 
@@ -259,6 +263,90 @@ test("ownership: logs security warning without leaking details", async () => {
   const request = {
     verifiedUserId: 42,
     params: { chatId: "moodle-99-abc" },
+    log: {
+      warn(meta) {
+        warnings.push(meta);
+      },
+    },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(warnings.length, 1);
+  assert.strictEqual(warnings[0].security, true);
+  assert.strictEqual(warnings[0].type, "chat_ownership_denied");
+});
+
+test("stream-ownership: allows when no chatId is supplied (server mints session)", async () => {
+  const verify = createVerifyChatStreamOwnership();
+  const request = { verifiedUserId: 42, body: { message: "Hi" }, log: { warn() {} } };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+});
+
+test("stream-ownership: allows when chatId owner matches the verified user", async () => {
+  const verify = createVerifyChatStreamOwnership();
+  const request = {
+    verifiedUserId: 42,
+    body: { message: "Hi", chatId: "moodle-42-abc-def" },
+    log: { warn() {} },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+});
+
+test("stream-ownership: returns 403 when chatId belongs to another user", async () => {
+  const verify = createVerifyChatStreamOwnership();
+  const request = {
+    verifiedUserId: 42,
+    body: { message: "Hi", chatId: "moodle-99-abc" },
+    log: { warn() {} },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+  assert.deepStrictEqual(reply._calls[1].body, { statusCode: 403, error: "Forbidden" });
+});
+
+test("stream-ownership: returns 403 when identity was not verified", async () => {
+  const verify = createVerifyChatStreamOwnership();
+  const request = { body: { message: "Hi", chatId: "moodle-42-abc" }, log: { warn() {} } };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+});
+
+test("stream-ownership: returns 403 when chatId has no parseable owner", async () => {
+  const verify = createVerifyChatStreamOwnership();
+  const request = {
+    verifiedUserId: 42,
+    body: { message: "Hi", chatId: "abc123" },
+    log: { warn() {} },
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 403);
+});
+
+test("stream-ownership: logs security warning without leaking details", async () => {
+  const warnings = [];
+  const verify = createVerifyChatStreamOwnership();
+  const request = {
+    verifiedUserId: 42,
+    body: { message: "Hi", chatId: "moodle-99-abc" },
     log: {
       warn(meta) {
         warnings.push(meta);

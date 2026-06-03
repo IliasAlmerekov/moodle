@@ -1,5 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+// A chatId embeds its owner as the second dash-segment: `moodle-{userId}-...`
+// (client) or `session-{userId}-...` (server fallback). Returns the owner id, or
+// 0 when the id is missing/unparseable so callers can fail closed.
+function parseChatOwnerId(chatId) {
+  if (typeof chatId !== "string") {
+    return 0;
+  }
+  const num = Number(chatId.split("-")[1]);
+  return Number.isInteger(num) && num > 0 ? num : 0;
+}
+
+function denyOwnership(request, reply, userId) {
+  request.log.warn(
+    { security: true, type: "chat_ownership_denied", userId: userId ?? 0 },
+    "Chat ownership check failed",
+  );
+  return reply.status(403).send({ statusCode: 403, error: "Forbidden" });
+}
+
 /**
  * Factory for a Fastify preHandler that verifies the caller's Moodle identity.
  *
@@ -73,24 +92,39 @@ export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = D
  * @returns {function(import("fastify").FastifyRequest, import("fastify").FastifyReply): Promise<void>}
  */
 export function createVerifyChatOwnership() {
-  function parseOwnerId(chatId) {
-    if (typeof chatId !== "string") {
-      return 0;
-    }
-    const num = Number(chatId.split("-")[1]);
-    return Number.isInteger(num) && num > 0 ? num : 0;
-  }
-
   return async function verifyChatOwnership(request, reply) {
     const verifiedUserId = request.verifiedUserId;
-    const ownerId = parseOwnerId(request.params?.chatId);
+    const ownerId = parseChatOwnerId(request.params?.chatId);
 
     if (!verifiedUserId || ownerId === 0 || ownerId !== verifiedUserId) {
-      request.log.warn(
-        { security: true, type: "chat_ownership_denied", userId: verifiedUserId ?? 0 },
-        "Chat history ownership check failed",
-      );
-      return reply.status(403).send({ statusCode: 403, error: "Forbidden" });
+      return denyOwnership(request, reply, verifiedUserId);
+    }
+  };
+}
+
+/**
+ * Factory for a Fastify preHandler that authorizes the chatId on `/api/chat-stream`.
+ *
+ * Must run AFTER `verifyMoodleUser`. The chatId arrives in the request body and is
+ * optional: when absent the controller mints a fresh server-side session owned by
+ * the verified user, so there is nothing to authorize. When present, its embedded
+ * owner must match the verified identity — otherwise a caller could read another
+ * user's history into the LLM context and write into their session.
+ *
+ * @returns {function(import("fastify").FastifyRequest, import("fastify").FastifyReply): Promise<void>}
+ */
+export function createVerifyChatStreamOwnership() {
+  return async function verifyChatStreamOwnership(request, reply) {
+    const chatId = request.body?.chatId;
+    if (chatId === undefined || chatId === null) {
+      return;
+    }
+
+    const verifiedUserId = request.verifiedUserId;
+    const ownerId = parseChatOwnerId(chatId);
+
+    if (!verifiedUserId || ownerId === 0 || ownerId !== verifiedUserId) {
+      return denyOwnership(request, reply, verifiedUserId);
     }
   };
 }
