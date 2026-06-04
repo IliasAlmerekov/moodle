@@ -16,6 +16,7 @@ function normalizeApiUrl(raw) {
 }
 
 const API_BASE_URL = normalizeApiUrl(CHATBOT_CONFIG.apiUrl);
+const CHAT_HISTORY_VERSION = "20260604-course-guide-v4";
 
 // Signed identity token minted server-side by the Moodle embed snippet.
 // The proxy verifies the HMAC signature; an unsigned request is rejected (401).
@@ -108,8 +109,8 @@ async function detectMoodleUser() {
   };
 }
 
-const storageKey = (userId) => `chat-session:${userId}`;
-const historyKey = (chatId) => `chat-history:${chatId}`;
+const storageKey = (userId) => `chat-session:${CHAT_HISTORY_VERSION}:${userId}`;
+const historyKey = (chatId) => `chat-history:${CHAT_HISTORY_VERSION}:${chatId}`;
 
 // Signed identity as request headers for chat-history GET/DELETE (no body).
 // Headers (not the query string) keep userId/ts/sig out of access logs, browser
@@ -175,12 +176,20 @@ function abortActiveStream({ userInitiated = false } = {}) {
   }
 }
 
+function hideChatbotForAnonymousUser() {
+  toogleButton?.classList.add("hidden");
+  chatWindow?.classList.add("hidden");
+}
+
 async function initChat() {
   const configUserId = parsePositiveInteger(CHATBOT_CONFIG.userId);
   const moodleGlobalUserId = parsePositiveInteger(window.M?.cfg?.userid);
   const detectedUserId = configUserId ?? moodleGlobalUserId;
   moodleUser = detectedUserId ? { id: detectedUserId } : await detectMoodleUser();
-  if (!moodleUser) return;
+  if (!moodleUser) {
+    hideChatbotForAnonymousUser();
+    return;
+  }
 
   chatId =
     localStorage.getItem(storageKey(moodleUser.id)) ||
