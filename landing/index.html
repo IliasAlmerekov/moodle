@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F98012" />
+    <meta
+      name="description"
+      content="A private AI tutor embedded in Moodle. Local LLM, HMAC-signed identity, streamed answers over SSE. Zero data leaves the school server."
+    />
+    <meta property="og:title" content="Moodle AI Assistant — a private tutor inside Moodle" />
+    <meta
+      property="og:description"
+      content="A private AI tutor inside Moodle. Fastify 5 · Ollama · Clean Architecture · 0 bytes leaving the school server."
+    />
+
+    <title>Moodle AI Assistant — a private tutor inside Moodle</title>
+  </head>
+  <body>
+    <script>
+      // The custom cursor is mounted by useCursor. Until it boots we
+      // don't change the system cursor; once the hook is live it adds
+      // .has-cursor to <html>, which hides the system arrow. On touch
+      // / reduced-motion devices the hook never mounts, so the body
+      // keeps its native cursor. Run inline so the class lands before
+      // first paint and we never get a "cursor flicker" frame.
+      (function () {
+        try {
+          var rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          var touch = navigator.maxTouchPoints > 0
+          if (!rm && !touch) document.documentElement.classList.add('has-cursor')
+        } catch (e) { /* no-op */ }
+      })()
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

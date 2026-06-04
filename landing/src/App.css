@@ -1,0 +1,1214 @@
+/* ============================================================
+   Section styles — Moodle Boost 4.4 visual language.
+   Uses CSS variables defined in index.css (Boost palette,
+   8px radius, system font stack, Bootstrap-style spacing).
+   ============================================================ */
+
+/* ---------- Shared section heads ---------- */
+.section__title {
+  font-size: 1.75rem;          /* 28px — matches h2 */
+  font-weight: 700;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--body-color);
+  line-height: 1.25;
+}
+.section__lede {
+  font-size: 1rem;             /* 16px */
+  color: var(--text-muted);
+  max-width: 60ch;
+  line-height: 1.5;
+}
+.section__lede code,
+.tech__inline {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--moodle-text);
+  background: #f5f5f5;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+/* ===================== NAV (Boost navbar) ===================== */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--navbar-h);
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+
+/* Scrolled state — deeper shadow and a slightly heavier border so
+   the bar reads as a "lifted" surface once the user moves past
+   the hero. The class is toggled by Nav.jsx on scrollY > 24. */
+.nav--scrolled {
+  border-bottom-color: rgba(15, 23, 42, 0.10);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(8px);
+}
+@supports not (backdrop-filter: blur(8px)) {
+  .nav--scrolled { background: #fff; }
+}
+.nav__inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  height: 100%;
+}
+.nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--body-color);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  white-space: nowrap;
+}
+.nav__brand:hover { color: var(--body-color); }
+.nav__logo { height: 32px; width: auto; }
+.nav__badge {
+  display: inline-block;
+  background: var(--moodle-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 400;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+}
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 1.5rem;
+  flex: 1;
+  height: 100%;
+}
+.nav__links a {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.nav__links a:hover {
+  color: var(--body-color);
+  background: var(--gray-100);
+}
+.nav__links a.active {
+  color: var(--moodle-primary-hover);
+  border-bottom-color: var(--moodle-primary);
+}
+.nav__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.nav__license {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.nav__cta { font-size: 0.875rem; }
+
+@media (max-width: 720px) {
+  .nav__links { display: none; }
+  .nav__license { display: none; }
+}
+
+/* ===================== HERO (page-header) ===================== */
+.hero {
+  padding-top: calc(var(--navbar-h) + 2.5rem);
+  padding-bottom: 2.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+@media (max-width: 920px) {
+  .hero__inner { grid-template-columns: 1fr; }
+}
+.hero__pill {
+  display: inline-block;
+  background: var(--moodle-primary-lt);
+  color: var(--moodle-primary-hover);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  border: 1px solid var(--moodle-primary-lt);
+}
+.hero__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--body-color);
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+@media (min-width: 992px) {
+  .hero__title { font-size: 2.75rem; }
+}
+.hero__hl { color: var(--moodle-primary-hover); }
+.hero__lede {
+  font-size: 1.0625rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 50ch;
+  margin-bottom: 1.5rem;
+}
+.hero__lede em { color: var(--body-color); font-style: normal; font-weight: 500; }
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.hero__proof {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 0;
+}
+@media (max-width: 992px) {
+  .hero__proof { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+  .hero__proof { grid-template-columns: repeat(2, 1fr); }
+}
+.hero__proof-item {
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.hero__proof-item dt {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--moodle-primary-hover);
+  margin: 0;
+  line-height: 1.1;
+  font-family: var(--font-mono);
+}
+.hero__proof-item--zero dt {
+  color: var(--moodle-success);
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+}
+.hero__proof-item dd {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.3;
+}
+.hero__proof-num {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+.hero__proof-item code {
+  font-size: 0.7rem;
+  color: var(--moodle-primary);
+  background: var(--moodle-primary-lt);
+  padding: 0.0625rem 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.hero__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===================== DEMO (chat panel) ===================== */
+.demo-section {
+  background: #fff;
+}
+.demo-section__head {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+.demo-section__stage {
+  display: flex;
+  justify-content: center;
+}
+
+.demo {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.demo__window { display: flex; flex-direction: column; }
+.demo__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-100);
+}
+.demo__logo {
+  height: 34px;
+  width: auto;
+  max-width: 96px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.demo__head-id {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.demo__head strong { font-size: 0.9375rem; }
+.demo__sub {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.demo__live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--moodle-success);
+  animation: demo-pulse 1.6s ease-in-out infinite;
+}
+@keyframes demo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.demo__tabs {
+  display: inline-flex;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.demo__tab {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+}
+.demo__tab.is-on {
+  background: var(--moodle-primary);
+  color: #fff;
+}
+.demo__new-chat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.2s var(--ease, ease),
+    border-color 0.2s var(--ease, ease),
+    color 0.2s var(--ease, ease),
+    transform 0.2s var(--ease, ease);
+}
+.demo__new-chat:hover {
+  background: var(--gray-100);
+  border-color: var(--border);
+  color: var(--body-color);
+  transform: rotate(-8deg);
+}
+.demo__new-chat-img {
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+}
+
+.demo__messages {
+  min-height: 320px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #fff;
+}
+.demo__msg {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 90%;
+}
+.demo__msg--user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.demo__msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.demo__msg--user .demo__msg-avatar {
+  background: transparent;
+}
+.demo__bubble {
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.demo__msg--bot .demo__bubble {
+  background: var(--gray-100);
+  color: var(--body-color);
+}
+.demo__msg--user .demo__bubble {
+  background: var(--moodle-primary);
+  color: #fff;
+}
+.demo__typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.demo__typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  display: inline-block;
+  animation: demo-bounce 1s ease-in-out infinite;
+}
+.demo__typing i:nth-child(2) { animation-delay: 0.15s; }
+.demo__typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes demo-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.demo__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: demo-blink 0.9s steps(1) infinite;
+}
+@keyframes demo-blink {
+  50% { opacity: 0; }
+}
+
+/* Bot avatar — a slow, calm bob that makes the chat demo feel
+   alive without being distracting. Applied to both the header
+   avatar and the per-message avatars so they pulse in sync. */
+@keyframes bot-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+.demo__msg-avatar {
+  animation: bot-float 3.6s ease-in-out infinite;
+  animation-delay: 0.4s; /* messages offset slightly from the header */
+}
+.demo__suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+  background: #fff;
+}
+.demo__chip {
+  background: #fff;
+  color: var(--moodle-primary-hover);
+  border: 1px solid var(--moodle-primary);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.demo__chip:hover:not(:disabled) {
+  background: var(--moodle-primary);
+  color: #fff;
+}
+.demo__chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.demo__chip--reset { border-color: var(--border); color: var(--text-muted); }
+
+.demo__raw {
+  padding: 1rem;
+  background: var(--gray-100);
+  min-height: 320px;
+  max-height: 480px;
+  overflow: auto;
+}
+.demo__raw-pre {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--body-color);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.sse-key { color: var(--moodle-info); font-weight: 600; }
+.sse-sep { color: var(--text-muted); }
+.sse-json { color: var(--body-color); }
+.sse-done { color: var(--moodle-success); font-weight: 600; }
+.demo__raw-blank { display: block; height: 0.5em; }
+.demo__raw-line { display: inline; }
+.demo__raw-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.demo__note {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--gray-100);
+  text-align: center;
+}
+.demo__note strong { color: var(--body-color); }
+
+.demo--compact .demo__messages { min-height: 240px; max-height: 320px; }
+.demo--compact .demo__raw { min-height: 240px; max-height: 320px; }
+
+/* ===================== ARCHITECTURE (steps / flow) ===================== */
+.arch {
+  background: var(--gray-100);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.arch__hl { color: var(--moodle-primary-hover); }
+.arch__diagram-wrap { margin-top: 2rem; }
+.arch__diagram {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 380px;
+  margin-top: 1.5rem;
+  /* Once nodes are measured the SVG paths light up; before that we
+     show the nodes positioned absolutely below. The chart becomes
+     a clean flow with curved connectors. */
+}
+
+.arch__edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+.arch__edge {
+  fill: none;
+  stroke: var(--moodle-border);
+  stroke-width: 1.5;
+  /* stroke-dasharray and stroke-dashoffset are written from JS at
+     scroll time; the initial values are inherited from the inline
+     style set in the useLayoutEffect. */
+  transition: stroke 0.2s ease;
+}
+.arch__row {
+  /* The 3 rows are no longer flex-laid-out — nodes are positioned
+     absolutely via inline styles. We keep the .arch__row wrapper
+     as a no-op container for parity with the old DOM. */
+  display: contents;
+}
+.arch__node-wrap {
+  position: absolute;
+  z-index: 1;
+}
+.arch__node {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.875rem;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  justify-content: center;
+  box-shadow: var(--shadow-card);
+  /* 3D-tilt: the cursor hook writes --rx / --ry on this element. */
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 80ms linear, box-shadow 200ms ease, border-color 200ms ease;
+  will-change: transform;
+}
+.arch__node:hover {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.10);
+}
+.arch__node-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--body-color);
+  line-height: 1.2;
+}
+.arch__node-sub {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+/* Node-kind colour rules. The 4 already-styled kinds keep their
+   rules; the 7 missing kinds get coloured by *function family*:
+     - client / verify → blue (auth / identity)
+     - guard / sanitize → dark with orange accent (security gate)
+     - fetch / search → orange (data lookup)
+     - build / llm → orange-hover (LLM-side)
+     - pipe / render → green (delivery / output) */
+.arch__node--client,
+.arch__node--verify {
+  border-color: var(--moodle-info);
+  background: linear-gradient(180deg, #ffffff 0%, var(--moodle-info-lt) 200%);
+}
+.arch__node--guard,
+.arch__node--sanitize {
+  border-color: var(--moodle-primary);
+  background: linear-gradient(180deg, #ffffff 0%, #fff5e6 200%);
+}
+.arch__node--fetch,
+.arch__node--search {
+  border-color: var(--moodle-primary);
+  background: linear-gradient(180deg, #ffffff 0%, var(--moodle-primary-lt) 200%);
+}
+.arch__node--build,
+.arch__node--llm {
+  border-color: var(--moodle-primary-hover);
+  background: linear-gradient(180deg, #ffffff 0%, #ffe4c4 200%);
+}
+.arch__node--pipe,
+.arch__node--render {
+  border-color: var(--moodle-success);
+  background: linear-gradient(180deg, #ffffff 0%, var(--moodle-success-lt) 200%);
+}
+
+/* The .arch__node--data and .arch__node--output rules below are the
+   originals from the previous layout — kept for back-compat. */
+.arch__node--verify { border-color: var(--moodle-info); }
+.arch__node--data   { border-color: var(--moodle-primary); }
+.arch__node--llm    { border-color: var(--moodle-primary); }
+.arch__node--output { border-color: var(--moodle-success); }
+
+@media (max-width: 920px) {
+  .arch__diagram { height: 460px; }
+  /* On narrow screens we switch to a vertical stack and hide the
+     SVG — the old grid layout is recovered via the .arch__row
+     class. */
+  .arch__edges { display: none; }
+  .arch__row { display: flex; flex-direction: column; }
+  .arch__node-wrap {
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* ===================== PROGRESS (Before / After stepper) ===================== */
+.progress {
+  background: var(--moodle-white);
+  border-top: 1px solid var(--moodle-border);
+  border-bottom: 1px solid var(--moodle-border);
+}
+.progress__hl { color: var(--moodle-primary-hover); }
+
+/* Progress bar — 4 dots connected by a line */
+.progress__bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin: 2rem 0 1.5rem;
+  padding: 0 0.5rem;
+}
+.progress__bar::before {
+  content: '';
+  position: absolute;
+  top: 1.25rem;
+  left: 12.5%;
+  right: 12.5%;
+  height: 2px;
+  background: var(--moodle-border);
+  z-index: 0;
+}
+.progress__bar-fill {
+  position: absolute;
+  top: 1.25rem;
+  left: 12.5%;
+  height: 2px;
+  background: var(--moodle-primary);
+  z-index: 1;
+  width: var(--p, 0%);
+  transition: width 400ms cubic-bezier(0.21, 0.6, 0.35, 1);
+}
+.progress__dot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  color: inherit;
+}
+.progress__dot-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--moodle-bg);
+  color: var(--moodle-text-soft);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid var(--moodle-border);
+  transition: all 300ms ease;
+}
+.progress__dot.is-done .progress__dot-num {
+  background: var(--moodle-primary);
+  color: #fff;
+  border-color: var(--moodle-primary);
+}
+.progress__dot.is-active .progress__dot-num {
+  background: var(--moodle-primary);
+  color: #fff;
+  border-color: var(--moodle-primary);
+  box-shadow: 0 0 0 4px var(--moodle-primary-lt);
+  transform: scale(1.1);
+}
+.progress__dot:hover .progress__dot-num {
+  border-color: var(--moodle-primary);
+}
+.progress__dot:focus-visible {
+  outline: none;
+}
+.progress__dot:focus-visible .progress__dot-num {
+  outline: 2px solid var(--moodle-primary);
+  outline-offset: 2px;
+}
+.progress__dot-label {
+  font-size: 0.8125rem;
+  color: var(--moodle-text-soft);
+  font-weight: 500;
+}
+.progress__dot.is-active .progress__dot-label,
+.progress__dot.is-done .progress__dot-label {
+  color: var(--moodle-text);
+  font-weight: 600;
+}
+
+/* Mobile: shrink dots, drop the line */
+@media (max-width: 720px) {
+  .progress__bar {
+    padding: 0;
+    margin: 1.5rem 0 1rem;
+  }
+  .progress__bar::before { display: none; }
+  .progress__bar-fill { display: none; }
+  .progress__dot-label { font-size: 0.6875rem; }
+}
+
+/* Active detail card */
+.progress__panel {
+  position: relative;
+  min-height: 280px;
+}
+.progress__card {
+  position: relative; /* anchor the cursor halo ::before to the card, not the panel */
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  background: var(--moodle-white);
+  border: 1px solid var(--moodle-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+  /* 3D-tilt: the cursor hook writes rotateX / rotateY on this card
+     when it is the data-cursor="card" target. transform-style keeps
+     the child elements (icon, code blocks) in the same 3D context
+     so the perspective shift reads as one piece. */
+  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 80ms linear;
+  will-change: transform;
+}
+@media (max-width: 720px) {
+  .progress__card {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+}
+.progress__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius);
+  background: var(--moodle-primary-lt);
+  color: var(--moodle-primary);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+/* Ghosted icon overlay — when the user hovers a non-active tab dot,
+   the corresponding icon previews on the active card at 35% opacity
+   over the active icon. Sized to match the active icon exactly so
+   the swap is a soft crossfade rather than a jump. */
+.progress__icon--preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--moodle-primary);
+  opacity: 0;
+  transform: scale(0.92);
+  animation: icon-preview-in 220ms cubic-bezier(0.21, 0.6, 0.35, 1) forwards;
+  pointer-events: none;
+}
+@keyframes icon-preview-in {
+  to { opacity: 0.35; transform: scale(1); }
+}
+@media (max-width: 720px) {
+  .progress__icon { margin: 0 auto; }
+}
+.progress__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.progress__chip--tag {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-sm);
+  background: var(--moodle-bg);
+  color: var(--moodle-text-soft);
+  font-family: var(--font-mono);
+}
+@media (max-width: 720px) {
+  .progress__chip--tag { align-self: center; }
+}
+.progress__metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin: 0;
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .progress__metric { justify-content: center; }
+}
+.progress__metric-num {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--moodle-primary);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+@media (min-width: 992px) {
+  .progress__metric-num { font-size: 3rem; }
+}
+.progress__metric-lbl {
+  font-size: 0.875rem;
+  color: var(--moodle-text-soft);
+  line-height: 1.3;
+}
+.progress__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+@media (max-width: 720px) {
+  .progress__row { flex-direction: column; align-items: stretch; }
+}
+.progress__side-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--moodle-text);
+  color: var(--moodle-white);
+  flex-shrink: 0;
+  font-family: var(--font-base);
+}
+.progress__side-tag--after {
+  background: var(--moodle-primary);
+}
+.progress__code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--moodle-bg);
+  color: var(--moodle-text-soft);
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--moodle-border);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+.progress__code--ok {
+  color: var(--moodle-info);
+  background: var(--moodle-info-lt);
+  border-color: var(--moodle-info-lt);
+}
+
+/* Prev/next nav */
+.progress__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.progress__nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--moodle-border);
+  border-radius: var(--radius);
+  color: var(--moodle-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 150ms ease;
+}
+.progress__nav button:hover {
+  background: var(--moodle-primary-lt);
+  border-color: var(--moodle-primary);
+  color: var(--moodle-primary-hover);
+}
+.progress__nav button:focus-visible {
+  outline: 2px solid var(--moodle-primary);
+  outline-offset: 2px;
+}
+.progress__counter {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--moodle-text-soft);
+}
+
+/* ===================== THREAT MODEL (panel list) ===================== */
+.threat {
+  background: #fff;
+}
+.threat__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-bottom: 0.5rem; /* breathing room for the -4px hover-lift */
+}
+@media (min-width: 768px) {
+  .threat__grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) {
+  .threat__grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.threat__card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition:
+    transform 260ms cubic-bezier(0.21, 0.6, 0.35, 1),
+    box-shadow 260ms ease,
+    border-color 260ms ease;
+  will-change: auto;
+}
+.threat__card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 18px 36px rgba(15, 23, 42, 0.12);
+  border-color: var(--moodle-success);
+  will-change: transform;
+}
+.threat__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.threat__id {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--body-color);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.0625rem 0.5rem;
+}
+.threat__id-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.threat__card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.threat__side {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+.threat__side--attack {
+  background: var(--moodle-bg);
+  border-bottom: 1px solid var(--moodle-bg);
+}
+.threat__side--defense {
+  background: var(--moodle-success-lt);
+}
+
+.threat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+.threat__chip--attack {
+  background: var(--moodle-text);
+  color: #fff;
+}
+.threat__chip--defense {
+  background: var(--moodle-success);
+  color: #fff;
+}
+
+.threat__title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--body-color);
+  margin: 0;
+}
+.threat__desc {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+.threat__desc--mono {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: auto;
+}
+.threat__ref-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.threat__ref-path {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--moodle-primary-hover);
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  align-self: flex-start;
+  word-break: break-all;
+  display: inline-block;
+}
+
+/* ===================== CTA ===================== */
+.cta {
+  background: var(--gray-100);
+  border-top: 1px solid var(--border);
+}
+.cta__card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
+  box-shadow: var(--shadow-sm);
+}
+.cta__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--body-color);
+  margin: 0.5rem 0 1rem;
+}
+.cta__code {
+  display: inline-block;
+  background: var(--gray-900);
+  color: #f8f9fa;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  margin-bottom: 1rem;
+  position: relative;
+  /* The useCursor hook writes --spot-x / --spot-y on hover; a soft
+     orange glow follows the cursor inside the code block, making
+     the terminal feel "lit up by the cursor". */
+  background:
+    radial-gradient(
+      circle at var(--spot-x, 50%) var(--spot-y, 50%),
+      rgba(249, 128, 18, 0.18),
+      transparent 55%
+    ),
+    var(--gray-900);
+  transition: background 0.18s ease;
+}
+.cta__code code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+.cta__prompt {
+  color: var(--moodle-primary);
+  margin-right: 0.5rem;
+  font-weight: 600;
+}
+.cta__sub {
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+.cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+/* ===================== FOOTER ===================== */
+.footer {
+  background: #fff;
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 0;
+}
+.footer__inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.footer__logo { height: 24px; }
+.footer__badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+  padding-left: 0.5rem;
+}
+.footer__note {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+}
+.footer__copy {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+@media (max-width: 720px) {
+  .footer__inner { flex-direction: column; align-items: flex-start; }
+}

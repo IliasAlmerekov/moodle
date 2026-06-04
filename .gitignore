@@ -6,7 +6,9 @@ dist/
 build/
 coverage/
 .tmp/
-landing/
+# Landing is source (deployed to Vercel) — ignore only its build output and deps.
+landing/dist/
+landing/node_modules/
 
 # Logs
 logs/
