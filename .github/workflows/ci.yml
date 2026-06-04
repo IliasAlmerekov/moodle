@@ -71,7 +71,7 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
@@ -91,6 +91,17 @@ jobs:
       - name: Build proxy image
         run: docker build -f proxy/Dockerfile -t moodle-proxy:ci proxy
 
+      # Scan the built image for known OS/dependency vulnerabilities (DEP-08).
+      # ignore-unfixed avoids failing on CVEs with no available patch.
+      - name: Scan proxy image (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: moodle-proxy:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
       # Smoke test: the container must START and serve /health. Moodle/Ollama are
       # unreachable in CI, so a degraded 503 counts as success — what we catch
       # here is crash-on-start (e.g. a missing required env var like
@@ -104,6 +115,7 @@ jobs:
             -e OLLAMA_URL=http://ollama.invalid \
             -e OLLAMA_MODEL=llama3.2:3b \
             -e CHATBOT_AUTH_SECRET=ci-dummy-secret \
+            -e CHAT_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             -e PUBLIC_MOODLE_URL=https://example.test \
             -e CORS_ORIGIN=https://example.test \
             -e CHAT_DB_PATH=/tmp/chat.db \

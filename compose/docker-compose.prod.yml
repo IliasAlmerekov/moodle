@@ -1,61 +1,30 @@
-# SELF-CONTAINED DEMO STACK — bundles its OWN Moodle + MariaDB.
+# Production stack — INTEGRATION beside an EXISTING school Moodle.
 #
-# Use this file for demos / local evaluation, where there is no pre-existing
-# Moodle. nginx fronts the bundled Moodle at "/" and the chatbot at /api,
-# /chatbot, /health on the same domain.
+# Use this file when the school already runs its own Moodle 4.4 + MariaDB.
+# It does NOT start Moodle or MariaDB: the proxy talks to the existing Moodle
+# over its REST API (MOODLE_URL), and nginx serves ONLY the chatbot on a
+# dedicated subdomain (e.g. chat.school.de) — it never proxies "/" to Moodle.
 #
-# For deployment BESIDE an existing school Moodle, use docker-compose.prod.yml
-# instead — it omits Moodle/MariaDB and points the proxy at the real Moodle.
-# Do NOT run both against the same domain.
+#   docker compose -f docker-compose.prod.yml --env-file ../.env up -d
 #
-# Docker image versions pinned 2026-06-01
-# Reason: reproducible builds, avoid breaking changes from unpinned latest tags
-# See DECISIONS.md "Pin Docker images" for upgrade policy
-# SSL: run compose/setup-ssl.sh once before first `docker compose up`
-name: moodle-stack
+# The self-contained demo stack (bundled Moodle + MariaDB) lives in
+# docker-compose.yml. Do NOT run both against the same domain.
+#
+# Image versions pinned 2026-06-01 — see DECISIONS.md "Pin Docker images".
+# SSL: run compose/setup-ssl.sh once before first `up` (uses NGINX_DOMAIN).
+name: moodle-chatbot
+
 services:
-  mariadb:
-    image: bitnamilegacy/mariadb:11.8.2-debian-12-r5
-    restart: unless-stopped
-    environment:
-      - ALLOW_EMPTY_PASSWORD=no
-      - MARIADB_USER=${MARIADB_USER}
-      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
-      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
-      - MARIADB_DATABASE=${MARIADB_DATABASE}
-      - MARIADB_CHARACTER_SET=utf8mb4
-      - MARIADB_COLLATE=utf8mb4_unicode_ci
-    volumes:
-      - ../data/mariadb:/bitnami/mariadb
-    networks: [moodle_net]
-    # Resource limits (DEP-02): cap every service so an Ollama memory spike
-    # cannot OOM the host and take down the database / Moodle.
-    mem_limit: 1g
-    cpus: "1.0"
-
-  moodle:
-    build:
-      context: .
-      dockerfile: Dockerfile.moodle
-    restart: unless-stopped
-    depends_on: [mariadb]
-    ports:
-      - "127.0.0.1:${MOODLE_HTTP_PORT}:8080"
-    volumes:
-      - ../data/moodle:/bitnami/moodle
-      - ../data/moodledata:/bitnami/moodledata
-    networks: [moodle_net]
-    mem_limit: 1g
-    cpus: "2.0"
-
   ollama:
     image: ollama/ollama:0.12.0
     restart: unless-stopped
     volumes:
       - ../data/ollama:/root/.ollama
-    networks: [moodle_net]
-    # Memory-hungry service — size mem_limit to the chosen model. llama3.2:3b
-    # fits in ~6g; raise for larger models or the host OOM killer may strike.
+    networks: [chatbot_net]
+    # Resource limits (DEP-02): Ollama is the memory-hungry service. Size
+    # mem_limit to the chosen model so a generation spike cannot OOM the host
+    # and disturb co-located services. llama3.2:3b fits in ~6g; raise for
+    # larger models.
     mem_limit: 8g
     mem_reservation: 4g
     cpus: "4.0"
@@ -80,7 +49,7 @@ services:
       - 'until ollama list >/dev/null 2>&1; do echo "waiting for ollama..."; sleep 2; done; ollama pull ${OLLAMA_MODEL} || { echo "ERROR: failed to pull ${OLLAMA_MODEL}"; exit 1; }; ollama list | grep -qF "${OLLAMA_MODEL}" || { echo "ERROR: ${OLLAMA_MODEL} not present after pull"; exit 1; }; echo "model ${OLLAMA_MODEL} ready"'
     environment:
       - OLLAMA_HOST=ollama:11434
-    networks: [moodle_net]
+    networks: [chatbot_net]
     mem_limit: 512m
     cpus: "1.0"
     restart: "no"
@@ -92,7 +61,9 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - MOODLE_URL=http://moodle:8080
+      # MOODLE_URL points at the EXISTING school Moodle (REST base origin),
+      # e.g. https://www.itech-bs14.de — NOT a bundled container.
+      - MOODLE_URL=${MOODLE_URL}
       - MOODLE_TOKEN=${MOODLE_TOKEN}
       - OLLAMA_URL=${OLLAMA_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
@@ -124,12 +95,14 @@ services:
       - CACHE_TTL_USERS=${CACHE_TTL_USERS:-60000}
     volumes:
       - ../data:/data
-    networks: [moodle_net]
+    networks: [chatbot_net]
+    # Only depends on Ollama, and on START not HEALTH (DEP-07): the proxy must
+    # boot and serve /health (degraded) + static assets even if Ollama is down,
+    # rather than being held back by the LLM. No dependency on Moodle — it is
+    # external and reached over the network at request time.
     depends_on:
-      moodle:
-        condition: service_started
       ollama:
-        condition: service_healthy
+        condition: service_started
     mem_limit: 512m
     mem_reservation: 256m
     cpus: "1.0"
@@ -140,12 +113,12 @@ services:
       retries: 3
 
   # nginx 1.27.4 pinned 2026-05-29
+  # Serves the chatbot on a dedicated subdomain (NGINX_DOMAIN, e.g.
+  # chat.school.de). It exposes ONLY /api, /chatbot, /health — it does not
+  # touch the school's Moodle domain, so there is no port/route collision.
   nginx:
     image: nginx:1.27.4
     restart: unless-stopped
-    # envsubst replaces ${NGINX_DOMAIN} in the template; $host etc. are nginx vars, not shell vars.
-    # $$NGINX_DOMAIN: $$ is a Compose escape for a literal $, so the container receives '$NGINX_DOMAIN'
-    # as the variable-names argument to envsubst (not the resolved value).
     entrypoint: ["/bin/sh", "-c", "envsubst '$$NGINX_DOMAIN' < /tmp/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
     environment:
       - NGINX_DOMAIN=${NGINX_DOMAIN}
@@ -153,14 +126,14 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf.template:/tmp/nginx.conf.template:ro
+      - ./nginx/nginx.prod.conf.template:/tmp/nginx.conf.template:ro
       - ../data/certbot:/etc/letsencrypt:ro
       - ../data/certbot-webroot:/var/www/certbot:ro
-    networks: [moodle_net]
+    networks: [chatbot_net]
     mem_limit: 128m
     cpus: "0.5"
-    depends_on: [proxy, moodle]
+    depends_on: [proxy]
 
 networks:
-  moodle_net:
+  chatbot_net:
     driver: bridge
