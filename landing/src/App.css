@@ -6,12 +6,13 @@
 
 /* ---------- Shared section heads ---------- */
 .section__title {
-  font-size: 1.75rem;          /* 28px — matches h2 */
+  font-size: clamp(1.4rem, 4.5vw, 1.75rem);   /* fluid 22.4 → 28px */
   font-weight: 700;
   margin-top: 0.5rem;
   margin-bottom: 0.75rem;
   color: var(--body-color);
   line-height: 1.25;
+  text-wrap: balance;
 }
 .section__lede {
   font-size: 1rem;             /* 16px */
@@ -125,22 +126,95 @@
 }
 .nav__cta { font-size: 0.875rem; }
 
+/* Hamburger toggle — hidden on desktop, shown at the mobile
+   breakpoint where the inline links collapse into a panel. */
+.nav__toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--body-color);
+  flex-shrink: 0;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.nav__toggle:hover {
+  background: var(--gray-100);
+  border-color: var(--border);
+}
+.nav__toggle:focus-visible {
+  outline: 2px solid var(--moodle-primary);
+  outline-offset: 2px;
+}
+
+/* Mobile menu panel — drops out of flow (fixed) so it never squeezes
+   the fixed-height navbar. Sits directly under the bar. */
+.nav__mobile {
+  position: fixed;
+  top: var(--navbar-h);
+  left: 0;
+  right: 0;
+  z-index: 99;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.nav__mobile-inner {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.5rem;
+  padding-bottom: 0.75rem;
+}
+.nav__mobile-inner a {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 0.25rem;
+  color: var(--body-color);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.nav__mobile-inner a:last-of-type { border-bottom: none; }
+.nav__mobile-inner a:active { color: var(--moodle-primary-hover); }
+.nav__mobile-license {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  padding-top: 0.75rem;
+}
+
 @media (max-width: 720px) {
   .nav__links { display: none; }
   .nav__license { display: none; }
+  .nav__toggle { display: inline-flex; }
+  /* No inline links to push the right-hand group, so the brand claims
+     the free space instead. */
+  .nav__brand { margin-right: auto; }
+}
+
+/* Guarantee the panel and toggle never leak onto desktop, regardless
+   of the menu's open state when the viewport is resized. */
+@media (min-width: 721px) {
+  .nav__toggle,
+  .nav__mobile { display: none; }
 }
 
 /* ===================== HERO (page-header) ===================== */
 .hero {
-  padding-top: calc(var(--navbar-h) + 2.5rem);
-  padding-bottom: 2.5rem;
+  padding-top: calc(var(--navbar-h) + clamp(1.5rem, 4vw, 2.5rem));
+  padding-bottom: clamp(1.75rem, 4vw, 2.5rem);
   background: #fff;
   border-bottom: 1px solid var(--border);
 }
 .hero__inner {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2.5rem;
+  gap: clamp(1.75rem, 4vw, 2.5rem);
   align-items: center;
 }
 @media (max-width: 920px) {
@@ -158,16 +232,13 @@
   border: 1px solid var(--moodle-primary-lt);
 }
 .hero__title {
-  font-size: 2.5rem;
+  font-size: clamp(1.875rem, 5.5vw, 2.75rem);   /* fluid 30 → 44px */
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--body-color);
   margin: 0 0 1rem;
   text-wrap: balance;
-}
-@media (min-width: 992px) {
-  .hero__title { font-size: 2.75rem; }
 }
 .hero__hl { color: var(--moodle-primary-hover); }
 .hero__lede {
@@ -242,7 +313,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Allow the grid track to shrink below the demo's intrinsic content
+     width — without this the chat header's min-content forces the
+     column wider than its share and the demo spills past the viewport
+     in the 920–1080px range. */
+  min-width: 0;
 }
+.hero__copy { min-width: 0; }
 
 /* ===================== DEMO (chat panel) ===================== */
 .demo-section {
@@ -271,6 +348,7 @@
 .demo__head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;            /* wrap intrinsically when the card is narrow */
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
@@ -519,6 +597,22 @@
 .demo--compact .demo__messages { min-height: 240px; max-height: 320px; }
 .demo--compact .demo__raw { min-height: 240px; max-height: 320px; }
 
+/* Narrow phones — the demo header packs a logo, identity, a two-tab
+   switch and a reset button into one row. Below 560px that row runs
+   out of width, so we let it wrap and shrink the non-essential bits
+   instead of forcing a horizontal overflow inside the chat card. */
+@media (max-width: 560px) {
+  .demo__head {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .demo__head-id { order: 1; flex: 1 1 60%; }
+  .demo__logo { order: 0; height: 28px; }
+  .demo__new-chat { order: 2; }
+  .demo__tabs { order: 3; flex: 1 1 100%; justify-content: center; }
+  .demo__msg { max-width: 100%; }
+}
+
 /* ===================== ARCHITECTURE (steps / flow) ===================== */
 .arch {
   background: var(--gray-100);
@@ -639,11 +733,17 @@
 .arch__node--llm    { border-color: var(--moodle-primary); }
 .arch__node--output { border-color: var(--moodle-success); }
 
-@media (max-width: 920px) {
-  .arch__diagram { height: 460px; }
-  /* On narrow screens we switch to a vertical stack and hide the
-     SVG — the old grid layout is recovered via the .arch__row
-     class. */
+/* The absolute SVG-coordinate layout needs ~1080px of canvas to fit
+   without overflowing (the right-most node sits at x:880 + 200px).
+   Below ~1110px viewport the container is narrower than that, so we
+   switch to a vertical stack and hide the SVG. height:auto lets the
+   stacked nodes set their own height instead of being clipped to a
+   fixed box. */
+@media (max-width: 1110px) {
+  .arch__diagram {
+    height: auto;
+    margin-top: 0.5rem;
+  }
   .arch__edges { display: none; }
   .arch__row { display: flex; flex-direction: column; }
   .arch__node-wrap {
@@ -654,6 +754,7 @@
     height: auto !important;
     margin-bottom: 0.5rem;
   }
+  .arch__node { min-height: 56px; }
 }
 
 /* ===================== PROGRESS (Before / After stepper) ===================== */
@@ -1122,14 +1223,14 @@
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2.5rem;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
   text-align: center;
   max-width: 720px;
   margin: 0 auto;
   box-shadow: var(--shadow-sm);
 }
 .cta__title {
-  font-size: 1.75rem;
+  font-size: clamp(1.4rem, 4.5vw, 1.75rem);
   font-weight: 700;
   color: var(--body-color);
   margin: 0.5rem 0 1rem;
