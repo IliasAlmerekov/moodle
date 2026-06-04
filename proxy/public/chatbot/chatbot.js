@@ -39,6 +39,7 @@ const openChat = () => {
 };
 
 const closeChat = () => {
+  abortActiveStream({ userInitiated: true }); // stop any in-flight stream
   chatWindow.classList.add("hidden");
   toogleButton.classList.remove("hidden");
   toogleButton.setAttribute("aria-expanded", "false");
@@ -110,14 +111,15 @@ async function detectMoodleUser() {
 const storageKey = (userId) => `chat-session:${userId}`;
 const historyKey = (chatId) => `chat-history:${chatId}`;
 
-// Signed identity as a query string for chat-history GET/DELETE (no request body).
-function authQueryString() {
-  const params = new URLSearchParams();
-  if (moodleUser?.id != null) params.set("userId", String(moodleUser.id));
-  if (AUTH_TS != null) params.set("ts", String(AUTH_TS));
-  if (AUTH_SIG != null) params.set("sig", String(AUTH_SIG));
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
+// Signed identity as request headers for chat-history GET/DELETE (no body).
+// Headers (not the query string) keep userId/ts/sig out of access logs, browser
+// history and the Referer header (F-08).
+function authHeaders() {
+  const headers = {};
+  if (moodleUser?.id != null) headers["X-Chat-User"] = String(moodleUser.id);
+  if (AUTH_TS != null) headers["X-Chat-Ts"] = String(AUTH_TS);
+  if (AUTH_SIG != null) headers["X-Chat-Sig"] = String(AUTH_SIG);
+  return headers;
 }
 
 function parsePositiveInteger(value) {
@@ -147,6 +149,20 @@ const loadHistoryFromStorage = (chatId) => {
 
 let moodleUser = null;
 let chatId = null;
+
+// Tracks the in-flight streaming request so it can be cancelled when the user
+// closes the window or sends a new message, and so a stalled stream is bounded
+// by a watchdog timeout instead of hanging forever (F-11).
+let activeStreamController = null;
+const STREAM_IDLE_TIMEOUT_MS = 60_000;
+
+function abortActiveStream({ userInitiated = false } = {}) {
+  if (activeStreamController) {
+    activeStreamController.userInitiated = userInitiated;
+    activeStreamController.abort();
+    activeStreamController = null;
+  }
+}
 
 async function initChat() {
   const configUserId = parsePositiveInteger(CHATBOT_CONFIG.userId);
@@ -178,9 +194,9 @@ async function restoreChatHistory() {
     }
 
     // if no local history, fetch from server
-    const response = await fetch(
-      `${API_BASE_URL}/api/chat-history/${chatId}${authQueryString()}`
-    );
+    const response = await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`, {
+      headers: authHeaders(),
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
@@ -263,10 +279,24 @@ const streamAndRender = async (message) => {
   sendButton.disabled = true;
   const loadingId = addLoadingMessage(messagesContainer);
 
+  // Cancel any prior in-flight stream so two streams cannot interleave into the DOM.
+  abortActiveStream({ userInitiated: true });
+  const controller = new AbortController();
+  activeStreamController = controller;
+
+  // Watchdog: if the server stalls (no bytes for STREAM_IDLE_TIMEOUT_MS), abort
+  // so the UI is not stuck "thinking" forever. Re-armed on every chunk.
+  let watchdog;
+  const armWatchdog = () => {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => controller.abort(), STREAM_IDLE_TIMEOUT_MS);
+  };
+
   let botMessageDiv = null;
   let contentDiv = null;
 
   try {
+    armWatchdog();
     const response = await fetch(`${API_BASE_URL}/api/chat-stream`, {
       method: "POST",
       headers: {
@@ -279,12 +309,16 @@ const streamAndRender = async (message) => {
         ts: AUTH_TS,
         sig: AUTH_SIG,
       }),
+      signal: controller.signal,
     });
 
     removeMessage(loadingId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error("Response has no body stream");
     }
 
     const reader = response.body.getReader();
@@ -295,6 +329,7 @@ const streamAndRender = async (message) => {
 
     while (true) {
       const { done, value } = await reader.read();
+      armWatchdog();
 
       if (done) {
         if (contentDiv) {
@@ -348,10 +383,20 @@ const streamAndRender = async (message) => {
     localStorage.setItem(storageKey(moodleUser.id), latestSessionId);
   } catch (error) {
     removeMessage(loadingId);
+    // A user-initiated cancel (window closed / new message sent) is not an
+    // error — exit quietly without an error bubble.
+    if (controller.userInitiated) {
+      return;
+    }
     console.error("Error:", error);
-    // Visible, dismissible error with a retry button (connection drop / 5xx / 429).
+    // Visible, dismissible error with a retry button (connection drop / 5xx /
+    // 429 / stalled stream aborted by the watchdog).
     addErrorMessage(() => streamAndRender(message));
   } finally {
+    clearTimeout(watchdog);
+    if (activeStreamController === controller) {
+      activeStreamController = null;
+    }
     sendButton.disabled = false;
     inputField.focus();
   }
@@ -380,8 +425,9 @@ const sendMessageStream = async () => {
 
 async function startNewChat() {
   try {
-    await fetch(`${API_BASE_URL}/api/chat-history/${chatId}${authQueryString()}`, {
+    await fetch(`${API_BASE_URL}/api/chat-history/${chatId}`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
   } catch (error) {
     console.warn("Failed to reset chat history:", error);
@@ -423,11 +469,18 @@ closeButton.addEventListener("click", closeChat);
 sendButton.addEventListener("click", sendMessageStream);
 newChatButton.addEventListener("click", startNewChat);
 
-// allow sending message with Enter key
-
-inputField.addEventListener("keypress", (e) => {
+// allow sending message with Enter key (keydown — keypress is deprecated)
+inputField.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
+    e.preventDefault();
     sendMessageStream();
+  }
+});
+
+// Escape closes the open dialog and returns focus to the toggle (F-14).
+chatWindow.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !chatWindow.classList.contains("hidden")) {
+    closeChat();
   }
 });
 
