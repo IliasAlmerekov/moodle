@@ -65,11 +65,7 @@ export async function registerRoutes(app, controllers, options = {}) {
   // Detailed health (cache stats, queue/circuit metrics) — localhost only, since
   // it exposes operational internals useful for probing.
   if (typeof health.checkDetails === "function") {
-    app.get(
-      "/health/details",
-      { preHandler: requireLoopback },
-      health.checkDetails.bind(health),
-    );
+    app.get("/health/details", { preHandler: requireLoopback }, health.checkDetails.bind(health));
   }
 
   // Chat stream with JSON Schema validation — SSE: disable compression
@@ -175,11 +171,7 @@ export async function registerRoutes(app, controllers, options = {}) {
     { schema: idParamSchema, preHandler: requireLoopback },
     moodle.getUser.bind(moodle),
   );
-  app.get(
-    "/moodle/debug/cache",
-    { preHandler: requireLoopback },
-    moodle.debugCache.bind(moodle),
-  );
+  app.get("/moodle/debug/cache", { preHandler: requireLoopback }, moodle.debugCache.bind(moodle));
 
   // Cache invalidation — localhost only
   if (invalidateCourseCache) {

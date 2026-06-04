@@ -150,7 +150,9 @@ test("with an encryption key, content is stored as ciphertext but reads back as 
   await store.appendMessage("session-enc", 1, "user", "geheime Nachricht");
 
   // Raw column must not contain the plaintext.
-  const raw = db.prepare("SELECT content FROM chat_messages WHERE session_id = ?").get("session-enc");
+  const raw = db
+    .prepare("SELECT content FROM chat_messages WHERE session_id = ?")
+    .get("session-enc");
   assert.equal(raw.content.startsWith("enc:v1:"), true);
   assert.equal(raw.content.includes("geheime Nachricht"), false);
 

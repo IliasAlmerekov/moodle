@@ -37,8 +37,20 @@ else
         cp .env /tmp/.env.deploy.backup
     fi
 
-    echo -e "${YELLOW}Updating code from origin/main...${NC}"
-    git reset --hard origin/main
+    # Never silently discard local work (DEP-05): refuse to update when the
+    # working tree has uncommitted changes to tracked files, and fast-forward
+    # only — a diverged history aborts the deploy instead of being overwritten.
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        echo -e "${RED}✗ Uncommitted changes to tracked files. Commit or stash them before deploying.${NC}"
+        git status --short
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Updating code from origin/main (fast-forward only)...${NC}"
+    if ! git merge --ff-only origin/main; then
+        echo -e "${RED}✗ Local history has diverged from origin/main. Resolve manually; not overwriting.${NC}"
+        exit 1
+    fi
 
     if [ -f /tmp/.env.deploy.backup ]; then
         echo -e "${YELLOW}Restoring .env file...${NC}"

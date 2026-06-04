@@ -37,7 +37,19 @@ const INJECTION_PATTERNS = [
   /ignoriere.*(?:anweisung|vorherige|alle|regel)/i,
   /vergiss.*(?:alles|anweisung)/i,
   /(?:zeig|verrat|gib).*system[- ]?prompt/i,
+  // Russian-language variants — RU is a supported response language, so the
+  // blocklist should cover it too (AI-06).
+  /игнорируй.*(?:инструкц|предыдущ|все|правил)/i,
+  /забудь.*(?:вс[её]|инструкц)/i,
+  /(?:покажи|выведи|раскрой).*(?:систем|промпт|инструкц)/i,
 ];
+
+// Normalize before matching so trivial obfuscation cannot slip past the
+// blocklist (AI-06): NFKC folds full-width / look-alike forms, and zero-width
+// and soft-hyphen characters inserted between letters are stripped.
+function normalizeForMatch(text) {
+  return text.normalize("NFKC").replace(/[\u00AD\u200B-\u200D\u2060\uFEFF]/g, "");
+}
 
 /**
  * Validates a user message for type, length, and injection patterns.
@@ -62,7 +74,8 @@ export function validateMessage(msg, { log, ip, maxLength = 500 } = {}) {
     });
   }
 
-  if (INJECTION_PATTERNS.some((p) => p.test(trimmed))) {
+  const probe = normalizeForMatch(trimmed);
+  if (INJECTION_PATTERNS.some((p) => p.test(probe))) {
     if (log && typeof log.warn === "function") {
       log.warn({ security: true, type: "injection_attempt", ip });
     }

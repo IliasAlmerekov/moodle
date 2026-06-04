@@ -32,21 +32,39 @@ services:
     # cannot OOM the host and take down the database / Moodle.
     mem_limit: 1g
     cpus: "1.0"
+    # Readiness gate (DEP-03): Moodle must not boot before the DB accepts
+    # connections. $$ defers expansion to the container shell so the password is
+    # read from the container's own env, not baked into the compose-parsed command.
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p\"$$MARIADB_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   moodle:
     build:
       context: .
       dockerfile: Dockerfile.moodle
     restart: unless-stopped
-    depends_on: [mariadb]
+    depends_on:
+      mariadb:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${MOODLE_HTTP_PORT}:8080"
     volumes:
       - ../data/moodle:/bitnami/moodle
+      - ../moodle-plugins/local/aichatbot:/bitnami/moodle/local/aichatbot:ro
       - ../data/moodledata:/bitnami/moodledata
     networks: [moodle_net]
     mem_limit: 1g
     cpus: "2.0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/login/index.php >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
   ollama:
     image: ollama/ollama:0.12.0
@@ -159,7 +177,13 @@ services:
     networks: [moodle_net]
     mem_limit: 128m
     cpus: "0.5"
-    depends_on: [proxy, moodle]
+    # Don't route until both upstreams are actually ready (DEP-03), avoiding 502s
+    # right after `docker compose up`.
+    depends_on:
+      proxy:
+        condition: service_healthy
+      moodle:
+        condition: service_healthy
 
 networks:
   moodle_net:

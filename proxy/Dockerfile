@@ -23,9 +23,18 @@ FROM node:20.19.1-bookworm-slim AS runtime
 
 WORKDIR /app
 
-# curl is required by the container HEALTHCHECK below.
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/*
+# Apply outstanding Debian security patches to the pinned base image (the tag is
+# frozen for reproducibility, so its OS packages lag behind security fixes — e.g.
+# perl-base CVE-2023-31484). curl is required by the container HEALTHCHECK below.
+# Also drop the globally-bundled npm/corepack/npx: the app runs via `node` and
+# never needs them at runtime, and they ship a vulnerable bundled `tar`
+# (CVE-2026-31802). Removing them shrinks the image's attack surface.
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 COPY --from=build /app/node_modules ./node_modules
 COPY package*.json ./

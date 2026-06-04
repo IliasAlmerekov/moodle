@@ -71,7 +71,10 @@ export function createVerifyMoodleUser({
     let matched = false;
     for (const candidate of acceptedSecrets) {
       const expected = createHmac("sha256", candidate).update(`${userId}.${ts}`).digest("hex");
-      if (expected.length === sig.length && timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
+      if (
+        expected.length === sig.length &&
+        timingSafeEqual(Buffer.from(expected), Buffer.from(sig))
+      ) {
         matched = true;
       }
     }

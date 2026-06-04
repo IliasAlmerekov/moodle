@@ -6,12 +6,14 @@ import { createUserProfile } from "../../../entities/UserProfile.js";
 // never as instructions (AI-01). Strip control characters and neutralize text
 // that tries to forge our data-block delimiters or conversation role labels.
 export function sanitizeUntrusted(text) {
-  return String(text ?? "")
-    // Stripping ASCII control characters is the intent here.
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
-    .replace(/===+\s*(ENDE\s+)?KURSINFORMATIONEN[^\n]*/gi, "[entfernt]")
-    .replace(/^[ \t]*(System|Student|Tutor|Assistant|User|Benutzer)[ \t]*:/gim, "$1 -");
+  return (
+    String(text ?? "")
+      // Stripping ASCII control characters is the intent here.
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+      .replace(/===+\s*(ENDE\s+)?KURSINFORMATIONEN[^\n]*/gi, "[entfernt]")
+      .replace(/^[ \t]*(System|Student|Tutor|Assistant|User|Benutzer)[ \t]*:/gim, "$1 -")
+  );
 }
 
 function sanitizeUrl(url) {
@@ -135,7 +137,11 @@ Antworte jetzt klar und mit klickbaren HTML-Links!`;
       content: turn.content,
     }));
 
-  return [{ role: "system", content: system }, ...historyMessages, { role: "user", content: message }];
+  return [
+    { role: "system", content: system },
+    ...historyMessages,
+    { role: "user", content: message },
+  ];
 }
 
 async function resolveUserProfile(userId, userRepository) {

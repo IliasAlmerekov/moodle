@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
@@ -51,7 +52,7 @@ export async function createFastifyInstance(config) {
       redact: { paths: LOG_REDACT_PATHS, remove: true },
     },
     requestIdHeader: "x-request-id",
-    genReqId: () => crypto.randomUUID(),
+    genReqId: () => randomUUID(),
     pluginTimeout: 60_000,
     // The only request bodies are small chat JSON payloads (message + identity);
     // 64 KB is generous while shrinking the parser's exposure to oversized input.

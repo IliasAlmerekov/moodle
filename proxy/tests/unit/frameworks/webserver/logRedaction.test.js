@@ -9,10 +9,7 @@ import { LOG_REDACT_PATHS } from "../../../../src/frameworks/webserver/fastify.j
 
 test("redaction covers chat message content and signature under both body shapes", () => {
   for (const leaf of ["message", "content", "sig"]) {
-    assert.ok(
-      LOG_REDACT_PATHS.includes(`body.${leaf}`),
-      `expected body.${leaf} to be redacted`,
-    );
+    assert.ok(LOG_REDACT_PATHS.includes(`body.${leaf}`), `expected body.${leaf} to be redacted`);
     assert.ok(
       LOG_REDACT_PATHS.includes(`req.body.${leaf}`),
       `expected req.body.${leaf} to be redacted`,
