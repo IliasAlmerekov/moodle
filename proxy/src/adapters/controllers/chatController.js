@@ -58,7 +58,11 @@ export function createChatController({
           ? Number(claimedUserId)
           : 0;
 
-      const rateLimitResult = checkUserRateLimit(numericUserId, {
+      // Rate-limit by userId AND IP (PR-03): a composite key prevents all
+      // unverified callers (userId 0) from sharing one global bucket and keeps
+      // a single abuser on one IP from exhausting a legitimate user's quota.
+      const rateLimitKey = `${numericUserId}:${request.ip ?? "unknown"}`;
+      const rateLimitResult = checkUserRateLimit(rateLimitKey, {
         ip: request.ip,
         log: request.log,
         max: config.userRateLimit.max,
@@ -89,10 +93,27 @@ export function createChatController({
       }
       request.raw.on("close", onClientClose);
 
+      // Guard every write: once the client disconnects or the socket is closed,
+      // writing throws and the backpressure `drain` would never fire — so we
+      // skip writes when the response is no longer writable, and race `drain`
+      // against `close`/`error` so a dead socket can never hang the handler (PR-04).
       async function writeSse(chunk) {
+        if (reply.raw.writableEnded || reply.raw.destroyed || abortController.signal.aborted) {
+          return;
+        }
         const ok = reply.raw.write(chunk);
         if (!ok) {
-          await new Promise((resolve) => reply.raw.once("drain", resolve));
+          await new Promise((resolve) => {
+            const settle = () => {
+              reply.raw.off?.("drain", settle);
+              reply.raw.off?.("close", settle);
+              reply.raw.off?.("error", settle);
+              resolve();
+            };
+            reply.raw.once("drain", settle);
+            reply.raw.once("close", settle);
+            reply.raw.once("error", settle);
+          });
         }
       }
 
@@ -121,8 +142,12 @@ export function createChatController({
         }
       } finally {
         request.raw.off("close", onClientClose);
+        // writeSse is a no-op once aborted/ended, so [DONE] is skipped on a
+        // disconnect. Only end a socket that is still writable.
         await writeSse("data: [DONE]\n\n");
-        reply.raw.end();
+        if (!reply.raw.writableEnded && !reply.raw.destroyed) {
+          reply.raw.end();
+        }
       }
     },
   };

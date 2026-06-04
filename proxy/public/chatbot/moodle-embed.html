@@ -19,6 +19,17 @@
   expired tokens with HTTP 401. The signature MUST be produced server-side in
   Moodle (where $USER->id is authenticated) — never in client JavaScript.
 
+  CONTENT SECURITY POLICY (required, F-05): this widget loads cross-origin into
+  the Moodle page DOM, so the MOODLE page's CSP — not the proxy's — governs it.
+  If the school's Moodle sends a Content-Security-Policy, it MUST allow the
+  chatbot proxy origin, otherwise the script silently fails to load or fetch:
+    script-src  <proxy-origin>      (e.g. https://chat.school.de)
+    style-src   <proxy-origin>
+    connect-src <proxy-origin>      (for fetch to /api/chat-stream, SSE)
+    img-src     <proxy-origin>
+  Replace <proxy-origin> with CHATBOT_CONFIG.apiUrl. When the widget is served
+  from the same origin as Moodle, 'self' already covers these.
+
   Example Moodle-side PHP (e.g. in a custom block or additional HTML, using the
   SAME secret as the proxy's CHATBOT_AUTH_SECRET):
 

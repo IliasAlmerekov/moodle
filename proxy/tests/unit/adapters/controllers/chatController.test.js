@@ -130,8 +130,8 @@ function createMockRepositories() {
     llmService: {
       async streamResponse() {
         return createMockReadableStream([
-          JSON.stringify({ response: "Hello", done: false }),
-          JSON.stringify({ response: "!", done: true }),
+          JSON.stringify({ message: { content: "Hello" }, done: false }),
+          JSON.stringify({ message: { content: "!" }, done: true }),
         ]);
       },
     },

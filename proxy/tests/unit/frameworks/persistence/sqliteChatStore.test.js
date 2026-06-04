@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
+import { createContentCipher } from "../../../../src/frameworks/persistence/contentCipher.js";
 
 let savedEnv;
 let createSqliteChatStore;
@@ -140,4 +141,36 @@ test("clearSession is idempotent for nonexistent session", async () => {
   await store.clearSession("nonexistent");
   const history = await store.getHistory("nonexistent", 10);
   assert.deepEqual(history, []);
+});
+
+test("with an encryption key, content is stored as ciphertext but reads back as plaintext", async () => {
+  const cipher = createContentCipher("0".repeat(64));
+  const store = createSqliteChatStore({ db, cipher });
+
+  await store.appendMessage("session-enc", 1, "user", "geheime Nachricht");
+
+  // Raw column must not contain the plaintext.
+  const raw = db.prepare("SELECT content FROM chat_messages WHERE session_id = ?").get("session-enc");
+  assert.equal(raw.content.startsWith("enc:v1:"), true);
+  assert.equal(raw.content.includes("geheime Nachricht"), false);
+
+  // getHistory transparently decrypts.
+  const history = await store.getHistory("session-enc", 10);
+  assert.equal(history[0].content, "geheime Nachricht");
+});
+
+test("encrypted store still reads legacy plaintext rows", async () => {
+  const cipher = createContentCipher("0".repeat(64));
+  const store = createSqliteChatStore({ db, cipher });
+
+  // Simulate a row written before encryption was enabled (plaintext content).
+  db.prepare(
+    "INSERT INTO chat_sessions (id, user_id, created_at, updated_at) VALUES ('legacy', 1, 1, 1)",
+  ).run();
+  db.prepare(
+    "INSERT INTO chat_messages (session_id, user_id, role, content, created_at) VALUES ('legacy', 1, 'user', 'old plaintext', 1)",
+  ).run();
+
+  const history = await store.getHistory("legacy", 10);
+  assert.equal(history[0].content, "old plaintext");
 });

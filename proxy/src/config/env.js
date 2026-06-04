@@ -20,8 +20,12 @@ const {
   OLLAMA_CONCURRENCY = "2",
   OLLAMA_MAX_QUEUE = "20",
   OLLAMA_TIMEOUT_MS = "120000",
+  OLLAMA_NUM_PREDICT = "512",
+  OLLAMA_NUM_CTX = "4096",
   CHAT_DB_PATH = "../data/chat.db",
+  CHAT_ENCRYPTION_KEY = "",
   CHATBOT_AUTH_SECRET = "",
+  CHATBOT_AUTH_SECRET_PREVIOUS = "",
   AUTH_TOKEN_TTL_MS = "7200000",
   TRUST_PROXY = "1",
 } = process.env;
@@ -51,6 +55,12 @@ if (missing.length > 0) {
 // caller is, so it must be present in production.
 if (NODE_ENV === "production" && !CHATBOT_AUTH_SECRET) {
   throw new Error("Missing required environment variable: CHATBOT_AUTH_SECRET");
+}
+
+// Chat history is personal data of minors and must be encrypted at rest in
+// production. Without a key the SQLite `content` column would be plaintext.
+if (NODE_ENV === "production" && !CHAT_ENCRYPTION_KEY) {
+  throw new Error("Missing required environment variable: CHAT_ENCRYPTION_KEY");
 }
 
 const moodleBaseUrl = MOODLE_URL.replace(/\/$/, "");
@@ -89,6 +99,10 @@ const config = {
 
   auth: {
     secret: CHATBOT_AUTH_SECRET,
+    // Comma-separated secrets still accepted during a rotation overlap window.
+    previousSecrets: CHATBOT_AUTH_SECRET_PREVIOUS
+      ? CHATBOT_AUTH_SECRET_PREVIOUS.split(",").map((s) => s.trim()).filter(Boolean)
+      : [],
     tokenTtlMs: Number(AUTH_TOKEN_TTL_MS),
   },
 
@@ -103,11 +117,16 @@ const config = {
     concurrency: Number(OLLAMA_CONCURRENCY),
     maxQueue: Number(OLLAMA_MAX_QUEUE),
     timeoutMs: Number(OLLAMA_TIMEOUT_MS),
+    // Caps generated output length and context window so a single request cannot
+    // pin the model for the full timeout or overflow the context (AI-03/AI-04).
+    numPredict: Number(OLLAMA_NUM_PREDICT),
+    numCtx: Number(OLLAMA_NUM_CTX),
     isConfigured: true,
   },
 
   chat: {
     dbPath: CHAT_DB_PATH,
+    encryptionKey: CHAT_ENCRYPTION_KEY || null,
     maxMessageLength: Number(MAX_MESSAGE_LENGTH),
     maxHistoryMessages: Number(MAX_HISTORY_MESSAGES),
     // Sessions idle longer than this are pruned on startup. 0 disables retention.

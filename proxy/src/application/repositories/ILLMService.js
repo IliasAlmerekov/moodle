@@ -4,11 +4,14 @@
  */
 export const ILLMService = {
   /**
-   * @param {string} prompt
-   * @param {string} model
-   * @returns {Promise<ReadableStream>}
+   * Streams an assistant reply for a role-structured conversation.
+   *
+   * @param {Array<{role: "system"|"user"|"assistant", content: string}>} messages
+   * @param {string} [model]
+   * @param {AbortSignal} [signal]
+   * @returns {Promise<ReadableStream>} NDJSON stream of `{ message: { content }, done }`
    */
-  streamResponse: async (prompt, model) => {
+  streamResponse: async (messages, model, signal) => {
     throw new Error("Not implemented");
   },
 
