@@ -46,7 +46,7 @@
 
 ## Demo
 
-![Moodle AI Chatbot embedded in a course page](proxy/public/chatbot/assets/moodle.png)
+![Moodle AI Chatbot demo](proxy/public/chatbot/assets/demo.gif)
 
 The widget is embedded directly into a Moodle course page. A student types a
 question; the proxy resolves their enrolments, searches only those courses,
@@ -99,7 +99,7 @@ was test-gated; see the commit history for the completion arc.
 - [x] SQLite persistence with WAL, retention pruning, mounted volume
 - [x] Container healthcheck + graceful shutdown (SIGTERM/SIGINT)
 - [x] CI: lint, format, tests + coverage, dependency audit, secret scan, image build & smoke test
-- [x] Demo screenshot in README (animated recording optional — see [Demo](#demo))
+- [x] Demo recording in README (animated GIF)
 - [x] Limitations documented honestly (see [Limitations](#limitations))
 
 ---
