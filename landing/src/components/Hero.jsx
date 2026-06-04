@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { gsap, useGSAP, prefersReducedMotion } from '../lib/gsap.js'
 import ChatDemo from './ChatDemo.jsx'
+import { HERO_SCRIPTS } from '../data.js'
 
 const container = {
   hidden: {},
@@ -166,7 +167,7 @@ export default function Hero() {
               <dd>command to bring up the full stack</dd>
             </div>
             <div className="hero__proof-item">
-              <dt><CountUp target={376} /></dt>
+              <dt><CountUp target={417} /></dt>
               <dd>unit, integration and a11y tests</dd>
             </div>
             <div className="hero__proof-item hero__proof-item--zero">
@@ -187,7 +188,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
         >
-          <ChatDemo compact />
+          <ChatDemo compact scripts={HERO_SCRIPTS} />
         </motion.div>
       </div>
     </section>

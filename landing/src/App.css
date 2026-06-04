@@ -433,6 +433,10 @@
   vertical-align: text-bottom;
   animation: demo-blink 0.9s steps(1) infinite;
 }
+
+/* Screenshot used to live inside the bot bubble. Moved out to the
+   "Real answers" section below the chat so the screenshots get a
+   stage of their own and the chat reads as a pure streaming demo. */
 @keyframes demo-blink {
   50% { opacity: 0; }
 }
@@ -1209,6 +1213,89 @@
   font-size: 0.75rem;
   color: var(--text-faint);
 }
+
+/* ============================================================
+   Screenshots — the "Real answers" gallery. Sits between the
+   chat demo and the architecture flow so the narrative reads:
+   chat works → here are the actual answers → here's the
+   architecture behind them. Same vocabulary as `.threat__grid`:
+   thin border, soft two-layer shadow, hover-lift, orange cursor
+   spotlight tint. 1 ScrollTrigger batch reveal on the cards.
+   ============================================================ */
+
+.screenshots__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.screenshots__card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--moodle-border);
+  border-radius: var(--radius);
+  padding: 1rem 1rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition:
+    transform 250ms ease,
+    box-shadow 250ms ease,
+    border-color 250ms ease;
+  box-shadow:
+    0 1px 1px rgba(15, 23, 42, 0.04),
+    0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.screenshots__card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(249, 128, 18, 0.35);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 12px 28px rgba(15, 23, 42, 0.10);
+}
+
+.screenshots__card-num {
+  position: absolute;
+  top: 0.875rem;
+  right: 1rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.screenshots__card-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--moodle-border);
+  background: #fff;
+}
+
+.screenshots__card-caption {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--body-color);
+  margin: 0;
+}
+
+/* Title accent — solid colour + thin underline. NO gradient
+   text (banned). The underline + offset gives a marker feel
+   that pairs with the .progress__hl treatment. */
+.screenshots__hl {
+  color: var(--moodle-primary);
+  border-bottom: 2px solid rgba(249, 128, 18, 0.35);
+  padding-bottom: 0.05em;
+}
+
 @media (max-width: 720px) {
   .footer__inner { flex-direction: column; align-items: flex-start; }
 }

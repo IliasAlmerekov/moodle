@@ -22,6 +22,8 @@ import {
   ARCHITECTURE_NODES,
   ARCHITECTURE_EDGES,
   THREAT_MODEL,
+  HERO_SCRIPTS,
+  SCREENSHOTS,
 } from './data.js'
 
 export default function App() {
@@ -33,6 +35,7 @@ export default function App() {
         <Hero />
         <Progress />
         <DemoFull />
+        <Screenshots />
         <Architecture />
         <ThreatModel />
         <CTA />
@@ -282,6 +285,84 @@ function DemoFull() {
         <Reveal delay={0.06} className="demo-section__stage">
           <ChatDemo />
         </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Screenshots — real answers from the live Moodle instance           */
+/* ------------------------------------------------------------------ */
+// Renders the four real screenshots of the Moodle AI Chatbot running
+// at itech-bs14.de as a 2×2 card grid. The chat above streams the
+// question/answer pairs; this section gives the user a visual record
+// of what those answers actually look like. Cards fade up on scroll
+// (one batch reveal, 0.08s stagger) and lift on hover with the same
+// cursor spotlight tint as `.progress__card`.
+function Screenshots() {
+  const sectionRef = useRef(null)
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) {
+        gsap.set('.screenshots__card', { opacity: 1, y: 0 })
+        return undefined
+      }
+      const cards = sectionRef.current?.querySelectorAll('.screenshots__card') ?? []
+      if (cards.length === 0) return undefined
+      gsap.set(cards, { opacity: 0, y: 24 })
+      const trigger = ScrollTrigger.batch(cards, {
+        start: 'top 82%',
+        onEnter: (batch) =>
+          gsap.to(batch, {
+            opacity: 1,
+            y: 0,
+            duration: 0.55,
+            stagger: 0.08,
+            ease: 'power2.out',
+            overwrite: true,
+          }),
+      })
+      return () => {
+        trigger.forEach((t) => t.kill())
+      }
+    },
+    { scope: sectionRef },
+  )
+
+  return (
+    <section className="section screenshots" ref={sectionRef} id="answers">
+      <div className="wrap">
+        <Reveal>
+          <span className="kicker kicker--blue">Real answers</span>
+        </Reveal>
+        <h2 className="section__title">
+          The assistant in <span className="screenshots__hl">its own words</span>.
+        </h2>
+        <p className="section__lede">
+          Real screenshots from the Moodle AI Chatbot running at
+          itech-bs14.de — every link, every file, every requirement
+          comes from the student's own course.
+        </p>
+
+        <ol className="screenshots__grid" role="list">
+          {SCREENSHOTS.map((s) => (
+            <li className="screenshots__card" key={s.src} data-cursor="card">
+              <span className="screenshots__card-num" aria-hidden="true">
+                {s.num}
+              </span>
+              <img
+                src={s.src}
+                alt={s.alt}
+                className="screenshots__card-img"
+                loading="lazy"
+                width="640"
+                height="400"
+              />
+              <p className="screenshots__card-caption">{s.caption}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   )
