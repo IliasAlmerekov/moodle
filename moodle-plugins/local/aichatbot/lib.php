@@ -4,11 +4,11 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Injects the AI chatbot widget before Moodle closes the page body.
+ * Builds the AI chatbot widget footer HTML.
  *
  * @return string
  */
-function local_aichatbot_before_footer(): string {
+function local_aichatbot_get_footer_html(): string {
     global $USER;
 
     if (!isloggedin() || isguestuser()) {
