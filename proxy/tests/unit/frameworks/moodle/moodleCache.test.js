@@ -39,24 +39,50 @@ test("moodleCache loads and reuses structured course data until course TTL expir
         {
           id: 101,
           name: `Section ${courseId}`,
+          summary: "Checkpoint deliverables and rubric",
           modules: [
             {
               id: 201,
               name: "Navigator",
+              description: "Submit your checkpoint file here",
               modname: "resource",
+              url: "https://moodle.example.test/mod/resource/view.php?id=201",
               contents: [
                 {
                   type: "file",
                   filename: "routing.pdf",
                   mimetype: "application/pdf",
+                  filepath: "/Sprint 2/",
                   fileurl:
                     "https://moodle.example.test/webservice/pluginfile.php/1/mod_resource/content/routing.pdf?token=secret",
+                },
+              ],
+            },
+            {
+              id: 202,
+              name: "Planning and Agreements",
+              modname: "page",
+              contents: [
+                {
+                  type: "file",
+                  filename: "index.html",
+                  mimetype: "text/html",
+                  filepath: "/",
+                  fileurl:
+                    "https://moodle.example.test/webservice/pluginfile.php/2/mod_page/content/index.html",
                 },
               ],
             },
           ],
         },
       ];
+    },
+    async getTextFile(fileUrl) {
+      assert.equal(
+        fileUrl,
+        "https://moodle.example.test/webservice/pluginfile.php/2/mod_page/content/index.html",
+      );
+      return "<h2>Planning and Agreements</h2><p>Checkpoint 2: Ideate Your Solution (20%)</p>";
     },
   };
 
@@ -74,13 +100,20 @@ test("moodleCache loads and reuses structured course data until course TTL expir
   assert.equal(calls.getCourseContents, 2);
   assert.equal(first[0].name, "Learning Field 8");
   assert.equal(first[0].url, "https://moodle.example.test/course/view.php?id=11");
+  assert.equal(sections[0].summary, "Checkpoint deliverables and rubric");
   assert.equal(
     sections[0].modules[0].url,
     "https://moodle.example.test/mod/resource/view.php?id=201",
   );
+  assert.equal(sections[0].modules[0].summary, "Submit your checkpoint file here");
+  assert.equal(sections[0].modules[0].files[0].path, "/Sprint 2/");
   assert.equal(
     sections[0].modules[0].files[0].url,
     "https://moodle.example.test/pluginfile.php/1/mod_resource/content/routing.pdf",
+  );
+  assert.equal(
+    sections[0].modules[1].summary,
+    "Planning and Agreements Checkpoint 2: Ideate Your Solution (20%)",
   );
   assert.equal(cache.stats.courses.hits, 2);
   assert.equal(cache.stats.courses.misses, 2);

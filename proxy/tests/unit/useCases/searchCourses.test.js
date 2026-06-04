@@ -167,7 +167,120 @@ test("MAX_SECTIONS_IN_RESPONSE limits returned sections", async () => {
     allowedIds: [99],
   });
   assert.strictEqual(result.found, true);
-  assert.strictEqual(result.sections.length, 3); // MAX_SECTIONS_IN_RESPONSE
+  assert.strictEqual(result.sections.length, 5); // MAX_SECTIONS_IN_RESPONSE
+});
+
+test("checkpoint query matches section and module descriptions", async () => {
+  const courses = [
+    {
+      id: 3,
+      name: "Bili Hackathon",
+      shortname: "bili",
+      summary: "Hackathon course",
+      url: "https://moodle.example/course/view.php?id=3",
+      sections: [
+        {
+          id: 31,
+          name: "Sprint 1 - Understand the challenge",
+          summary: "Preparation for Checkpoint 1",
+          modules: [
+            {
+              id: 301,
+              name: "Checkpoint 1 submission",
+              type: "assign",
+              description: "Submit your problem statement and research summary.",
+              files: [],
+            },
+          ],
+        },
+        {
+          id: 32,
+          name: "Sprint 2 - Ideate your solution",
+          summary: "Preparation for Checkpoint 2",
+          modules: [
+            {
+              id: 302,
+              name: "Ideation canvas",
+              type: "resource",
+              description: "Helpful material for Checkpoint 2 deliverables.",
+              files: [{ filename: "Walt Disney.pdf", path: "/Sprint 2/" }],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const repo = buildMockCourseRepository(courses);
+  const result = await searchCourses({
+    query: "Bili Hackathon Checkpoint 2 what do I submit",
+    courseRepository: repo,
+    allowedIds: [3],
+  });
+
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.course.name, "Bili Hackathon");
+  assert.strictEqual(result.sections[0].name, "Sprint 2 - Ideate your solution");
+});
+
+test("checkpoint query includes related hackathon course context", async () => {
+  const courses = [
+    {
+      id: 2,
+      name: "Klassenkurs IT4bili",
+      shortname: "it4bili",
+      summary: "Class course",
+      url: "https://moodle.example/course/view.php?id=2",
+      sections: [
+        {
+          id: 20,
+          name: "Lernfeld 7: Hackathon",
+          modules: [
+            {
+              id: 15,
+              name: "Planning and Agreements",
+              type: "page",
+              summary:
+                "Checkpoint 1: Problem Definition & Team Organization (10%) Checkpoint 2: Ideate Your Solution (20%)",
+              files: [{ filename: "index.html", path: "/" }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 3,
+      name: "Bili Hackathon",
+      shortname: "bili",
+      summary: "Hackathon course",
+      url: "https://moodle.example/course/view.php?id=3",
+      sections: [
+        {
+          id: 32,
+          name: "Sprint 2 - Ideate your solution",
+          modules: [
+            {
+              id: 53,
+              name: "Walt Disney",
+              type: "resource",
+              files: [{ filename: "Walt Disney.pptx", path: "/" }],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const repo = buildMockCourseRepository(courses);
+  const result = await searchCourses({
+    query: "Bili Hackathon Checkpoint 2 what do I submit",
+    courseRepository: repo,
+    allowedIds: [2, 3],
+  });
+
+  assert.strictEqual(result.found, true);
+  assert.strictEqual(result.course.name, "Klassenkurs IT4bili");
+  assert.strictEqual(result.sections[0].name, "Lernfeld 7: Hackathon");
+  assert.strictEqual(result.relatedCourses[0].course.name, "Bili Hackathon");
+  assert.strictEqual(result.relatedCourses[0].sections[0].name, "Sprint 2 - Ideate your solution");
 });
 
 test("stop words are ignored in query", async () => {

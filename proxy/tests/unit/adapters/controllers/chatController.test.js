@@ -181,6 +181,40 @@ test("valid SSE request includes CORS headers for allowed local Moodle origin", 
   assert.strictEqual(reply.raw._headers.Vary, "Origin");
 });
 
+test("uses allowed request Origin as Moodle base URL for generated course links", async () => {
+  const { createChatController } = await importControllerModule();
+  const { default: config } = await import("../../../../src/config/env.js");
+  config.cors.origins = ["http://127.0.0.1:8080"];
+  config.moodle.publicUrl = "https://www.itech-bs14.de";
+
+  const deps = createMockRepositories();
+  deps.userRepository.getUserCourses = async () => [
+    { id: 2, name: "Klassenkurs IT4bili", shortname: "IT4bili" },
+  ];
+
+  let messagesForLlm = [];
+  deps.llmService.streamResponse = async (messages) => {
+    messagesForLlm = messages;
+    return createMockReadableStream([JSON.stringify({ message: { content: "ok" }, done: true })]);
+  };
+
+  const controller = createChatController(deps);
+  const request = createMockRequest({
+    body: { message: "course link", userId: 42, chatId: "moodle-42-local" },
+    headers: { origin: "http://127.0.0.1:8080" },
+  });
+  const reply = createMockReply();
+
+  await controller.handleStream(request, reply);
+
+  assert.ok(
+    messagesForLlm[0].content.includes(
+      "KURS-LINK: http://127.0.0.1:8080/course/view.php?id=2",
+    ),
+  );
+  assert.ok(!messagesForLlm[0].content.includes("https://www.itech-bs14.de/course/view.php?id=2"));
+});
+
 test("returns 400 for non-string message", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();

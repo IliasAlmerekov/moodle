@@ -118,6 +118,31 @@ test("rate limit plugin returns German message on 429", async () => {
   assert.equal(body.message, "Zu viele Anfragen. Bitte warte eine Minute.");
 });
 
+test("rate limit does not throttle chatbot static assets", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 1, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+
+  const app = await createFastifyInstance(config);
+
+  const first = await app.inject({ method: "GET", url: "/chatbot/chatbot.js?v=20260602" });
+  const second = await app.inject({ method: "GET", url: "/chatbot/fonts.css" });
+  const third = await app.inject({ method: "GET", url: "/chatbot/chatbot.css" });
+
+  assert.equal(first.statusCode, 200);
+  assert.equal(second.statusCode, 200);
+  assert.equal(third.statusCode, 200);
+  assert.equal(first.headers["x-ratelimit-limit"], undefined);
+  assert.equal(second.headers["x-ratelimit-limit"], undefined);
+  assert.equal(third.headers["x-ratelimit-limit"], undefined);
+});
+
 test("cors rejects disallowed origins", async () => {
   const { createFastifyInstance } = await importFastifyFactory();
 
@@ -387,6 +412,42 @@ test("chatbot.js reports missing Moodle user instead of silently ignoring send",
     !response.body.includes("if (!message || !moodleUser) return;"),
     "chatbot.js must not silently return when moodleUser is missing",
   );
+  await app.close();
+});
+
+test("chatbot.js hides widget when Moodle user is anonymous", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes("hideChatbotForAnonymousUser"));
+  assert.ok(response.body.includes('toogleButton?.classList.add("hidden")'));
+  assert.ok(response.body.includes("if (!moodleUser)"));
+  await app.close();
+});
+
+test("chatbot.js versions local chat storage to avoid stale prompt history", async () => {
+  const { createFastifyInstance } = await importFastifyFactory();
+  const config = {
+    logLevel: "silent",
+    nodeEnv: "test",
+    cors: { origins: false },
+    rateLimit: { max: 100, window: "1 minute" },
+    moodle: { publicUrl: "" },
+  };
+  const app = await createFastifyInstance(config);
+  const response = await app.inject({ method: "GET", url: "/chatbot/chatbot.js" });
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes("CHAT_HISTORY_VERSION"));
+  assert.ok(response.body.includes("chat-session:${CHAT_HISTORY_VERSION}:${userId}"));
+  assert.ok(response.body.includes("chat-history:${CHAT_HISTORY_VERSION}:${chatId}"));
   await app.close();
 });
 

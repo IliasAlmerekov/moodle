@@ -46,6 +46,7 @@ test("ollamaClient streams chat responses through /api/chat with role messages",
     model: "llama-custom",
     messages,
     stream: true,
+    think: false,
     options: { num_predict: 256, num_ctx: 2048 },
   });
   assert.equal(requests[0].options.signal instanceof AbortSignal, true);
