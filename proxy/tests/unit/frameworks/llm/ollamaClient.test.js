@@ -13,7 +13,7 @@ async function importOllamaClient() {
   return import(moduleUrl.href);
 }
 
-test("ollamaClient streams generated responses through /api/generate", async () => {
+test("ollamaClient streams chat responses through /api/chat with role messages", async () => {
   const body = new ReadableStream();
   const requests = [];
   const fetchImpl = async (url, options) => {
@@ -26,20 +26,27 @@ test("ollamaClient streams generated responses through /api/generate", async () 
     baseUrl: "http://ollama.example.test",
     defaultModel: "llama-default",
     timeoutMs: 1_000,
+    numPredict: 256,
+    numCtx: 2048,
     fetchImpl,
   });
 
-  const stream = await client.streamResponse("Hallo", "llama-custom");
+  const messages = [
+    { role: "system", content: "rules" },
+    { role: "user", content: "Hallo" },
+  ];
+  const stream = await client.streamResponse(messages, "llama-custom");
 
   assert.equal(stream, body);
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, "http://ollama.example.test/api/generate");
+  assert.equal(requests[0].url, "http://ollama.example.test/api/chat");
   assert.equal(requests[0].options.method, "POST");
   assert.equal(requests[0].options.headers["Content-Type"], "application/json");
   assert.deepEqual(JSON.parse(requests[0].options.body), {
     model: "llama-custom",
-    prompt: "Hallo",
+    messages,
     stream: true,
+    options: { num_predict: 256, num_ctx: 2048 },
   });
   assert.equal(requests[0].options.signal instanceof AbortSignal, true);
 });

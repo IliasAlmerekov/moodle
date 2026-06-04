@@ -60,14 +60,14 @@ export function createMockChatRepository(overrides = {}) {
 
 export function createMockLLMService(overrides = {}) {
   return {
-    async streamResponse(prompt, model) {
+    async streamResponse(messages, model) {
       if (overrides.streamResponse) {
-        return overrides.streamResponse(prompt, model);
+        return overrides.streamResponse(messages, model);
       }
       return new ReadableStream({
         start(controller) {
           controller.enqueue(
-            new TextEncoder().encode(JSON.stringify({ response: "Hi", done: true })),
+            new TextEncoder().encode(JSON.stringify({ message: { content: "Hi" }, done: true })),
           );
           controller.close();
         },

@@ -65,15 +65,21 @@ export function createOllamaClient({
   baseUrl = config.ollama.url,
   defaultModel = config.ollama.model,
   timeoutMs = config.ollama.timeoutMs,
+  numPredict = config.ollama.numPredict,
+  numCtx = config.ollama.numCtx,
   fetchImpl = fetch,
   enqueueOllamaRequest = defaultEnqueueOllamaRequest,
 } = {}) {
   return {
-    async streamResponse(prompt, model, signal) {
+    // Uses /api/chat with a structured `messages` array (not /api/generate with
+    // a single prompt string). Role-tagged messages make the conversation roles
+    // structural rather than text, so a user cannot forge a "Tutor:"/"System:"
+    // turn inside their own message content (AI-02).
+    async streamResponse(messages, model, signal) {
       return enqueueOllamaRequest(async () => {
         const response = await fetchWithTimeout(
           fetchImpl,
-          `${baseUrl}/api/generate`,
+          `${baseUrl}/api/chat`,
           {
             method: "POST",
             headers: {
@@ -81,8 +87,9 @@ export function createOllamaClient({
             },
             body: JSON.stringify({
               model: model || defaultModel,
-              prompt,
+              messages,
               stream: true,
+              options: { num_predict: numPredict, num_ctx: numCtx },
             }),
           },
           timeoutMs,
