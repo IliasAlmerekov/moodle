@@ -1,0 +1,290 @@
+/* ============================================================
+   Moodle AI Assistant — Landing
+   Palette: official Moodle brand colours (orange + dark gray +
+   info-blue + success-green). System font stack, Boost-style
+   8px radius, soft shadows. The landing reads as a Moodle
+   product page, not a generic SaaS site.
+   ============================================================ */
+
+:root {
+  /* ---------- Moodle brand palette (from brief) ---------- */
+  --moodle-primary:        #F98012;   /* Moodle Orange — primary CTA, brand */
+  --moodle-primary-hover:  #E56F00;   /* darkened for :hover / :active */
+  --moodle-primary-lt:     #FFF1E0;   /* soft orange — pill bg, hover chips */
+
+  --moodle-info:           #239CAE;   /* Moodle Blue — info accents */
+  --moodle-info-lt:        #D6F0F4;   /* soft blue — info chip bg */
+
+  --moodle-success:        #2CA14F;   /* Moodle Green — success states */
+  --moodle-success-lt:     #DDF1E1;   /* soft green — defense side bg */
+
+  /* ---------- Neutrals (brief: White / Light Gray / Dark Gray) ---------- */
+  --moodle-white:          #FFFFFF;
+  --moodle-bg:             #F8F9FA;   /* Light Gray — section bg */
+  --moodle-text:           #212529;   /* Dark Gray — primary text */
+  --moodle-text-soft:      #6C757D;   /* muted, lede */
+  --moodle-border:         #E5E7EB;   /* dividers, card borders */
+
+  /* ---------- Bootstrap gray scale (still used by shadows & helpers) ---------- */
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #8f959e;
+  --gray-600: #6a737b;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --gray-900: #1d2125;
+
+  /* ---------- Surface (semantic aliases over the brand palette) ---------- */
+  --body-bg:    var(--moodle-bg);
+  --card-bg:    var(--moodle-white);
+  --card-muted: var(--moodle-bg);
+  --border:     var(--moodle-border);
+
+  /* ---------- Text (semantic aliases) ---------- */
+  --body-color:    var(--moodle-text);
+  --text-muted:    var(--moodle-text-soft);
+  --text-faint:    #8f959e;
+  --text-on-dark:  var(--moodle-white);
+
+  /* ---------- Typography (system stack — matches Boost) ---------- */
+  --font-base:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono:
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+
+  /* ---------- Geometry (Moodle defaults) ---------- */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius:    0.5rem;    /* 8px — Boost $border-radius */
+  --radius-lg: 0.6rem;    /* 9.6px — Boost $border-radius-lg */
+
+  /* ---------- Spacing (Boost $spacers) ---------- */
+  --space-1: 0.25rem;     /*  4px */
+  --space-2: 0.5rem;      /*  8px */
+  --space-3: 1rem;        /* 16px */
+  --space-4: 1.5rem;      /* 24px */
+  --space-5: 2rem;        /* 32px */
+  --space-6: 3rem;        /* 48px */
+  --space-7: 4rem;        /* 64px */
+
+  /* ---------- Elevation ----------
+     Two-layer shadows, short+sharp on top of long+diffuse. The
+     first layer "anchors" the surface (a thin penumbra right at
+     the edge), the second lifts it off the page (a wide, soft
+     ambient halo). Single-layer shadows look soft and AI-default;
+     a stacked pair reads as deliberate, designed elevation. */
+  --shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-md:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-card:
+    0 1px 1px rgba(15, 23, 42, 0.04),
+    0 2px 6px rgba(15, 23, 42, 0.05);
+
+  /* ---------- Layout ---------- */
+  --maxw:        1140px;     /* matches Bootstrap .container */
+  --maxw-narrow: 720px;      /* Moodle $course-content-maxwidth-ish */
+  --navbar-h:    60px;       /* Boost $navbar-height */
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-base);
+  font-size: 0.9375rem;       /* Boost $font-size-base: 15px */
+  line-height: 1.5;
+  color: var(--body-color);
+  background: var(--body-bg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-base);
+  font-weight: 700;            /* Boost $headings-font-weight */
+  line-height: 1.2;
+  margin: 0;
+  color: var(--body-color);
+}
+h1 { font-size: 2.25rem; }    /* 36px */
+h2 { font-size: 1.75rem; }    /* 28px */
+h3 { font-size: 1.25rem; }    /* 20px */
+h4 { font-size: 1.0625rem; }  /* 17px */
+
+p { margin: 0; }
+a {
+  color: var(--moodle-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+a:hover { color: var(--moodle-primary-hover); }
+
+button {
+  font-family: var(--font-base);
+  cursor: pointer;
+}
+img, svg { max-width: 100%; display: block; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+::selection {
+  background: var(--moodle-primary);
+  color: #fff;
+}
+
+/* ---------- Layout helpers ---------- */
+.wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 15px;             /* Bootstrap container gutter */
+}
+.wrap--narrow {
+  max-width: var(--maxw-narrow);
+}
+
+.section {
+  padding: 3rem 0;             /* tighter — Boost-ish, not 160px */
+}
+.section--tight { padding: 2rem 0; }
+
+/* ---------- Kicker (replaces our mono caption) ---------- */
+.kicker {
+  display: inline-block;
+  font-size: 0.75rem;          /* 12px */
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.kicker--blue    { color: var(--moodle-primary-hover); }
+.kicker--orange  { color: var(--moodle-primary); }
+
+/* ---------- Buttons (Bootstrap 4 style) ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;        /* Boost btn padding */
+  border-radius: var(--radius);
+  font-family: var(--font-base);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  border: 1px solid transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--moodle-primary);
+  color: #fff;
+  border-color: var(--moodle-primary);
+}
+.btn-primary:hover {
+  background: var(--moodle-primary-hover);
+  border-color: var(--moodle-primary-hover);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--moodle-primary);
+  border-color: var(--moodle-primary);
+}
+.btn-secondary:hover {
+  background: var(--moodle-primary-lt);
+  color: var(--moodle-primary-hover);
+}
+
+.btn-outline-secondary {
+  background: #fff;
+  color: var(--gray-700);
+  border-color: var(--gray-600);
+}
+.btn-outline-secondary:hover {
+  background: var(--gray-100);
+  color: var(--gray-900);
+  border-color: var(--gray-700);
+}
+
+.btn-accent {
+  background: var(--moodle-info);
+  color: #fff;
+  border-color: var(--moodle-info);
+}
+.btn-accent:hover {
+  background: #1c7c8a;
+  border-color: #1c7c8a;
+  color: #fff;
+}
+
+.btn-link {
+  padding: 0;
+  background: transparent;
+  color: var(--moodle-primary);
+  border: none;
+  text-decoration: underline;
+}
+.btn-link:hover { color: var(--moodle-primary-hover); }
+
+/* ---------- Code (Boost style) ---------- */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--moodle-info);
+  background: var(--moodle-info-lt);
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background: var(--gray-100);
+  color: var(--body-color);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 0;
+}
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* ---------- Responsive helpers ---------- */
+@media (max-width: 720px) {
+  body { font-size: 0.9375rem; }
+  .wrap { padding: 0 12px; }
+  h1 { font-size: 1.875rem; }
+  h2 { font-size: 1.5rem; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

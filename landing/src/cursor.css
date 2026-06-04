@@ -1,0 +1,188 @@
+/* ============================================================
+   Cursor — fixed pointer follower.
+   Hidden by default; useCursor.js makes it visible on mount.
+   Honours reduced-motion and touch via the JS hook; CSS is the
+   second line of defence (a hidden class on the body could also
+   be used, but display:none on the media query is simpler).
+   ============================================================ */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  will-change: transform;
+  display: none;
+  transform: translate3d(0, 0, 0);
+}
+
+/* The dot — 16px brand orange, multiplies over dark surfaces so
+   it stays visible. Position is updated by GSAP quickTo x/y
+   tweens that read window.mousemove. */
+.cursor--dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--moodle-primary);
+  mix-blend-mode: multiply;
+  margin-left: -8px;
+  margin-top: -8px;
+}
+
+/* The ring — a soft radial gradient that follows the cursor and
+   reveals only when an opt-in element is hovered. The CSS custom
+   properties --mx, --my, --cursor-tint, --cursor-radius are set
+   by useCursor.js on every mousemove. */
+.cursor--ring {
+  width: var(--cursor-radius, 140px);
+  height: var(--cursor-radius, 140px);
+  border-radius: 50%;
+  margin-left: calc(var(--cursor-radius, 140px) / -2);
+  margin-top: calc(var(--cursor-radius, 140px) / -2);
+  background: radial-gradient(
+    circle at center,
+    var(--cursor-tint, var(--moodle-primary)) 0%,
+    color-mix(in oklch, var(--cursor-tint, var(--moodle-primary)) 40%, transparent) 22%,
+    transparent 60%
+  );
+  filter: blur(2px);
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  mix-blend-mode: multiply;
+}
+.cursor--ring.is-spotlight {
+  opacity: 0.22;
+}
+
+/* Touch devices and reduced-motion users: hide the cursor entirely.
+   useCursor.js also bails in those cases, so the dot never gets
+   moved into the viewport. Belt and braces. */
+@media (hover: none) and (pointer: coarse) {
+  .cursor {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   Per-element opt-in CSS.
+   Sections set data-cursor="<type>" to enable the effect.
+   The hook writes --spot-x, --spot-y, --wordmark-tilt, etc.
+   ============================================================ */
+
+/* Default cursor reset — when the page has a custom cursor, hide
+   the OS arrow on the page body only (not on inputs / textareas). */
+html.has-cursor,
+html.has-cursor body {
+  cursor: none;
+}
+html.has-cursor a,
+html.has-cursor button,
+html.has-cursor [data-cursor] {
+  cursor: none;
+}
+
+/* Generic "card" spotlight — any element with data-cursor="card"
+   shows a soft circular glow that follows the cursor. The glow is
+   a fixed-aspect-radius ::before pseudo on the element itself,
+   sized by a CSS var so different card types can tune it. The
+   trick: the ::before is anchored on --spot-x / --spot-y with
+   translate(-50%, -50%), and its border-radius is a hard circle
+   regardless of the parent shape. That keeps the halo round
+   even on wide rectangular cards (Progress card, CTA code block)
+   where a full-bleed radial gradient reads as a fuzzy rectangle
+   clipped to the card bounds. The halo also overflows the
+   parent (no `inset: 0`) so it bleeds outward into the page. */
+[data-cursor="card"]::before,
+[data-cursor="code"]::before,
+[data-cursor="dot"]::before {
+  --halo-size: 480px;
+  content: '';
+  position: absolute;
+  top: var(--spot-y, 50%);
+  left: var(--spot-x, 50%);
+  width: var(--halo-size);
+  height: var(--halo-size);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+  background: radial-gradient(
+    circle at center,
+    var(--cursor-tint, var(--moodle-primary)) 0%,
+    color-mix(in oklch, var(--cursor-tint, var(--moodle-primary)) 35%, transparent) 28%,
+    transparent 70%
+  );
+  mix-blend-mode: multiply;
+  z-index: 0;
+  filter: blur(12px);
+}
+[data-cursor="card"]:hover::before,
+[data-cursor="code"]:hover::before,
+[data-cursor="dot"]:hover::before {
+  opacity: 0.32;
+}
+
+/* Smaller halo for the code block in the CTA — it is a narrow
+   element and a 480px halo would dominate the section. */
+[data-cursor="code"]::before {
+  --halo-size: 320px;
+}
+
+/* The progress dots are circular; their ::after pseudo is the
+   "spotlight" because the ::before is already used for the
+   ::after the existing .progress__dot has (the .is-done
+   modifier). To keep the existing styles working, we apply the
+   spotlight to a new inner span rendered by the component. The
+   CSS rule above still applies for cards / code blocks. */
+.progress__dot {
+  --spot-x: 50%;
+  --spot-y: 50%;
+  --cursor-tint: var(--moodle-primary);
+  position: relative;
+}
+.progress__dot::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  background: radial-gradient(
+    90px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    var(--moodle-primary),
+    transparent 60%
+  );
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+.progress__dot:hover::after,
+.progress__dot:focus-visible::after {
+  opacity: 0.22;
+}
+
+/* Wordmark — gentle ±6deg tilt around its centre. The hook
+   writes --wordmark-tilt on the element. */
+[data-cursor="wordmark"] {
+  --wordmark-tilt: 0deg;
+  display: inline-flex;
+  transform: rotate(var(--wordmark-tilt));
+  transition: transform 220ms cubic-bezier(0.21, 0.6, 0.35, 1);
+  transform-origin: center;
+}
+
+/* Magnetic — no extra CSS needed, the hook writes the transform
+   directly. We add a will-change on hover for cheap compositing. */
+[data-cursor="magnetic"] {
+  will-change: auto;
+}
+[data-cursor="magnetic"]:hover {
+  will-change: transform;
+}
