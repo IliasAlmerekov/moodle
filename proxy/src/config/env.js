@@ -101,7 +101,9 @@ const config = {
     secret: CHATBOT_AUTH_SECRET,
     // Comma-separated secrets still accepted during a rotation overlap window.
     previousSecrets: CHATBOT_AUTH_SECRET_PREVIOUS
-      ? CHATBOT_AUTH_SECRET_PREVIOUS.split(",").map((s) => s.trim()).filter(Boolean)
+      ? CHATBOT_AUTH_SECRET_PREVIOUS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : [],
     tokenTtlMs: Number(AUTH_TOKEN_TTL_MS),
   },

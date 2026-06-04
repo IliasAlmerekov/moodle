@@ -46,7 +46,10 @@ afterEach(() => {
 test("production masks a 5xx error message", async () => {
   const { setupErrorHandler, config } = await importErrorHandler();
   config.nodeEnv = "production";
-  const reply = run(setupErrorHandler, Object.assign(new Error("db dsn leaked"), { statusCode: 500 }));
+  const reply = run(
+    setupErrorHandler,
+    Object.assign(new Error("db dsn leaked"), { statusCode: 500 }),
+  );
   assert.strictEqual(reply._status, 500);
   assert.strictEqual(reply._sent.message, "Ein Fehler ist aufgetreten.");
 });
@@ -54,7 +57,10 @@ test("production masks a 5xx error message", async () => {
 test("production masks an arbitrary 4xx error message (no expose flag)", async () => {
   const { setupErrorHandler, config } = await importErrorHandler();
   config.nodeEnv = "production";
-  const reply = run(setupErrorHandler, Object.assign(new Error("internal path /etc/x"), { statusCode: 403 }));
+  const reply = run(
+    setupErrorHandler,
+    Object.assign(new Error("internal path /etc/x"), { statusCode: 403 }),
+  );
   assert.strictEqual(reply._status, 403);
   assert.strictEqual(reply._sent.message, "Ein Fehler ist aufgetreten.");
 });
@@ -82,6 +88,9 @@ test("production exposes an error explicitly flagged expose:true", async () => {
 test("development exposes the raw message", async () => {
   const { setupErrorHandler, config } = await importErrorHandler();
   config.nodeEnv = "development";
-  const reply = run(setupErrorHandler, Object.assign(new Error("verbose dev detail"), { statusCode: 500 }));
+  const reply = run(
+    setupErrorHandler,
+    Object.assign(new Error("verbose dev detail"), { statusCode: 500 }),
+  );
   assert.strictEqual(reply._sent.message, "verbose dev detail");
 });
