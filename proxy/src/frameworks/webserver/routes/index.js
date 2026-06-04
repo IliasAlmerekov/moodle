@@ -1,3 +1,14 @@
+// Internal-only guard: diagnostic and admin endpoints expose PII or operational
+// internals and must never be reachable from outside the host. Gating on the
+// loopback address is independent of NODE_ENV, so a misconfigured environment
+// cannot accidentally expose them. Returns the reply to halt the chain on deny.
+async function requireLoopback(request, reply) {
+  const ip = request.ip;
+  if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
+    return reply.code(403).send({ error: "Forbidden" });
+  }
+}
+
 /**
  * Registers all HTTP routes on the Fastify instance.
  *
@@ -56,14 +67,7 @@ export async function registerRoutes(app, controllers, options = {}) {
   if (typeof health.checkDetails === "function") {
     app.get(
       "/health/details",
-      {
-        preHandler: async (request, reply) => {
-          const ip = request.ip;
-          if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
-            return reply.code(403).send({ error: "Forbidden" });
-          }
-        },
-      },
+      { preHandler: requireLoopback },
       health.checkDetails.bind(health),
     );
   }
@@ -135,7 +139,11 @@ export async function registerRoutes(app, controllers, options = {}) {
     history.delete.bind(history),
   );
 
-  // Moodle endpoints
+  // Moodle endpoints.
+  // `/moodle/ping` is a PII-free liveness probe and stays public. The remaining
+  // routes are diagnostic-only (they expose user PII and cache internals, with
+  // no consumer in the chat flow), so they are restricted to loopback in
+  // addition to the production block enforced in the controller.
   app.get("/moodle/ping", moodle.ping.bind(moodle));
 
   const userIdParamSchema = {
@@ -149,7 +157,7 @@ export async function registerRoutes(app, controllers, options = {}) {
   };
   app.get(
     "/moodle/users/:userId/courses",
-    { schema: userIdParamSchema },
+    { schema: userIdParamSchema, preHandler: requireLoopback },
     moodle.getUserCourses.bind(moodle),
   );
 
@@ -162,21 +170,22 @@ export async function registerRoutes(app, controllers, options = {}) {
       },
     },
   };
-  app.get("/moodle/user/:id", { schema: idParamSchema }, moodle.getUser.bind(moodle));
-  app.get("/moodle/debug/cache", moodle.debugCache.bind(moodle));
+  app.get(
+    "/moodle/user/:id",
+    { schema: idParamSchema, preHandler: requireLoopback },
+    moodle.getUser.bind(moodle),
+  );
+  app.get(
+    "/moodle/debug/cache",
+    { preHandler: requireLoopback },
+    moodle.debugCache.bind(moodle),
+  );
 
   // Cache invalidation — localhost only
   if (invalidateCourseCache) {
     app.post(
       "/admin/cache/invalidate",
-      {
-        preHandler: async (request, reply) => {
-          const ip = request.ip;
-          if (ip !== "127.0.0.1" && ip !== "::1" && ip !== "::ffff:127.0.0.1") {
-            reply.code(403).send({ error: "Forbidden" });
-          }
-        },
-      },
+      { preHandler: requireLoopback },
       async (_request, reply) => {
         invalidateCourseCache();
         return reply.code(200).send({ ok: true });

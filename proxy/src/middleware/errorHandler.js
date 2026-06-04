@@ -12,10 +12,15 @@ export function setupErrorHandler(server) {
       statusCode,
     });
 
+    // In production only expose messages that are explicitly client-safe:
+    // Fastify schema-validation errors (statusCode < 500 with `validation`) and
+    // errors deliberately flagged `expose: true`. Everything else — including
+    // arbitrary 4xx thrown deeper in the stack — gets a generic message so no
+    // internal detail (paths, identifiers, library internals) leaks.
+    const clientSafe =
+      statusCode < 500 && (error.expose === true || Array.isArray(error.validation));
     const message =
-      config.nodeEnv === "production" && statusCode >= 500
-        ? "Ein Fehler ist aufgetreten."
-        : error.message;
+      config.nodeEnv !== "production" || clientSafe ? error.message : "Ein Fehler ist aufgetreten.";
 
     reply.status(statusCode).send({ error: true, message });
   });

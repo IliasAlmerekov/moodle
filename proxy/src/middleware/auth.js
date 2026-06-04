@@ -19,6 +19,11 @@ function denyOwnership(request, reply, userId) {
   return reply.status(403).send({ statusCode: 403, error: "Forbidden" });
 }
 
+// Tolerance for a token timestamp in the future, covering minor client/server
+// clock skew. Beyond this, a future-dated `ts` is rejected so it cannot widen
+// the replay window past `tokenTtlMs` (AUTH-TTL).
+const CLOCK_SKEW_MS = 60_000;
+
 /**
  * Factory for a Fastify preHandler that verifies the caller's Moodle identity.
  *
@@ -31,11 +36,22 @@ function denyOwnership(request, reply, userId) {
  *
  * @param {Object} deps
  * @param {string} deps.secret  Shared HMAC secret, also configured in Moodle.
+ * @param {string[]} [deps.previousSecrets=[]]  Additional secrets still accepted
+ *   during a rotation overlap window. Lets the proxy validate tokens signed with
+ *   either the new or the old secret so a key can be rotated with zero downtime
+ *   (AUTH-KID): deploy proxy accepting [new, old] → switch Moodle to new → drop old.
  * @param {number} [deps.tokenTtlMs=7_200_000]  Max age of a signed token in ms.
  * @param {function(): number} [deps.now=Date.now]
  * @returns {function(import("fastify").FastifyRequest, import("fastify").FastifyReply): Promise<void>}
  */
-export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = Date.now }) {
+export function createVerifyMoodleUser({
+  secret,
+  previousSecrets = [],
+  tokenTtlMs = 7_200_000,
+  now = Date.now,
+}) {
+  const acceptedSecrets = [secret, ...previousSecrets].filter(Boolean);
+
   function parseUserId(value) {
     const num = Number(value);
     return Number.isInteger(num) && num > 0 ? num : 0;
@@ -49,30 +65,51 @@ export function createVerifyMoodleUser({ secret, tokenTtlMs = 7_200_000, now = D
     return reply.status(401).send({ statusCode: 401, error: "Unauthorized" });
   }
 
+  // Constant-time match against every accepted secret (no early return on the
+  // first miss, so verification time does not reveal which secret matched).
+  function signatureMatchesAnySecret(userId, ts, sig) {
+    let matched = false;
+    for (const candidate of acceptedSecrets) {
+      const expected = createHmac("sha256", candidate).update(`${userId}.${ts}`).digest("hex");
+      if (expected.length === sig.length && timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
+        matched = true;
+      }
+    }
+    return matched;
+  }
+
   return async function verifyMoodleUser(request, reply) {
-    // Identity may arrive in the JSON body (POST) or the query string
-    // (GET/DELETE chat-history). Body wins when both are present.
-    const src = { ...(request.query ?? {}), ...(request.body ?? {}) };
+    // Identity may arrive in the JSON body (POST chat-stream) or, for
+    // GET/DELETE chat-history, in `X-Chat-*` request headers. The query string
+    // is still accepted (lowest precedence) for backward compatibility, but the
+    // client now sends headers to keep identity out of URLs/logs (F-08).
+    const headers = request.headers ?? {};
+    const fromHeaders = {
+      userId: headers["x-chat-user"],
+      ts: headers["x-chat-ts"],
+      sig: headers["x-chat-sig"],
+    };
+    const src = {
+      ...(request.query ?? {}),
+      ...Object.fromEntries(Object.entries(fromHeaders).filter(([, v]) => v !== undefined)),
+      ...(request.body ?? {}),
+    };
     const userId = parseUserId(src.userId);
     const ts = Number(src.ts);
     const sig = typeof src.sig === "string" ? src.sig : "";
 
-    if (!secret || userId === 0 || !Number.isFinite(ts) || sig === "") {
+    if (acceptedSecrets.length === 0 || userId === 0 || !Number.isFinite(ts) || sig === "") {
       return deny(request, reply, userId);
     }
 
-    // Reject stale tokens; abs() also tolerates minor client/server clock skew.
-    if (Math.abs(now() - ts) > tokenTtlMs) {
+    // Reject stale tokens (older than the TTL) and future-dated tokens beyond a
+    // small clock-skew tolerance.
+    const age = now() - ts;
+    if (age > tokenTtlMs || age < -CLOCK_SKEW_MS) {
       return deny(request, reply, userId);
     }
 
-    const expected = createHmac("sha256", secret).update(`${userId}.${ts}`).digest("hex");
-
-    // Constant-time comparison; length guard avoids timingSafeEqual throwing.
-    const valid =
-      expected.length === sig.length && timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
-
-    if (!valid) {
+    if (!signatureMatchesAnySecret(userId, ts, sig)) {
       return deny(request, reply, userId);
     }
 
