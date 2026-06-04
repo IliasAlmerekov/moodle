@@ -80,7 +80,7 @@ production-lite service for the DEV Finish-Up-A-Thon.
 | **Reliability** | Direct fetch, no limits | Timeout + retry (Moodle), circuit breaker + bounded queue (Ollama), graceful shutdown, SSE abort on disconnect |
 | **Persistence** | In-memory only | SQLite (WAL, prepared statements, indexed, retention pruning) behind `IChatRepository` |
 | **Deploy** | Manual | Multi-stage non-root Docker image, healthchecks, ordered startup, one-command Compose |
-| **Quality gate** | None | 384 tests, ESLint, Prettier, `npm audit`, Gitleaks, container smoke test in CI |
+| **Quality gate** | None | 400+ tests, ESLint, Prettier, `npm audit`, Gitleaks, Trivy image scan, container smoke test in CI |
 
 **How AI assisted:** GitHub Copilot / Claude Code were used to accelerate the
 finishing work — hardening the auth layer, writing the adversarial input-guard
