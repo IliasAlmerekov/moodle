@@ -9,10 +9,15 @@ set -o pipefail
 # Cron example (runs at 03:00 daily):
 #   0 3 * * * MYSQL_ROOT_PASSWORD=secret /home/admin/moodle/backup-moodle.sh
 
-BACKUP_DIR="/home/admin/moodle/backups"
+# Paths derive from the script's own location so the backup works on any host
+# (no hardcoded /home/admin). Overridable via env for custom layouts.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_DIR="${BACKUP_DIR:-$SCRIPT_DIR/backups}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-COMPOSE_DIR="/home/admin/moodle/compose"
-LOG_FILE="/home/admin/moodle/backup.log"
+COMPOSE_DIR="${COMPOSE_DIR:-$SCRIPT_DIR/compose}"
+LOG_FILE="${LOG_FILE:-$SCRIPT_DIR/backup.log}"
+DATA_DIR="${DATA_DIR:-$SCRIPT_DIR/data}"
+MARIADB_CONTAINER="${MARIADB_CONTAINER:-moodle-stack-mariadb-1}"
 
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
@@ -37,7 +42,7 @@ fi
 
 # 1. Create database dump
 log "Creating database dump..."
-docker exec moodle-stack-mariadb-1 mysqldump \
+docker exec $MARIADB_CONTAINER mysqldump \
   -u root \
   --password="$MYSQL_ROOT_PASSWORD" \
   --single-transaction \
@@ -54,8 +59,8 @@ fi
 
 # 2. Backup chat database (SQLite) using the built-in hot backup API
 log "Backing up chat database..."
-if [ -f "/home/admin/moodle/data/chat.db" ]; then
-    sqlite3 "/home/admin/moodle/data/chat.db" \
+if [ -f "$DATA_DIR/chat.db" ]; then
+    sqlite3 "$DATA_DIR/chat.db" \
       ".backup '$BACKUP_DIR/chat_db_$TIMESTAMP.db'"
     if [ $? -eq 0 ]; then
         log "✓ Chat database backed up: chat_db_$TIMESTAMP.db"
@@ -68,9 +73,9 @@ fi
 
 # 3. Archive user files (moodledata)
 log "Archiving user files..."
-if [ -d "/home/admin/moodle/data/moodledata" ]; then
+if [ -d "$DATA_DIR/moodledata" ]; then
     tar -czf "$BACKUP_DIR/moodledata_$TIMESTAMP.tar.gz" \
-      -C /home/admin/moodle/data \
+      -C $DATA_DIR \
       --warning=no-file-changed \
       moodledata 2>/dev/null
 
@@ -87,12 +92,12 @@ fi
 # 4. Archive custom themes and plugins (if any)
 log "Archiving custom Moodle files..."
 CUSTOM_DIRS=()
-[ -d "/home/admin/moodle/data/moodle/theme" ] && CUSTOM_DIRS+=("theme/")
-[ -d "/home/admin/moodle/data/moodle/local" ] && CUSTOM_DIRS+=("local/")
+[ -d "$DATA_DIR/moodle/theme" ] && CUSTOM_DIRS+=("theme/")
+[ -d "$DATA_DIR/moodle/local" ] && CUSTOM_DIRS+=("local/")
 
 if [ ${#CUSTOM_DIRS[@]} -gt 0 ]; then
     tar -czf "$BACKUP_DIR/moodle_custom_$TIMESTAMP.tar.gz" \
-      -C /home/admin/moodle/data/moodle \
+      -C $DATA_DIR/moodle \
       --exclude='cache/*' \
       --exclude='localcache/*' \
       --warning=no-file-changed \

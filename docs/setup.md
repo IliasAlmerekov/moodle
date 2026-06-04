@@ -18,6 +18,29 @@ Dieses Dokument beschreibt die Erstinstallation sowie alle wiederkehrenden Betri
 
 ---
 
+## Deployment-Modelle: welche Compose-Datei?
+
+Es gibt zwei Betriebsmodelle. Niemals beide gegen dieselbe Domain betreiben.
+
+| Modell | Datei | Wann verwenden |
+|--------|-------|----------------|
+| **Demo / lokal (self-contained)** | `compose/docker-compose.yml` | Demonstration oder Evaluierung ohne vorhandenes Moodle. Startet eigenes Moodle + MariaDB + Ollama + Proxy; nginx liefert Moodle unter `/`. |
+| **Produktion / Integration** | `compose/docker-compose.prod.yml` | Neben einem bereits existierenden Schul-Moodle. Startet **kein** Moodle/MariaDB. Der Proxy spricht das vorhandene Moodle über `MOODLE_URL` an; nginx bedient nur `/api`, `/chatbot`, `/health` auf einer eigenen Subdomain (`NGINX_DOMAIN`, z. B. `chat.schule.de`). |
+
+**Produktion starten:**
+
+```bash
+cd compose
+# NGINX_DOMAIN = Chatbot-Subdomain; MOODLE_URL = existierendes Moodle (REST-Origin)
+docker compose -f docker-compose.prod.yml --env-file ../.env up -d
+```
+
+Wichtig für die Integration: `CORS_ORIGIN` muss die Moodle-Origin enthalten (dort
+wird das Widget eingebettet), und die Moodle-Seiten-CSP (`script-src`, `connect-src`)
+muss die Chatbot-Subdomain erlauben.
+
+---
+
 ## Voraussetzungen
 
 | Komponente | Version | Hinweis |

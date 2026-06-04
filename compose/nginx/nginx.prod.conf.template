@@ -1,0 +1,79 @@
+# Reverse proxy for the Moodle AI Chatbot — PRODUCTION (integration mode).
+#
+# This vhost serves ONLY the chatbot on its own subdomain (NGINX_DOMAIN, e.g.
+# chat.school.de). Unlike the demo template, it has NO `location / -> moodle`
+# block: the school's existing Moodle keeps its own domain and web server, and
+# this proxy never intercepts its traffic.
+#
+# NGINX_DOMAIN is injected at startup via envsubst. It must be the chatbot
+# subdomain, and must be included in the chatbot's CORS_ORIGIN / the Moodle
+# page CSP connect-src so the embedded widget can reach /api.
+# SSL certificates: managed by certbot (see compose/setup-ssl.sh).
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # HTTP: serve ACME challenge for certbot renewal, redirect everything else to HTTPS
+    server {
+        listen 80;
+        server_name ${NGINX_DOMAIN};
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # HTTPS — chatbot subdomain only
+    server {
+        listen 443 ssl;
+        server_name ${NGINX_DOMAIN};
+
+        ssl_certificate     /etc/letsencrypt/live/${NGINX_DOMAIN}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${NGINX_DOMAIN}/privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_prefer_server_ciphers on;
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # Chat API — SSE streaming: buffering must be off or chunks arrive only at stream end.
+        # proxy_read_timeout covers long LLM responses (default 60s is too short).
+        location /api/ {
+            proxy_pass         http://proxy:3000;
+            proxy_buffering    off;
+            proxy_cache        off;
+            proxy_read_timeout 300s;
+            proxy_http_version 1.1;
+            proxy_set_header   Connection "";
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto $scheme;
+        }
+
+        # Chatbot static assets — served by Node.js proxy
+        location /chatbot/ {
+            proxy_pass       http://proxy:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /health {
+            proxy_pass       http://proxy:3000;
+            proxy_set_header Host $host;
+        }
+
+        # No `location /` — this server does not front the school's Moodle.
+        # Any other path returns 404 from nginx.
+        location / {
+            return 404;
+        }
+    }
+}
