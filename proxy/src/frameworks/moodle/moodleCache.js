@@ -35,30 +35,89 @@ function logCache(logger, message, meta) {
   logger.info(meta, message);
 }
 
-function createCourseStructure(course, contents) {
+function firstText(...values) {
+  return values.find((value) => typeof value === "string" && value.trim()) ?? "";
+}
+
+function isPageHtml(module, file) {
+  return (
+    (module.modname === "page" || module.type === "page") &&
+    (file.filename === "index.html" || file.mimetype === "text/html")
+  );
+}
+
+function htmlToText(html) {
+  return String(html ?? "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function getPageText(client, module, file) {
+  if (!file.fileurl || !isPageHtml(module, file) || typeof client.getTextFile !== "function") {
+    return "";
+  }
+
+  try {
+    return htmlToText(await client.getTextFile(file.fileurl)).substring(0, 3000);
+  } catch {
+    return "";
+  }
+}
+
+async function createCourseStructure(course, contents, client) {
   return {
     id: course.id,
     name: course.fullname ?? course.name ?? "",
     shortname: course.shortname ?? "",
     summary: course.summary ?? "",
     url: buildMoodleUrl(`/course/view.php?id=${course.id}`),
-    sections: contents.map((section) => ({
-      id: section.id,
-      name: section.name,
-      modules: (section.modules ?? []).map((module) => ({
-        id: module.id,
-        name: module.name,
-        type: module.modname ?? module.type ?? "",
-        url: buildMoodleUrl(`/mod/${module.modname ?? module.type}/view.php?id=${module.id}`),
-        files: (module.contents ?? [])
-          .filter((content) => content.type === "file")
-          .map((file) => ({
-            filename: file.filename,
-            mimetype: file.mimetype,
-            url: toUserFacingFileUrl(file.fileurl),
-          })),
+    sections: await Promise.all(
+      contents.map(async (section) => ({
+        id: section.id,
+        name: section.name,
+        summary: firstText(section.summary),
+        modules: await Promise.all(
+          (section.modules ?? []).map(async (module) => {
+            const sourceFiles = (module.contents ?? []).filter((content) => content.type === "file");
+            const files = await Promise.all(
+              sourceFiles.map(async (file) => ({
+                filename: file.filename,
+                mimetype: file.mimetype,
+                url: toUserFacingFileUrl(file.fileurl),
+                path: file.filepath ?? "",
+                text: await getPageText(client, module, file),
+              })),
+            );
+            const pageText = firstText(...files.map((file) => file.text));
+
+            return {
+              id: module.id,
+              name: module.name,
+              type: module.modname ?? module.type ?? "",
+              summary: firstText(module.description, module.summary, pageText),
+              url:
+                module.url ||
+                buildMoodleUrl(`/mod/${module.modname ?? module.type}/view.php?id=${module.id}`),
+              files: files.map((file) => ({
+                filename: file.filename,
+                mimetype: file.mimetype,
+                url: file.url,
+                path: file.path,
+              })),
+            };
+          }),
+        ),
       })),
-    })),
+    ),
   };
 }
 
@@ -84,7 +143,7 @@ export function createMoodleCache({
     const courses = await client.getAllCourses();
     const structure = await Promise.all(
       courses.map(async (course) =>
-        createCourseStructure(course, await client.getCourseContents(course.id)),
+        createCourseStructure(course, await client.getCourseContents(course.id), client),
       ),
     );
 

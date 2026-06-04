@@ -95,6 +95,7 @@ export async function createFastifyInstance(config) {
   await app.register(rateLimit, {
     max: config.rateLimit.max,
     timeWindow: config.rateLimit.window,
+    allowList: (request) => request.url.startsWith("/chatbot/"),
     errorResponseBuilder: () => ({
       statusCode: 429,
       error: "Too Many Requests",

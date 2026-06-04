@@ -84,6 +84,30 @@ export const moodleClient = {
     });
   },
 
+  async getTextFile(fileUrl) {
+    const url = new URL(fileUrl, config.moodle.url);
+    url.searchParams.set("token", config.moodle.token);
+
+    return withRetry(async () => {
+      let response;
+
+      try {
+        response = await fetch(url);
+      } catch (error) {
+        throw createMoodleError("Moodle file request failed", { cause: error, retryable: true });
+      }
+
+      if (!response.ok) {
+        throw createMoodleError(`Moodle file error: ${response.status} ${response.statusText}`, {
+          moodleStatus: response.status,
+          retryable: response.status === 429 || response.status >= 500,
+        });
+      }
+
+      return response.text();
+    });
+  },
+
   async getUserInfo(userId) {
     const users = await callMoodle("core_user_get_users_by_field", {
       field: "id",
