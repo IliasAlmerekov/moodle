@@ -80,7 +80,7 @@ production-lite service for the DEV Finish-Up-A-Thon.
 | **Reliability** | Direct fetch, no limits | Timeout + retry (Moodle), circuit breaker + bounded queue (Ollama), graceful shutdown, SSE abort on disconnect |
 | **Persistence** | In-memory only | SQLite (WAL, prepared statements, indexed, retention pruning) behind `IChatRepository` |
 | **Deploy** | Manual | Multi-stage non-root Docker image, healthchecks, ordered startup, one-command Compose |
-| **Quality gate** | None | 400+ tests, ESLint, Prettier, `npm audit`, Gitleaks, Trivy image scan, container smoke test in CI |
+| **Quality gate** | None | 417 tests (40 files), ESLint, Prettier, `npm audit`, Gitleaks, Trivy image scan, container smoke test in CI |
 
 **How AI assisted:** GitHub Copilot / Claude Code were used to accelerate the
 finishing work — hardening the auth layer, writing the adversarial input-guard
@@ -116,6 +116,8 @@ was test-gated; see the commit history for the completion arc.
 ---
 
 ## Quick Start
+
+> **New here?** See [QUICKSTART.md](QUICKSTART.md) for a beginner-friendly step-by-step walkthrough (no prior Docker experience needed).
 
 **1. Clone and configure**
 ```bash
@@ -188,7 +190,8 @@ All variables with descriptions are in [`.env.example`](.env.example). Copy it t
 | `OLLAMA_MODEL` | `llama3.2:3b` | LLM model name | Must be pulled first |
 | `CORS_ORIGIN` | `http://localhost:8080` | Comma-separated allowed origins | Your Moodle URL |
 | `CHAT_DB_PATH` | `/data/chat.db` | SQLite path for chat history | Docker volume `/data` |
-| `CHATBOT_AUTH_SECRET` | `<32-byte hex>` | HMAC secret for Moodle identity (required in prod) | Same value configured in Moodle |
+| `CHATBOT_AUTH_SECRET` | `<32-byte hex>` | HMAC secret for Moodle identity (required in prod) | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `CHAT_ENCRYPTION_KEY` | `<64-char hex>` | AES-256-GCM key for chat history at rest (required in prod) | `openssl rand -hex 32` |
 | `CHAT_RETENTION_DAYS` | `90` | Idle sessions pruned on startup (`0` disables) | Operational preference |
 
 ---
@@ -201,6 +204,7 @@ All variables with descriptions are in [`.env.example`](.env.example). Copy it t
 | `GET` | `/api/chat-history/:chatId` | Signed identity + ownership | Fetch a session's history |
 | `DELETE` | `/api/chat-history/:chatId` | Signed identity + ownership | Clear a session |
 | `GET` | `/health` | none | Liveness/readiness check with dependency status |
+| `GET` | `/health/details` | loopback only | Extended health with queue/cache metrics |
 | `GET` | `/moodle/ping` | none | Connectivity probe (no data) |
 | `POST` | `/admin/cache/invalidate` | localhost only | Invalidate the Moodle course cache |
 
@@ -289,7 +293,7 @@ npm run test:coverage
 npm run lint
 ```
 
-Coverage targets: `entities/` ≥ 90% · `application/` ≥ 80% · overall ≥ 70%
+Coverage targets: `entities/` ≥ 90% lines · `middleware/` ≥ 90% lines · overall statements/lines ≥ 70% · functions ≥ 80% · branches ≥ 65%
 
 ---
 
@@ -415,6 +419,7 @@ Restart proxy after changing `.env`.
 
 | Document | Purpose |
 |----------|---------|
+| [`QUICKSTART.md`](QUICKSTART.md) | Beginner-friendly step-by-step setup guide |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Full Clean Architecture spec with code examples |
 | [`ARCHITECTURE_SUMMARY.md`](ARCHITECTURE_SUMMARY.md) | Quick layer reference for agents |
 | [`docs/setup.md`](docs/setup.md) | Setup procedures: SSL, token, model swap, backup |
