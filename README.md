@@ -229,18 +229,19 @@ frameworks → adapters → application → entities
 
 ```mermaid
 flowchart TD
-    Browser["Moodle page + chatbot widget"] -->|"POST /api/chat-stream (SSE)"| FW
-    subgraph Proxy["Fastify proxy — Clean Architecture"]
-        direction TB
-        FW["frameworks/ — Fastify, Moodle client, Ollama queue, SQLite"]
-        AD["adapters/ — HTTP controllers"]
-        APP["application/ — use cases + repository interfaces"]
-        EN["entities/ — pure domain factories"]
+    Browser["Moodle page + chatbot widget"] -->|"POST /api/chat-stream"| FW
+
+    subgraph Proxy["Fastify proxy (Clean Architecture)"]
+        FW["frameworks/"]
+        AD["adapters/"]
+        APP["application/"]
+        EN["entities/"]
         FW --> AD --> APP --> EN
     end
-    FW -->|"REST + token"| Moodle[("Moodle 4.4 + MariaDB")]
+
+    FW -->|"REST API"| Moodle[("Moodle 4.4 + MariaDB")]
     FW -->|"NDJSON stream"| Ollama[("Ollama local LLM")]
-    APP -->|"IChatRepository"| DB[("SQLite — WAL")]
+    APP -->|"IChatRepository"| DB[("SQLite WAL")]
 ```
 
 Dependencies point inward only: `frameworks → adapters → application → entities`.
