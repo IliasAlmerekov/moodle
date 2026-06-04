@@ -208,9 +208,7 @@ test("uses allowed request Origin as Moodle base URL for generated course links"
   await controller.handleStream(request, reply);
 
   assert.ok(
-    messagesForLlm[0].content.includes(
-      "KURS-LINK: http://127.0.0.1:8080/course/view.php?id=2",
-    ),
+    messagesForLlm[0].content.includes("KURS-LINK: http://127.0.0.1:8080/course/view.php?id=2"),
   );
   assert.ok(!messagesForLlm[0].content.includes("https://www.itech-bs14.de/course/view.php?id=2"));
 });

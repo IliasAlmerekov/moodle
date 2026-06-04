@@ -87,7 +87,9 @@ async function createCourseStructure(course, contents, client) {
         summary: firstText(section.summary),
         modules: await Promise.all(
           (section.modules ?? []).map(async (module) => {
-            const sourceFiles = (module.contents ?? []).filter((content) => content.type === "file");
+            const sourceFiles = (module.contents ?? []).filter(
+              (content) => content.type === "file",
+            );
             const files = await Promise.all(
               sourceFiles.map(async (file) => ({
                 filename: file.filename,

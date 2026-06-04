@@ -17,7 +17,9 @@ export function pickRelevantSections(course, tokens) {
     const sectionText = normalize(`${section.name ?? ""} ${section.summary ?? ""}`);
     const sectionMatch = tokens.some((t) => sectionText.includes(t));
     const moduleMatch = section.modules?.some((mod) => {
-      const moduleText = normalize(`${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`);
+      const moduleText = normalize(
+        `${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`,
+      );
       const nameMatch = tokens.some((t) => moduleText.includes(t));
       const fileMatch = mod.files?.some((file) =>
         tokens.some((t) => normalize(`${file.filename ?? ""} ${file.path ?? ""}`).includes(t)),
@@ -128,7 +130,9 @@ export function scoreCourse(course, tokens, phrases) {
       for (const t of tokens) if (t && sectionText.includes(t)) score += 5;
       score += scoreCheckpointText(sectionText, tokens);
       for (const mod of section.modules ?? []) {
-        const modText = normalize(`${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`);
+        const modText = normalize(
+          `${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`,
+        );
         for (const t of tokens) if (t && modText.includes(t)) score += 8;
         score += scoreCheckpointText(modText, tokens);
         for (const f of mod.files ?? []) {

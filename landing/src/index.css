@@ -233,6 +233,13 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   color: #fff;
 }
 
+.btn__icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
 .btn-link {
   padding: 0;
   background: transparent;

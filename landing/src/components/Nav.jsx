@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import MoodleWordmark from './MoodleWordmark.jsx'
+import { GITHUB_REPO_URL } from '../data.js'
 
 // The "How it works" link points at the architecture section — there
 // is no separate "how it works" page. (Earlier versions of this file
@@ -51,8 +52,16 @@ export default function Nav() {
 
         <div className="nav__right">
           <span className="nav__license">MIT&nbsp;License</span>
-          <a href="#cta" className="btn btn-primary nav__cta" data-cursor="magnetic">
-            Get started
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary nav__cta"
+            data-cursor="magnetic"
+            aria-label="Open the Moodle AI Assistant repository on GitHub"
+          >
+            <img src="/github-100.png" alt="" className="btn__icon" aria-hidden="true" />
+            GitHub
           </a>
         </div>
       </div>

@@ -4,6 +4,8 @@
 
 import { Shield, Layers, FlaskConical, Sparkles } from 'lucide-react'
 
+export const GITHUB_REPO_URL = 'https://github.com/IliasAlmerekov/moodle'
+
 // =====================================================================
 // PROGRESS — before/after snapshot for the jury-facing "Progress at a
 // glance" section. Drives the interactive tab-stepper: one card visible
