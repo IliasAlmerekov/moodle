@@ -21,6 +21,7 @@ import {
   PROGRESS,
   ARCHITECTURE_NODES,
   ARCHITECTURE_EDGES,
+  GITHUB_REPO_URL,
   THREAT_MODEL,
   HERO_SCRIPTS,
   SCREENSHOTS,
@@ -736,7 +737,7 @@ function CTA() {
       <div className="wrap">
         <Reveal>
           <div className="cta__card">
-            <span className="kicker kicker--blue">Get started</span>
+            <span className="kicker kicker--blue">GitHub repository</span>
             <h2 className="cta__title">
               One command brings up the whole stack.
             </h2>
@@ -752,13 +753,14 @@ function CTA() {
                 Try the demo
               </a>
               <a
-                href="https://moodle.org"
+                href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="btn btn-outline-secondary"
                 data-cursor="magnetic"
               >
-                Learn about Moodle
+                <img src="/github-100.png" alt="" className="btn__icon" aria-hidden="true" />
+                View on GitHub
               </a>
             </div>
           </div>
