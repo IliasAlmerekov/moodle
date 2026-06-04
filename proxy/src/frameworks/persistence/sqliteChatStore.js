@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import Database from "better-sqlite3";
 import config from "../../config/env.js";
 import { MAX_SQLITE_MESSAGES } from "../../config/constants.js";
+import { createContentCipher } from "./contentCipher.js";
 
 function openDatabase(dbPath) {
   if (dbPath !== ":memory:") {
@@ -52,6 +53,7 @@ export function createSqliteChatStore({
   db = openDatabase(dbPath),
   now = Date.now,
   maxMessages = MAX_SQLITE_MESSAGES,
+  cipher = createContentCipher(config.chat.encryptionKey),
 } = {}) {
   configureConnection(db);
   initializeSchema(db);
@@ -118,7 +120,9 @@ export function createSqliteChatStore({
 
   return {
     async getHistory(sessionId, limit = maxMessages) {
-      return selectHistory.all({ sessionId, limit });
+      return selectHistory
+        .all({ sessionId, limit })
+        .map((row) => ({ ...row, content: cipher.decrypt(row.content) }));
     },
 
     async appendMessage(sessionId, userId, role, content) {
@@ -126,7 +130,7 @@ export function createSqliteChatStore({
         sessionId,
         userId,
         role,
-        content,
+        content: cipher.encrypt(content),
         timestamp: now(),
       });
     },

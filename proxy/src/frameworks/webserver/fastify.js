@@ -9,6 +9,20 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Defense-in-depth against logging student message content / credentials (PR-05).
+// Covers the common shapes a body/identity could be logged under without
+// clobbering `err.message` (error messages must stay readable in logs).
+export const LOG_REDACT_PATHS = [
+  "req.headers.authorization",
+  "req.headers.cookie",
+  "req.body.message",
+  "req.body.content",
+  "req.body.sig",
+  "body.message",
+  "body.content",
+  "body.sig",
+];
+
 /**
  * Creates a Fastify instance with logger, request ID, and security plugins.
  *
@@ -34,6 +48,7 @@ export async function createFastifyInstance(config) {
     logger: {
       level: config.logLevel,
       transport: config.nodeEnv !== "production" ? { target: "pino-pretty" } : undefined,
+      redact: { paths: LOG_REDACT_PATHS, remove: true },
     },
     requestIdHeader: "x-request-id",
     genReqId: () => crypto.randomUUID(),
@@ -41,6 +56,11 @@ export async function createFastifyInstance(config) {
     // The only request bodies are small chat JSON payloads (message + identity);
     // 64 KB is generous while shrinking the parser's exposure to oversized input.
     bodyLimit: 65_536,
+    // Inbound HTTP timeouts (PR-07). These bound time to RECEIVE a request and
+    // idle keep-alive; they do not limit response duration, so long-lived SSE
+    // responses are unaffected. Protects against slow-loris / stuck sockets.
+    requestTimeout: 30_000,
+    keepAliveTimeout: 72_000,
   });
 
   const connectSrc = ["'self'"];
