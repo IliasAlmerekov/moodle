@@ -63,6 +63,7 @@ export async function createApp() {
 
   const verifyMoodleUser = createVerifyMoodleUser({
     secret: config.auth.secret,
+    previousSecrets: config.auth.previousSecrets,
     tokenTtlMs: config.auth.tokenTtlMs,
   });
 
@@ -97,6 +98,21 @@ export async function createApp() {
       }
     }
   });
+
+  // Retention must hold for a long-lived process, not only at startup (PR-06):
+  // prune on a daily interval and stop the timer when the app closes. unref()
+  // keeps the timer from holding the event loop open.
+  if (config.chat.retentionMs > 0) {
+    const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+    const pruneTimer = setInterval(() => {
+      chatRepository
+        .pruneSessionsOlderThan(config.chat.retentionMs)
+        .then((pruned) => app.log.info({ pruned }, "Pruned stale chat sessions (scheduled)"))
+        .catch((err) => app.log.warn({ err }, "Scheduled chat session pruning failed"));
+    }, PRUNE_INTERVAL_MS);
+    pruneTimer.unref();
+    app.addHook("onClose", async () => clearInterval(pruneTimer));
+  }
 
   return app;
 }
