@@ -174,6 +174,83 @@ test("returns 401 when no secret is configured", async () => {
   assert.strictEqual(reply._calls[0].code, 401);
 });
 
+test("accepts identity supplied via X-Chat-* request headers (F-08)", async () => {
+  const verify = createVerifyMoodleUser({ secret: SECRET, now: () => 1000 });
+  const ts = 1000;
+  const request = {
+    body: {},
+    query: {},
+    headers: { "x-chat-user": "42", "x-chat-ts": String(ts), "x-chat-sig": sign(42, ts) },
+    log: { warn() {} },
+    ip: "127.0.0.1",
+  };
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+  assert.strictEqual(request.verifiedUserId, 42);
+});
+
+test("returns 401 for a future-dated token beyond the clock-skew tolerance (AUTH-TTL)", async () => {
+  const ts = 1_000_000; // far in the future relative to now()
+  const verify = createVerifyMoodleUser({ secret: SECRET, tokenTtlMs: 5000, now: () => 1000 });
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+  assert.strictEqual(request.verifiedUserId, undefined);
+});
+
+test("accepts a slightly future-dated token within the clock-skew tolerance", async () => {
+  const ts = 1500; // 500ms ahead of now(); within the 60s skew window
+  const verify = createVerifyMoodleUser({ secret: SECRET, tokenTtlMs: 5000, now: () => 1000 });
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+  assert.strictEqual(request.verifiedUserId, 42);
+});
+
+test("accepts a token signed with a previous secret during rotation (AUTH-KID)", async () => {
+  const OLD = "old-secret";
+  const verify = createVerifyMoodleUser({
+    secret: "new-secret",
+    previousSecrets: [OLD],
+    now: () => 1000,
+  });
+  const ts = 1000;
+  const request = createMockRequest({ body: { userId: 42, ts, sig: sign(42, ts, OLD) } });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls.length, 0);
+  assert.strictEqual(request.verifiedUserId, 42);
+});
+
+test("rejects a token signed with a secret that is neither current nor previous", async () => {
+  const verify = createVerifyMoodleUser({
+    secret: "new-secret",
+    previousSecrets: ["old-secret"],
+    now: () => 1000,
+  });
+  const ts = 1000;
+  const request = createMockRequest({
+    body: { userId: 42, ts, sig: sign(42, ts, "unrelated-secret") },
+  });
+  const reply = createMockReply();
+
+  await verify(request, reply);
+
+  assert.strictEqual(reply._calls[0].code, 401);
+  assert.strictEqual(request.verifiedUserId, undefined);
+});
+
 test("logs security warning on failure without leaking details", async () => {
   const warnings = [];
   const verify = createVerifyMoodleUser({ secret: SECRET, now: () => 1000 });

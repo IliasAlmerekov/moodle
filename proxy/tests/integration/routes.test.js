@@ -176,3 +176,36 @@ test("GET /moodle/user/:id with invalid id returns 400", async () => {
   assert.strictEqual(response.statusCode, 400);
   await app.close();
 });
+
+test("GET /moodle/user/:id from a non-loopback IP returns 403", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/moodle/user/7",
+    remoteAddress: "203.0.113.10",
+  });
+  assert.strictEqual(response.statusCode, 403);
+  await app.close();
+});
+
+test("GET /moodle/users/:userId/courses from a non-loopback IP returns 403", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/moodle/users/42/courses",
+    remoteAddress: "203.0.113.10",
+  });
+  assert.strictEqual(response.statusCode, 403);
+  await app.close();
+});
+
+test("GET /moodle/debug/cache from a non-loopback IP returns 403", async () => {
+  const app = await buildApp();
+  const response = await app.inject({
+    method: "GET",
+    url: "/moodle/debug/cache",
+    remoteAddress: "203.0.113.10",
+  });
+  assert.strictEqual(response.statusCode, 403);
+  await app.close();
+});
