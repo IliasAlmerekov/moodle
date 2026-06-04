@@ -19,6 +19,17 @@ function getCorsHeaders(request) {
   };
 }
 
+function getRequestMoodleBaseUrl(request) {
+  const origin = request.headers?.origin;
+  const allowedOrigins = config.cors.origins;
+
+  if (origin && Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
+    return origin;
+  }
+
+  return config.moodle.publicUrl;
+}
+
 /**
  * Factory for the chat controller.
  * Handles HTTP/SSE concerns only — no business logic.
@@ -128,7 +139,7 @@ export function createChatController({
           llmService,
           searchCourses,
           model: config.ollama.model,
-          moodleBaseUrl: config.moodle.publicUrl,
+          moodleBaseUrl: getRequestMoodleBaseUrl(request),
           maxHistoryMessages: config.chat.maxHistoryMessages,
           signal: abortController.signal,
           async onChunk(text) {

@@ -89,6 +89,7 @@ export function createOllamaClient({
               model: model || defaultModel,
               messages,
               stream: true,
+              think: false,
               options: { num_predict: numPredict, num_ctx: numCtx },
             }),
           },

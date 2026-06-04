@@ -18,7 +18,7 @@ export const PROGRESS = [
     short: 'Hardcoded IPs and missing guards — closed end-to-end.',
     beforeCode: 'fetch("http://192.168.178.84:3000/api/chat")',
     afterCode: 'fetch(process.env.PUBLIC_MOODLE_URL + "/api/chat")',
-    metric: '9',
+    metric: '15',
     metricLabel: 'security fixes shipped',
   },
   {
@@ -37,8 +37,8 @@ export const PROGRESS = [
     icon: FlaskConical,
     short: 'Zero tests and no CI gate — a full quality net, in place.',
     beforeCode: 'npm test → no tests found',
-    afterCode: '36 files · 376 tests · 0 vulns · CI green',
-    metric: '0 → 376',
+    afterCode: '40 files · 417 tests · 0 vulns · CI green',
+    metric: '0 → 417',
     metricLabel: 'tests, 0 audit hits, 3 CI jobs',
   },
   {
@@ -61,7 +61,7 @@ export const ARCHITECTURE_NODES = [
   { id: 'client', label: 'Browser', sub: 'moodle-embed', kind: 'client' },
   { id: 'verify', label: 'verifyMoodleUser', sub: 'HMAC-SHA256 · timing-safe', kind: 'verify' },
   { id: 'ownership', label: 'verifyChatStreamOwnership', sub: 'chatId owner == verified', kind: 'verify' },
-  { id: 'input', label: 'inputGuard', sub: '24 patterns · length · type', kind: 'guard' },
+  { id: 'input', label: 'inputGuard', sub: '28 patterns · length · type', kind: 'guard' },
   { id: 'enrol', label: 'resolveUserProfile', sub: 'enrolments · profile · courses', kind: 'fetch' },
   { id: 'search', label: 'searchCourses', sub: 'fail-closed · allowedIds', kind: 'search' },
   { id: 'prompt', label: 'buildPrompt', sub: 'grounded · jailbreak-immune', kind: 'build' },
@@ -111,7 +111,7 @@ export const THREAT_MODEL = [
   {
     attack: 'Prompt injection at the input',
     detail: 'Ignore previous / DAN / reveal system prompt.',
-    defense: 'inputGuard · 24 patterns · structured log',
+    defense: 'inputGuard · 28 patterns · structured log',
     ref: 'middleware/inputGuard.js',
   },
   {
@@ -137,34 +137,50 @@ export const DEMO_GREETING =
   'Hallo! Ich bin dein AI-Assistent. Wie kann ich dir helfen?'
 
 // =====================================================================
+// HERO SCRIPTS — three light, generic scripts the hero-stage chat
+// streams by default. They introduce the assistant (greeting),
+// surface the student's enrolment state ("how many courses do I
+// have?"), and answer "what can you do?" with features that exist
+// in proxy/src — no aspirational copy. The hero chat is the first
+// thing a jury member reads, so it stays small and welcoming;
+// Bili-Hackathon-specific content lives in CHAT_SCRIPTS and shows
+// up in the full demo section below.
+// =====================================================================
+export const HERO_SCRIPTS = [
+  {
+    q: 'Hi',
+    a: 'Hi there! I am your AI assistant for this Moodle. Ask me about your courses, files, or assignments — I will search your own course content and answer with a local model.',
+  },
+  {
+    q: 'How many courses do I have?',
+    a: 'You have 2 courses: Klassenkurs IT4bili and Bili Hackathon.',
+  },
+  {
+    q: 'What can you do?',
+    a: 'I search only your enrolled courses, ground every answer in real course material, and stream the response token by token. Your messages stay on this server and your chat history is encrypted at rest.',
+  },
+]
+
+// =====================================================================
 // SSE TRACE — what the browser actually receives during streaming.
 // Shown in the "Raw" tab of the chat demo to make SSE tangible.
-// Patched to mirror the new "Hi there! 👋 Welcome!" bot answer.
+// Reset to mirror the new hero greeting ("Hi there! I am your AI
+// assistant…") so the Raw tab stays in sync with the chat the user
+// just triggered. Same NDJSON-as-SSE shape Ollama returns in
+// production.
 // =====================================================================
 export const SSE_TRACE = [
   'event: message',
   'id: 1',
-  'data: {"model":"llama3.2:3b","response":"Hi "}',
+  'data: {"model":"llama3.2:3b","response":"Hi there! "}',
   '',
   'event: message',
   'id: 2',
-  'data: {"response":"there! 👋 Welcome! "}',
+  'data: {"response":"I am your AI assistant for this Moodle. "}',
   '',
   'event: message',
   'id: 3',
-  'data: {"response":"How can I help "}',
-  '',
-  'event: message',
-  'id: 4',
-  'data: {"response":"you today? "}',
-  '',
-  'event: message',
-  'id: 5',
-  'data: {"response":"Feel free to ask me anything ","done":false}',
-  '',
-  'event: message',
-  'id: 6',
-  'data: {"response":"about your Moodle courses.","done":true}',
+  'data: {"response":"Ask me about your courses, files, or assignments.","done":true}',
   '',
   'event: done',
   'data: [DONE]',
@@ -173,26 +189,66 @@ export const SSE_TRACE = [
 // =====================================================================
 // CHAT SCRIPTS — scripted demo conversations, token-by-token streaming.
 // Each "answer" streams in like a real SSE response. The four scripts
-// mirror the flow a real student hits on the first session: greeting,
-// course list, course links, course deep-dive.
+// mirror the flow a real student hits on the first session: course
+// links, course files, submission requirements, deep template lookup.
 // Grammar was tightened across the board (capital "I", "Bili" not
 // "Billi", "send me the links" instead of "get me link", etc.).
 // =====================================================================
+// The chat itself stays text-only. The four corresponding screenshots
+// from the live Moodle AI Chatbot instance render in a separate
+// "Real answers" section right after the chat — see SCREENSHOTS
+// below. Keeping them out of the bubble lets the chat feel like a
+// pure streaming demo and gives the screenshots a stage of their own.
 export const CHAT_SCRIPTS = [
   {
-    q: 'Hi',
-    a: 'Hi there! 👋 Welcome! How can I help you today? Feel free to ask me anything about your Moodle courses.',
+    q: 'Can you share the link to the Bili Hackathon course?',
+    a: 'Here you go — the direct link to **Bili Hackathon** is below. You can also open it from your Moodle dashboard under *My Courses*.',
   },
   {
-    q: 'How many courses do I have?',
-    a: 'You currently have **2 courses**:\n1. **Klassenkurs IT4bili**\n2. **Bili Hackathon**\nIs there anything specific you would like to know about one of these courses? 😊',
+    q: 'Can you send me the link to the Walt Disney file?',
+    a: 'Sure! I found the **Walt Disney** ideation method file in your *Bili Hackathon* course. The link is below.',
   },
   {
-    q: 'Can you send me the links for both courses?',
-    a: 'Sure! Here are the links to both of your courses:\n1. **Klassenkurs IT4bili** — unfortunately, I don\'t have the URL for this course in the available course information.\n2. **Bili Hackathon** — Bili Hackathon\nIf you need the link for **Klassenkurs IT4bili**, you may want to check your Moodle dashboard or course list directly. Would you like help with anything else? 😊',
+    q: 'What do I have to submit for Checkpoint 1 in Bili Hackathon?',
+    a: 'For **Checkpoint 1** in Bili Hackathon you need to hand in your *Define the Problem* artefacts. The full submission checklist is shown below.',
   },
   {
-    q: 'Can you explain the Bili Hackathon course to me?',
-    a: 'Of course! Here is an overview of the **Bili Hackathon** course based on the available information:\n\n**Course Structure**\nThe course is divided into **3 main sections**:\n\n1. **Sprint 1: Define the Problem** — focuses on Design Thinking fundamentals, including:\n   - Empathize and define methods\n   - Observation techniques (AEIOU)\n   - Empathy maps and personas\n   - Problem trees\n   - Brainwriting 6-3-5\n\n2. **Sprint 2: Ideate Your Solution** — covers ideation techniques:\n   - Critical issues\n   - Brainwriting\n   - Walt Disney method\n   - Sketching ideas\n   - Value Proposition Canvas\n   - Social Service Model Canvas\n\n3. **Development Sprints** — hands-on technical work:\n   - Arduino & Raspberry Pi presentations\n   - Tutorials on Arduino and Raspberry Pi\n   - Communication between Arduino and Pi\n   - Prototyping\n   - Business Model Canvas\n\nWould you like more details on any specific section or topic? 😊 You can also access the course here: Bili Hackathon.',
+    q: 'How do I find the 3-6-5-Brain file?',
+    a: 'The **3-6-5 Brainwriting** template lives inside *Bili Hackathon* under the *Sprint 1* section. The direct link is below.',
+  },
+]
+
+// =====================================================================
+// SCREENSHOTS — four real screenshots from the Moodle AI Chatbot
+// running at itech-bs14.de, paired with the four CHAT_SCRIPTS. The
+// "Real answers" section below the chat renders them as a 2×2 grid
+// of cards, each with a caption that mirrors the streamed answer.
+// `num` is a small "01" / "02" / "03" / "04" tag in the top-right
+// corner of the card so the order reads even out of context.
+// =====================================================================
+export const SCREENSHOTS = [
+  {
+    num: '01',
+    src: '/link.png',
+    alt: 'Direct link to the Bili Hackathon course on Moodle',
+    caption: 'Direct link to the Bili Hackathon course, from My Courses.',
+  },
+  {
+    num: '02',
+    src: '/walt_disney.png',
+    alt: 'Walt Disney ideation file inside the Bili Hackathon course',
+    caption: 'Walt Disney ideation method file, in the Bili Hackathon course.',
+  },
+  {
+    num: '03',
+    src: '/checkpoint.png',
+    alt: 'Checkpoint 1 submission requirements for Bili Hackathon',
+    caption: 'Checkpoint 1 submission requirements, in plain language.',
+  },
+  {
+    num: '04',
+    src: '/3-6-5-file.png',
+    alt: '3-6-5 Brainwriting template inside the Bili Hackathon course',
+    caption: '3-6-5 Brainwriting template, located in Sprint 1.',
   },
 ]

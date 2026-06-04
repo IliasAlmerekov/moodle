@@ -8,17 +8,19 @@ export function tokenize(text) {
   return text
     .split(/\s+/)
     .map((part) => normalize(part))
-    .filter((part) => part.length >= 2 && !STOP_WORDS.has(part));
+    .filter((part) => (part.length >= 2 || /^\d+$/.test(part)) && !STOP_WORDS.has(part));
 }
 
 export function pickRelevantSections(course, tokens) {
   const ids = new Set();
   for (const section of course.sections ?? []) {
-    const sectionMatch = tokens.some((t) => normalize(section.name).includes(t));
+    const sectionText = normalize(`${section.name ?? ""} ${section.summary ?? ""}`);
+    const sectionMatch = tokens.some((t) => sectionText.includes(t));
     const moduleMatch = section.modules?.some((mod) => {
-      const nameMatch = tokens.some((t) => normalize(mod.name).includes(t));
+      const moduleText = normalize(`${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`);
+      const nameMatch = tokens.some((t) => moduleText.includes(t));
       const fileMatch = mod.files?.some((file) =>
-        tokens.some((t) => normalize(file.filename).includes(t)),
+        tokens.some((t) => normalize(`${file.filename ?? ""} ${file.path ?? ""}`).includes(t)),
       );
       return nameMatch || fileMatch;
     });
@@ -27,17 +29,60 @@ export function pickRelevantSections(course, tokens) {
   return ids;
 }
 
+function isCheckpointQuery(tokens) {
+  return tokens.some((token) =>
+    ["checkpoint", "checkpoints", "abgabe", "abgeben", "submit", "submission"].includes(token),
+  );
+}
+
+function scoreCheckpointText(text, tokens) {
+  if (!isCheckpointQuery(tokens) || !text.includes("checkpoint")) return 0;
+
+  let score = 35;
+  const requestedNumbers = tokens.filter((token) => /^\d+$/.test(token));
+  if (requestedNumbers.some((number) => text.includes(number))) score += 45;
+  if (
+    text.includes("problem definition") ||
+    text.includes("team organization") ||
+    text.includes("ideate") ||
+    text.includes("implementation") ||
+    text.includes("abgabe") ||
+    text.includes("submit") ||
+    text.includes("submission")
+  ) {
+    score += 20;
+  }
+  return score;
+}
+
+function scoreCheckpointSprint(text, tokens) {
+  if (!isCheckpointQuery(tokens)) return 0;
+
+  const requestedNumbers = tokens.filter((token) => /^\d+$/.test(token));
+  if (requestedNumbers.some((number) => text.includes(`sprint ${number}`))) return 250;
+  return 0;
+}
+
 // Private: score a single section by token hits (used for sorting)
 function scoreSection(section, tokens) {
   try {
     let s = 0;
     const secName = normalize(section.name ?? "");
-    for (const t of tokens) if (t && secName.includes(t)) s += 5;
+    const secSummary = normalize(section.summary ?? "");
+    s += scoreCheckpointSprint(`${secName} ${secSummary}`, tokens);
+    for (const t of tokens) {
+      if (t && secName.includes(t)) s += 5;
+      if (t && secSummary.includes(t)) s += 3;
+    }
     for (const mod of section.modules ?? []) {
       const mname = normalize(mod.name ?? "");
-      for (const t of tokens) if (t && mname.includes(t)) s += 8;
+      const msummary = normalize(`${mod.summary ?? ""} ${mod.description ?? ""}`);
+      for (const t of tokens) {
+        if (t && mname.includes(t)) s += 8;
+        if (t && msummary.includes(t)) s += 6;
+      }
       for (const f of mod.files ?? []) {
-        const fname = normalize(f.filename ?? "");
+        const fname = normalize(`${f.filename ?? ""} ${f.path ?? ""}`);
         for (const t of tokens) if (t && fname.includes(t)) s += 12;
       }
     }
@@ -79,9 +124,15 @@ export function scoreCourse(course, tokens, phrases) {
 
   try {
     for (const section of course.sections ?? []) {
+      const sectionText = normalize(`${section.name ?? ""} ${section.summary ?? ""}`);
+      for (const t of tokens) if (t && sectionText.includes(t)) score += 5;
+      score += scoreCheckpointText(sectionText, tokens);
       for (const mod of section.modules ?? []) {
+        const modText = normalize(`${mod.name ?? ""} ${mod.summary ?? ""} ${mod.description ?? ""}`);
+        for (const t of tokens) if (t && modText.includes(t)) score += 8;
+        score += scoreCheckpointText(modText, tokens);
         for (const f of mod.files ?? []) {
-          const fname = normalize(f.filename ?? "");
+          const fname = normalize(`${f.filename ?? ""} ${f.path ?? ""}`);
           if (!fname) continue;
           let hits = 0;
           for (const t of tokens) if (t && fname.includes(t)) hits++;
@@ -120,6 +171,22 @@ function extractQuotedPhrases(text) {
   return matches.map((m) => normalize(m.replace(/^"|"$/g, ""))).filter(Boolean);
 }
 
+function shouldIncludeRelatedCourses(tokens) {
+  return isCheckpointQuery(tokens);
+}
+
+async function selectSections(courseRepository, course, sectionIds, tokens) {
+  const allSections = await courseRepository.getCourseContents(course.id);
+
+  const selected = allSections
+    .filter((s) => sectionIds.has(s.id))
+    .sort((a, b) => scoreSection(b, tokens) - scoreSection(a, tokens));
+
+  return (selected.length ? selected : allSections)
+    .sort((a, b) => scoreSection(b, tokens) - scoreSection(a, tokens))
+    .slice(0, MAX_SECTIONS_IN_RESPONSE);
+}
+
 export async function searchCourses({ query, courseRepository, allowedIds }) {
   // Fail-closed authorization: callers must explicitly enumerate the courses
   // the user is allowed to see. Omitting or emptying `allowedIds` means the
@@ -150,20 +217,37 @@ export async function searchCourses({ query, courseRepository, allowedIds }) {
       ? best.sectionIds
       : pickRelevantSections(course, fallbackTokens);
 
-    const allSections = await courseRepository.getCourseContents(course.id);
+    const sections = await selectSections(courseRepository, course, sectionIds, fallbackTokens);
+    const relatedCourses = [];
 
-    const selected = allSections
-      .filter((s) => sectionIds.has(s.id))
-      .sort((a, b) => scoreSection(b, fallbackTokens) - scoreSection(a, fallbackTokens));
+    if (shouldIncludeRelatedCourses(fallbackTokens)) {
+      for (const related of ranked.slice(1, 3)) {
+        const relatedSectionIds = related.sectionIds?.size
+          ? related.sectionIds
+          : pickRelevantSections(related.course, fallbackTokens);
+        const relatedSections = await selectSections(
+          courseRepository,
+          related.course,
+          relatedSectionIds,
+          fallbackTokens,
+        );
 
-    const sections = (selected.length ? selected : allSections)
-      .sort((a, b) => scoreSection(b, fallbackTokens) - scoreSection(a, fallbackTokens))
-      .slice(0, MAX_SECTIONS_IN_RESPONSE);
+        relatedCourses.push({
+          course: {
+            name: related.course.name,
+            url: related.course.url,
+            summary: related.course.summary ?? "",
+          },
+          sections: relatedSections,
+        });
+      }
+    }
 
     return {
       found: true,
       course: { name: course.name, url: course.url, summary: course.summary ?? "" },
       sections,
+      relatedCourses,
     };
   } catch {
     return { found: false, message: "Course search unavailable" };

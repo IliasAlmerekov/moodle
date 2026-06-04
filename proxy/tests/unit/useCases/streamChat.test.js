@@ -92,6 +92,44 @@ test("streamChat passes userProfile course ids to searchCourses as allowedIds", 
   assert.deepStrictEqual(observed[0].allowedIds, [5, 12]);
 });
 
+test("streamChat includes enrolled course links in LLM system context", async () => {
+  const userRepository = makeUserRepository({
+    courses: [
+      { id: 5, name: "LF07", shortname: "LF07" },
+      { id: 12, fullname: "LF08 Serveradministration", shortname: "LF08" },
+    ],
+  });
+  let messagesForLlm = [];
+  const llmService = {
+    streamResponse: async (messages) => {
+      messagesForLlm = messages;
+      return makeDoneStream();
+    },
+  };
+
+  await streamChat({
+    message: "can you get me link for both courses?",
+    userId: 42,
+    sessionId: "session-42-links",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository,
+    llmService,
+    searchCourses: async () => ({ found: false }),
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  const system = messagesForLlm[0].content;
+  assert.ok(system.includes("LF07 | KURS-LINK: https://moodle.example/course/view.php?id=5"));
+  assert.ok(
+    system.includes(
+      "LF08 Serveradministration | KURS-LINK: https://moodle.example/course/view.php?id=12",
+    ),
+  );
+});
+
 test("streamChat passes empty allowedIds when userProfile has no courses (searchCourses is fail-closed)", async () => {
   const userRepository = makeUserRepository({ courses: [] });
   const observed = [];

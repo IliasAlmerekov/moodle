@@ -142,6 +142,8 @@ services:
       - CACHE_TTL_USERS=${CACHE_TTL_USERS:-60000}
     volumes:
       - ../data:/data
+    ports:
+      - "${PROXY_PORT}:3000"
     networks: [moodle_net]
     depends_on:
       moodle:

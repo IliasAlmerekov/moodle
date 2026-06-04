@@ -87,7 +87,7 @@ export const STOP_WORDS = new Set([
   "после",
 ]);
 
-export const MAX_SECTIONS_IN_RESPONSE = 3;
+export const MAX_SECTIONS_IN_RESPONSE = 5;
 
 export const MAX_SQLITE_MESSAGES = 48;
 

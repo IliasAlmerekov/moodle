@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CHAT_SCRIPTS, DEMO_GREETING, SSE_TRACE } from '../data.js'
 
+// `scripts` is the question/answer pair list to stream. Default is
+// the 4-script Bili Hackathon tour used by the full demo section;
+// the hero stage passes a shorter, generic list (HERO_SCRIPTS).
+// Keeping the bubble text-only (no inline screenshots) lets the
+// chat read as a pure streaming demo and gives the screenshots
+// their own gallery section below.
+
 // Tiny markdown → React for **bold**, *italic* and \n line breaks.
 // The demo answers only use these — no need for a full parser.
 function renderRich(text) {
@@ -27,7 +34,7 @@ function renderRich(text) {
 
 const STREAM_MS = 18 // per-character delay — mimics token streaming over SSE
 
-export default function ChatDemo({ compact = false }) {
+export default function ChatDemo({ compact = false, scripts = CHAT_SCRIPTS }) {
   const [tab, setTab] = useState('chat') // 'chat' | 'raw'
   const [messages, setMessages] = useState([
     {
@@ -87,9 +94,17 @@ export default function ChatDemo({ compact = false }) {
         setTimeout(() => {
           let i = 0
           const full = script.a
+          // The bot message shell holds only the streamed text —
+          // screenshots live in a separate "Real answers" section
+          // right below the chat, not inside the bubble, so the
+          // chat reads as a pure token-streaming demo.
           setMessages((m) => {
             const copy = [...m]
-            copy[copy.length - 1] = { role: 'bot', text: '', done: false }
+            copy[copy.length - 1] = {
+              role: 'bot',
+              text: '',
+              done: false,
+            }
             return copy
           })
 
@@ -130,11 +145,11 @@ export default function ChatDemo({ compact = false }) {
     ])
   }
 
-  const remaining = CHAT_SCRIPTS.map((s, i) => ({ s, i })).filter(
+  const remaining = scripts.map((s, i) => ({ s, i })).filter(
     ({ i }) => !used.includes(i),
   )
 
-  const suggested = compact ? CHAT_SCRIPTS.slice(0, 3) : CHAT_SCRIPTS
+  const suggested = compact ? scripts.slice(0, 3) : scripts
   const remainingFiltered = compact
     ? suggested.map((s, i) => ({ s, i }))
     : remaining
