@@ -535,4 +535,9 @@ body.chatbot-demo::before {
     bottom: 20px;
     right: 16px;
   }
+
+  /* iOS Safari auto-zooms when a focused input's font-size is < 16px (F-17). */
+  .chatbot-input {
+    font-size: 16px;
+  }
 }

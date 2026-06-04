@@ -22,11 +22,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$(dirname "$SCRIPT_DIR")/.env"
 
-# Read domain from .env if available
+# Read domain from .env. NGINX_DOMAIN wins (it is the cert's CN); fall back to
+# the host of PUBLIC_MOODLE_URL. No hardcoded production domain — fail if unset.
 if [[ -f "$ENV_FILE" ]]; then
-  DOMAIN=$(grep -E '^PUBLIC_MOODLE_URL=' "$ENV_FILE" | cut -d'/' -f3 | tr -d '\r' || true)
+  DOMAIN=$(grep -E '^NGINX_DOMAIN=' "$ENV_FILE" | cut -d'=' -f2 | tr -d '\r' || true)
+  if [[ -z "${DOMAIN:-}" ]]; then
+    DOMAIN=$(grep -E '^PUBLIC_MOODLE_URL=' "$ENV_FILE" | cut -d'/' -f3 | tr -d '\r' || true)
+  fi
 fi
-DOMAIN="${DOMAIN:-www.itech-bs14.de}"
+if [[ -z "${DOMAIN:-}" ]]; then
+  echo "Error: domain not set. Define NGINX_DOMAIN (or PUBLIC_MOODLE_URL) in $ENV_FILE." >&2
+  exit 1
+fi
 
 # Read email from .env or prompt
 EMAIL=$(grep -E '^CERTBOT_EMAIL=' "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 | tr -d '\r' || true)

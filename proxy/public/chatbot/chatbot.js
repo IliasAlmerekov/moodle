@@ -140,11 +140,22 @@ const saveMessageToHistory = (chatId, role, content) => {
   localStorage.setItem(key, JSON.stringify(trimmed));
 };
 
+// Locally cached transcript is expired after this long so a previous student's
+// conversation cannot linger on a shared/lab machine indefinitely (F-09).
+const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
+
 // Load history from localStorage
 const loadHistoryFromStorage = (chatId) => {
   if (!chatId) return [];
   const key = historyKey(chatId);
-  return JSON.parse(localStorage.getItem(key) || "[]");
+  const stored = JSON.parse(localStorage.getItem(key) || "[]");
+  // Drop the cached transcript once its newest entry is older than the TTL.
+  const newest = stored.length ? stored[stored.length - 1]?.timestamp ?? 0 : 0;
+  if (stored.length && Date.now() - newest > HISTORY_TTL_MS) {
+    localStorage.removeItem(key);
+    return [];
+  }
+  return stored;
 };
 
 let moodleUser = null;
@@ -277,6 +288,7 @@ const addErrorMessage = (onRetry) => {
 // duplicating the user bubble or its history entry.
 const streamAndRender = async (message) => {
   sendButton.disabled = true;
+  messagesContainer.setAttribute("aria-busy", "true"); // announce work in progress (F-17)
   const loadingId = addLoadingMessage(messagesContainer);
 
   // Cancel any prior in-flight stream so two streams cannot interleave into the DOM.
@@ -326,6 +338,10 @@ const streamAndRender = async (message) => {
     let latestSessionId = chatId;
 
     let fullText = "";
+    // Carry a trailing partial line between reads: a single SSE JSON record can
+    // be split across network chunks, which would otherwise fail JSON.parse and
+    // drop a token (F-12).
+    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -340,9 +356,10 @@ const streamAndRender = async (message) => {
         break;
       }
 
-      const chunk = decoder.decode(value, { stream: true });
-
-      const lines = chunk.split("\n").filter((line) => line.trim());
+      buffer += decoder.decode(value, { stream: true });
+      const rawLines = buffer.split("\n");
+      buffer = rawLines.pop() ?? ""; // keep the last (possibly incomplete) line
+      const lines = rawLines.filter((line) => line.trim());
 
       for (const line of lines) {
         try {
@@ -397,6 +414,7 @@ const streamAndRender = async (message) => {
     if (activeStreamController === controller) {
       activeStreamController = null;
     }
+    messagesContainer.setAttribute("aria-busy", "false");
     sendButton.disabled = false;
     inputField.focus();
   }
