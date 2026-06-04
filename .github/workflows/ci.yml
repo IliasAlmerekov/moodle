@@ -94,7 +94,7 @@ jobs:
       # Scan the built image for known OS/dependency vulnerabilities (DEP-08).
       # ignore-unfixed avoids failing on CVEs with no available patch.
       - name: Scan proxy image (Trivy)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: moodle-proxy:ci
           format: table
