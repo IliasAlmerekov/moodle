@@ -212,10 +212,10 @@ test("system message includes user fullname, courses and anti-jailbreak instruct
   assert.ok(system.includes("ignore all previous instructions"));
 });
 
-test("system message allows greetings and small talk without Moodle context", () => {
+test("system message rejects questions outside Moodle, learning and courses", () => {
   const system = systemContent(makeMessages({ message: "hi" }));
-  assert.ok(system.includes("begrüße Benutzer"));
-  assert.ok(system.includes("Small Talk"));
+  assert.ok(system.includes("Beantworte nur Fragen zu Moodle, Lernen und Kursen"));
+  assert.ok(system.includes("nur Fragen zu Moodle, Lernen und Kursen beantwortest"));
   assert.ok(!system.includes('sage "Das weiß ich leider nicht."'));
 });
 

@@ -35,6 +35,18 @@ function makeChatRepository() {
   };
 }
 
+function makeTrackingChatRepository() {
+  const appended = [];
+  return {
+    appended,
+    getHistory: async () => [],
+    appendMessage: async (...args) => {
+      appended.push(args);
+    },
+    clearSession: async () => {},
+  };
+}
+
 function makeUserRepository({ info, courses, fail } = {}) {
   if (fail) {
     return {
@@ -139,7 +151,7 @@ test("streamChat passes empty allowedIds when userProfile has no courses (search
   };
 
   await streamChat({
-    message: "anything",
+    message: "Moodle Kurs anything",
     userId: 7,
     sessionId: "session-7-ts",
     chatRepository: makeChatRepository(),
@@ -204,7 +216,7 @@ test("streamChat passes empty allowedIds when every course id is invalid", async
   };
 
   await streamChat({
-    message: "x",
+    message: "Moodle Kurs x",
     userId: 1,
     sessionId: "session-1-ts",
     chatRepository: makeChatRepository(),
@@ -229,7 +241,7 @@ test("streamChat passes empty allowedIds when userRepository throws (fallback pr
   };
 
   await streamChat({
-    message: "anything",
+    message: "Moodle Kurs anything",
     userId: 99,
     sessionId: "session-99-ts",
     chatRepository: makeChatRepository(),
@@ -243,4 +255,76 @@ test("streamChat passes empty allowedIds when userRepository throws (fallback pr
   });
 
   assert.deepStrictEqual(observed[0].allowedIds, []);
+});
+
+test("streamChat answers out-of-scope weather questions without calling course search or LLM", async () => {
+  const chatRepository = makeTrackingChatRepository();
+  const chunks = [];
+
+  await streamChat({
+    message: "Wie ist das Wetter morgen?",
+    userId: 42,
+    sessionId: "session-42-weather",
+    chatRepository,
+    courseRepository: makeCourseRepository(),
+    userRepository: makeUserRepository(),
+    llmService: {
+      streamResponse: async () => {
+        throw new Error("LLM must not be called for out-of-scope questions");
+      },
+    },
+    searchCourses: async () => {
+      throw new Error("course search must not be called for out-of-scope questions");
+    },
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async (chunk) => {
+      chunks.push(chunk);
+    },
+  });
+
+  assert.deepStrictEqual(chunks, [
+    "Ich beantworte nur Fragen zu Moodle, Lernen und deinen Kursen.",
+  ]);
+  assert.deepStrictEqual(chatRepository.appended, [
+    ["session-42-weather", 42, "user", "Wie ist das Wetter morgen?"],
+    [
+      "session-42-weather",
+      42,
+      "assistant",
+      "Ich beantworte nur Fragen zu Moodle, Lernen und deinen Kursen.",
+    ],
+  ]);
+});
+
+test("streamChat still sends Moodle and learning questions to course search and LLM", async () => {
+  const observedQueries = [];
+  let llmCalled = false;
+
+  await streamChat({
+    message: "Erkläre mir die Arrays aus meinem LF07 Kurs",
+    userId: 42,
+    sessionId: "session-42-learning",
+    chatRepository: makeChatRepository(),
+    courseRepository: makeCourseRepository(),
+    userRepository: makeUserRepository({
+      courses: [{ id: 7, name: "LF07", shortname: "LF07" }],
+    }),
+    llmService: {
+      streamResponse: async () => {
+        llmCalled = true;
+        return makeDoneStream();
+      },
+    },
+    searchCourses: async (args) => {
+      observedQueries.push(args.query);
+      return { found: false };
+    },
+    model: "test",
+    moodleBaseUrl: "https://moodle.example",
+    onChunk: async () => {},
+  });
+
+  assert.deepStrictEqual(observedQueries, ["Erkläre mir die Arrays aus meinem LF07 Kurs"]);
+  assert.strictEqual(llmCalled, true);
 });

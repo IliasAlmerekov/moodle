@@ -142,7 +142,9 @@ test("valid request sets SSE headers and streams response", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", userId: 42, chatId: "abc" } });
+  const request = createMockRequest({
+    body: { message: "Moodle Kurs Frage", userId: 42, chatId: "abc" },
+  });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -169,7 +171,7 @@ test("valid SSE request includes CORS headers for allowed local Moodle origin", 
   const deps = createMockRepositories();
   const controller = createChatController(deps);
   const request = createMockRequest({
-    body: { message: "Hi", userId: 42, chatId: "abc" },
+    body: { message: "Moodle Kurs Frage", userId: 42, chatId: "abc" },
     headers: { origin: "http://127.0.0.1:8080" },
   });
   const reply = createMockReply();
@@ -277,14 +279,14 @@ test("returns 429 when user exceeds rate limit", async () => {
 
   // Exhaust the limit (10 requests)
   for (let i = 0; i < 10; i++) {
-    const request = createMockRequest({ body: { message: "Hi", userId: 99 } });
+    const request = createMockRequest({ body: { message: "Moodle Kurs Frage", userId: 99 } });
     const reply = createMockReply();
     await controller.handleStream(request, reply);
     assert.strictEqual(reply._status, null, `request ${i + 1} should not be blocked`);
   }
 
   // 11th request should be rate limited
-  const request = createMockRequest({ body: { message: "Hi", userId: 99 } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage", userId: 99 } });
   const reply = createMockReply();
   await controller.handleStream(request, reply);
 
@@ -302,12 +304,12 @@ test("returns 429 for missing userId when anonymous limit exceeded", async () =>
   const controller = createChatController(deps);
 
   for (let i = 0; i < 10; i++) {
-    const request = createMockRequest({ body: { message: "Hi" } });
+    const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
     const reply = createMockReply();
     await controller.handleStream(request, reply);
   }
 
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
   const reply = createMockReply();
   await controller.handleStream(request, reply);
 
@@ -330,7 +332,7 @@ test("parses valid userId and passes it to use case", async () => {
     },
   };
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", userId: 42 } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage", userId: 42 } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -346,7 +348,7 @@ test("treats invalid userId as 0 in sessionId", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", userId: "abc" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage", userId: "abc" } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -361,7 +363,9 @@ test("uses provided chatId as sessionId", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", chatId: "my-session-123" } });
+  const request = createMockRequest({
+    body: { message: "Moodle Kurs Frage", chatId: "my-session-123" },
+  });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -376,7 +380,9 @@ test("falls back to generated sessionId for unsafe chatId", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", chatId: "../../etc/passwd" } });
+  const request = createMockRequest({
+    body: { message: "Moodle Kurs Frage", chatId: "../../etc/passwd" },
+  });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -400,7 +406,7 @@ test("handles streamChat error gracefully", async () => {
     },
   };
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -421,7 +427,7 @@ test("saves user message and assistant reply to repository", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi", userId: 1 } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage", userId: 1 } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -429,7 +435,7 @@ test("saves user message and assistant reply to repository", async () => {
   const history = deps.chatRepository.history;
   assert.strictEqual(history.length, 2);
   assert.strictEqual(history[0].role, "user");
-  assert.strictEqual(history[0].content, "Hi");
+  assert.strictEqual(history[0].content, "Moodle Kurs Frage");
   assert.strictEqual(history[1].role, "assistant");
   assert.strictEqual(history[1].content, "Hello!");
 });
@@ -448,7 +454,7 @@ test("registers close listener on request.raw for disconnect handling", async ()
   };
 
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
   const reply = createMockReply();
 
   const handlePromise = controller.handleStream(request, reply);
@@ -465,7 +471,7 @@ test("removes close listener in finally", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
@@ -478,7 +484,7 @@ test("awaits drain when write returns false", async () => {
   const { createChatController } = await importControllerModule();
   const deps = createMockRepositories();
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
 
   let drainCalled = false;
   const reply = createMockReply();
@@ -508,7 +514,7 @@ test("does not log error when stream fails due to client disconnect", async () =
     },
   };
   const controller = createChatController(deps);
-  const request = createMockRequest({ body: { message: "Hi" } });
+  const request = createMockRequest({ body: { message: "Moodle Kurs Frage" } });
   const reply = createMockReply();
 
   await controller.handleStream(request, reply);
