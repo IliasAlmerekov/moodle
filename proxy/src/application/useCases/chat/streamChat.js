@@ -1,6 +1,121 @@
 import { randomBytes } from "node:crypto";
 import { createUserProfile } from "../../../entities/UserProfile.js";
 
+const OUT_OF_SCOPE_REPLY = {
+  de: "Ich beantworte nur Fragen zu Moodle, Lernen und deinen Kursen.",
+  en: "I only answer questions about Moodle, learning, and your courses.",
+  ru: "Я отвечаю только на вопросы по Moodle, учебе и курсам.",
+};
+
+const MOODLE_STUDY_TERMS = [
+  /\bmoodle\b/i,
+  /\bmudl\b/i,
+  /\bmoodlekurs\b/i,
+  /\bkurs(?:e|en)?\b/i,
+  /\bcourse(?:s)?\b/i,
+  /\blf\d+\b/i,
+  /\blernfeld(?:er)?\b/i,
+  /\bunterricht\b/i,
+  /\blernen\b/i,
+  /\bschule\b/i,
+  /\blehrer(?:in)?\b/i,
+  /\bschueler(?:in)?\b/i,
+  /\bschüler(?:in)?\b/i,
+  /\bstudent(?:en|in)?\b/i,
+  /\bklasse\b/i,
+  /\baufgabe(?:n)?\b/i,
+  /\bhausaufgabe(?:n)?\b/i,
+  /\babgabe(?:n)?\b/i,
+  /\bdeadline(?:s)?\b/i,
+  /\btermin(?:e)?\b/i,
+  /\bprüfung(?:en)?\b/i,
+  /\bpruefung(?:en)?\b/i,
+  /\bexam(?:s)?\b/i,
+  /\bquiz(?:zes)?\b/i,
+  /\bnote(?:n)?\b/i,
+  /\bgrade(?:s)?\b/i,
+  /\bmaterial(?:ien)?\b/i,
+  /\bdatei(?:en)?\b/i,
+  /\bfile(?:s)?\b/i,
+  /\blink(?:s)?\b/i,
+  /\burl(?:s)?\b/i,
+  /\bmodul(?:e)?\b/i,
+  /\bmodule(?:s)?\b/i,
+  /\bcheckpoint(?:s)?\b/i,
+  /\bsprint(?:s)?\b/i,
+  /\berklär(?:e|en|ung)?\b/i,
+  /\bexplain\b/i,
+  /мудл/i,
+  /moodle/i,
+  /курс/i,
+  /учеб|учёб/i,
+  /школ/i,
+  /учител|преподавател|ученик|студент/i,
+  /класс/i,
+  /задан/i,
+  /домаш/i,
+  /дедлайн|срок/i,
+  /экзамен|тест|квиз/i,
+  /оценк/i,
+  /материал/i,
+  /файл/i,
+  /ссылк/i,
+  /модул/i,
+  /объясн/i,
+];
+
+const CLEARLY_OFF_TOPIC_TERMS = [
+  /\bwetter\b/i,
+  /\bweather\b/i,
+  /\bforecast\b/i,
+  /\bvorhersage\b/i,
+  /\bsport\b/i,
+  /\bfootball\b/i,
+  /\bsoccer\b/i,
+  /\bmovie(?:s)?\b/i,
+  /\bfilm(?:e)?\b/i,
+  /\bjoke(?:s)?\b/i,
+  /\brecipe(?:s)?\b/i,
+  /\baktien\b/i,
+  /\bstock(?:s)?\b/i,
+  /\bcrypto\b/i,
+  /погод/i,
+  /спорт/i,
+  /футбол/i,
+  /фильм/i,
+  /анекдот|шутк/i,
+  /рецепт/i,
+  /акци|крипт/i,
+];
+
+function detectMessageLanguage(message) {
+  const text = String(message ?? "");
+  if (/[а-яё]/i.test(text)) return "ru";
+  if (/\b(?:what|how|where|when|why|can|course|teacher|student|learning)\b/i.test(text)) {
+    return "en";
+  }
+  return "de";
+}
+
+function hasAnyPattern(text, patterns) {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function isMoodleStudyQuestion(message) {
+  const text = String(message ?? "").trim();
+  if (!text) return false;
+
+  const hasStudyTerm = hasAnyPattern(text, MOODLE_STUDY_TERMS);
+  const hasClearlyOffTopicTerm = hasAnyPattern(text, CLEARLY_OFF_TOPIC_TERMS);
+
+  if (hasClearlyOffTopicTerm && !hasStudyTerm) return false;
+  return hasStudyTerm;
+}
+
+function createOutOfScopeReply(message) {
+  return OUT_OF_SCOPE_REPLY[detectMessageLanguage(message)];
+}
+
 // Course content comes from Moodle and may be authored by teachers or, via
 // editable activities, by students. It is untrusted: treat it strictly as data,
 // never as instructions (AI-01). Strip control characters and neutralize text
@@ -138,7 +253,8 @@ ${contextBlock}
 
 ### WICHTIG - Antwortformat:
 ✅ Antworte in der SPRACHE der FRAGE, wenn die letzte Nachricht in einer bestimmtem Sprache ist (DE, EN, RU);
-✅ Sei freundlich und natürlich: begrüße Benutzer, reagiere kurz auf Small Talk und lade sie ein, Fragen zu ihren Moodle-Kursen zu stellen
+✅ Beantworte nur Fragen zu Moodle, Lernen und Kursen
+✅ Wenn die Frage nicht zu Moodle, Lernen oder Kursen gehört, sage kurz, dass du nur Fragen zu Moodle, Lernen und Kursen beantwortest
 ✅ Bei Fragen zu Moodle-Kursen, Materialien, Terminen oder Links nutze NUR die bereitgestellten Moodle-Kursinformationen
 ✅ Wenn der Benutzer nach Kurslinks oder seinen Kursen fragt, nutze die KURS-LINK Werte aus "VERFÜGBARE KURSE DES BENUTZERS"
 ✅ Wenn der Benutzer nach Checkpoint 1, Checkpoint 2, Abgabe, Ziel oder "was muss ich machen/abgeben" fragt, erklaere es aus Abschnitts-, Aktivitaets- und Dateiinformationen im Kurskontext
@@ -233,6 +349,14 @@ export async function streamChat({
   onChunk,
   signal,
 }) {
+  if (!isMoodleStudyQuestion(message)) {
+    const reply = createOutOfScopeReply(message);
+    await chatRepository.appendMessage(sessionId, userId ?? 0, "user", message);
+    await onChunk(reply);
+    await chatRepository.appendMessage(sessionId, userId ?? 0, "assistant", reply);
+    return;
+  }
+
   const validUserId = Number.isInteger(userId) && userId > 0;
   const userProfile = validUserId
     ? await resolveUserProfile(userId, userRepository, moodleBaseUrl)
