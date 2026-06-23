@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-react'
+import { Analytics } from '@vercel/analytics/react'
 
 import './App.css'
 import './cursor.css'
@@ -42,6 +43,7 @@ export default function App() {
         <CTA />
       </main>
       <Footer />
+      <Analytics />
     </>
   )
 }
